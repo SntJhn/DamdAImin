@@ -1,0 +1,9 @@
+packages:
+  - apps/*
+  - packages/*
+  - services/*
+
+allowBuilds:
+  esbuild: true
+  msgpackr-extract: false
+  sharp: true

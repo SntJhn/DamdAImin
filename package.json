@@ -1,0 +1,31 @@
+{
+  "name": "damdai-min",
+  "private": true,
+  "packageManager": "pnpm@11.18.0",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "build": "pnpm --recursive --if-present build",
+    "dev": "pnpm --parallel --filter @damdai/web --filter @damdai/api --filter @damdai/worker --filter @damdai/research-fake run dev",
+    "format": "prettier --check .",
+    "format:write": "prettier --write .",
+    "lint": "eslint .",
+    "typecheck": "pnpm --recursive --if-present typecheck",
+    "test": "pnpm build && vitest run",
+    "test:watch": "vitest",
+    "db:generate": "pnpm --filter @damdai/database db:generate",
+    "db:migrate": "pnpm --filter @damdai/database db:migrate",
+    "compose:config": "docker compose config"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "@types/node": "^24.0.0",
+    "eslint": "^9.0.0",
+    "prettier": "^3.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0",
+    "typescript-eslint": "^8.0.0",
+    "vitest": "^3.0.0"
+  }
+}

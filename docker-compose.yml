@@ -1,0 +1,124 @@
+name: damdai-min
+
+services:
+  redis:
+    image: redis:7.4-alpine
+    command: ['redis-server', '--appendonly', 'yes', '--maxmemory-policy', 'noeviction']
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  fake-gcs:
+    image: fsouza/fake-gcs-server:1.52.3
+    command: ['-scheme', 'http', '-port', '4443', '-backend', 'memory']
+    ports:
+      - '4443:4443'
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q --spider http://localhost:4443/storage/v1/b || exit 1']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.123.0
+    command: ['--config=/etc/otelcol-contrib/config.yaml']
+    volumes:
+      - ./docker/otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml:ro
+    ports:
+      - '4317:4317'
+      - '4318:4318'
+      - '13133:13133'
+    healthcheck:
+      test: ['CMD', '/otelcol-contrib', '--version']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  research-fake:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ['node', 'services/research-fake/dist/main.js']
+    environment:
+      RESEARCH_FAKE_HOST: 0.0.0.0
+      RESEARCH_FAKE_PORT: 4100
+    ports:
+      - '4100:4100'
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ['node', 'apps/api/dist/main.js']
+    environment:
+      API_HOST: 0.0.0.0
+      API_PORT: 4000
+      CORS_ALLOWED_ORIGIN: http://localhost:3000
+      REDIS_URL: redis://redis:6379
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+    depends_on:
+      redis:
+        condition: service_healthy
+      otel-collector:
+        condition: service_healthy
+    ports:
+      - '4000:4000'
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://localhost:4000/healthz').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ['node', 'apps/worker/dist/main.js']
+    environment:
+      REDIS_URL: redis://redis:6379
+      RESEARCH_FAKE_URL: http://research-fake:4100
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+    depends_on:
+      redis:
+        condition: service_healthy
+      research-fake:
+        condition: service_started
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ['pnpm', '--filter', '@damdai/web', 'run', 'start']
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:4000/api/v1
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - '3000:3000'
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://localhost:3000/').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  redis-data:

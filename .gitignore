@@ -1,0 +1,17 @@
+/docs/
+/CONTEXT.md
+/AGENTS.md
+
+# Local secrets
+.env
+.env.*
+!.env.example
+
+# Generated dependencies and build output
+node_modules/
+.pnpm-store/
+dist/
+.next/
+coverage/
+*.tsbuildinfo
+.ignore
