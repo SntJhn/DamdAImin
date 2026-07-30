@@ -1,6 +1,7 @@
-import 'dotenv/config';
-
 import { buildApi } from './app.js';
+import { loadEnvironment } from './load-env.js';
+
+loadEnvironment();
 
 const port = Number(process.env.API_PORT ?? 4000);
 const host = process.env.API_HOST ?? '0.0.0.0';

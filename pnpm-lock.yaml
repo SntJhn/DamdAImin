@@ -142,6 +142,9 @@ importers:
       '@damdai/domain':
         specifier: workspace:*
         version: link:../domain
+      dotenv:
+        specifier: ^16.0.0
+        version: 16.6.1
       drizzle-orm:
         specifier: ^0.44.0
         version: 0.44.7(@types/pg@8.20.0)(pg@8.22.0)

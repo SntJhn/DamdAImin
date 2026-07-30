@@ -1,6 +1,7 @@
-import 'dotenv/config';
-
 import { createAnalysisWorker } from './worker.js';
+import { loadEnvironment } from './load-env.js';
+
+loadEnvironment();
 
 const worker = createAnalysisWorker(process.env.REDIS_URL ?? 'redis://localhost:6379');
 

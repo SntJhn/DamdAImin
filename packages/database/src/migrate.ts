@@ -1,9 +1,10 @@
-import 'dotenv/config';
-
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { resolve } from 'node:path';
 
 import { createDatabase } from './client.js';
+import { loadEnvironment } from './load-env.js';
+
+loadEnvironment();
 
 const { db, pool } = createDatabase();
 
