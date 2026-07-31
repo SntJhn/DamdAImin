@@ -12,5 +12,7 @@ export async function listAnalysisHistory(
     throw new Error('accountId is required');
   }
 
-  return reader.listForAccount(accountId);
+  const analyses = await reader.listForAccount(accountId);
+
+  return analyses.filter((analysis) => analysis.status !== 'canceled');
 }

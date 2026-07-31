@@ -60,6 +60,11 @@ services:
       API_HOST: 0.0.0.0
       API_PORT: 4000
       CORS_ALLOWED_ORIGIN: http://localhost:3000
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      NEON_AUTH_BASE_URL: ${NEON_AUTH_BASE_URL:?NEON_AUTH_BASE_URL is required}
+      NEON_AUTH_JWKS_URL: ${NEON_AUTH_JWKS_URL:?NEON_AUTH_JWKS_URL is required}
+      NEON_AUTH_ISSUER: ${NEON_AUTH_ISSUER:?NEON_AUTH_ISSUER is required}
+      NEON_AUTH_AUDIENCE: ${NEON_AUTH_AUDIENCE:?NEON_AUTH_AUDIENCE is required}
       REDIS_URL: redis://redis:6379
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
     depends_on:
@@ -103,6 +108,8 @@ services:
     command: ['pnpm', '--filter', '@damdai/web', 'run', 'start']
     environment:
       NEXT_PUBLIC_API_BASE_URL: http://localhost:4000/api/v1
+      NEON_AUTH_BASE_URL: ${NEON_AUTH_BASE_URL:?NEON_AUTH_BASE_URL is required}
+      NEON_AUTH_COOKIE_SECRET: ${NEON_AUTH_COOKIE_SECRET:?NEON_AUTH_COOKIE_SECRET is required}
     depends_on:
       api:
         condition: service_healthy

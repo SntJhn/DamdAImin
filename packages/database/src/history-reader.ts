@@ -1,4 +1,4 @@
-import { desc, eq } from 'drizzle-orm';
+import { and, desc, eq, ne } from 'drizzle-orm';
 import type { AnalysisHistoryReader } from '@damdai/application';
 
 import type { Database } from './client.js';
@@ -14,7 +14,7 @@ export function createAnalysisHistoryReader(db: Database): AnalysisHistoryReader
           createdAt: analyses.createdAt,
         })
         .from(analyses)
-        .where(eq(analyses.accountId, accountId))
+        .where(and(eq(analyses.accountId, accountId), ne(analyses.status, 'canceled')))
         .orderBy(desc(analyses.createdAt));
     },
   };
