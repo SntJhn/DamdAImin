@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
-import { authClient } from '../lib/auth-client';
+import { authClient, getAuthToken } from '../lib/auth-client';
 
 interface HistoryItem {
   id: string;
@@ -40,8 +40,7 @@ export function HistoryClient() {
           return;
         }
 
-        const tokenResponse = await authClient.token();
-        const token = tokenResponse.data?.token;
+        const token = await getAuthToken();
         if (!token) {
           router.replace('/auth/sign-in?next=/history');
           return;
