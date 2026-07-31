@@ -14,13 +14,15 @@ if (!authBaseUrl) {
   throw new Error('NEON_AUTH_BASE_URL is required');
 }
 
+const authOrigin = new URL(authBaseUrl).origin;
+
 const database = createDatabase();
 
 const application = buildApi({
   allowedOrigin: process.env.CORS_ALLOWED_ORIGIN ?? 'http://localhost:3000',
   authVerifier: createNeonAuthTokenVerifier({
-    audience: process.env.NEON_AUTH_AUDIENCE ?? authBaseUrl,
-    issuer: process.env.NEON_AUTH_ISSUER ?? authBaseUrl,
+    audience: process.env.NEON_AUTH_AUDIENCE ?? authOrigin,
+    issuer: process.env.NEON_AUTH_ISSUER ?? authOrigin,
     jwksUrl: process.env.NEON_AUTH_JWKS_URL ?? `${authBaseUrl}/.well-known/jwks.json`,
   }),
   historyReader: createAnalysisHistoryReader(database.db),
