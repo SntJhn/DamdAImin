@@ -4,6 +4,7 @@ packages:
   - services/*
 
 allowBuilds:
+  core-js: false
   esbuild: true
   msgpackr-extract: false
   sharp: true
