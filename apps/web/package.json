@@ -9,8 +9,9 @@
     "start": "next start --port 3000"
   },
   "dependencies": {
+    "@damdai/config": "workspace:*",
+    "@damdai/contracts": "workspace:*",
     "@neondatabase/auth": "0.4.2-beta",
-    "dotenv": "^16.0.0",
     "next": "^16.0.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"

@@ -1,8 +1,8 @@
 import { createAnalysisHistoryReader, createDatabase } from '@damdai/database';
+import { loadEnvironment } from '@damdai/config';
 
 import { buildApi } from './app.js';
 import { createNeonAuthTokenVerifier } from './auth.js';
-import { loadEnvironment } from './load-env.js';
 
 loadEnvironment();
 

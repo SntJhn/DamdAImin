@@ -17,8 +17,8 @@
   },
   "dependencies": {
     "@damdai/application": "workspace:*",
+    "@damdai/config": "workspace:*",
     "@damdai/domain": "workspace:*",
-    "dotenv": "^16.0.0",
     "drizzle-orm": "^0.44.0",
     "pg": "^8.0.0"
   },

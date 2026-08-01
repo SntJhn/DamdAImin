@@ -1,8 +1,8 @@
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { resolve } from 'node:path';
+import { loadEnvironment } from '@damdai/config';
 
 import { createDatabase } from './client.js';
-import { loadEnvironment } from './load-env.js';
 
 loadEnvironment();
 

@@ -13,9 +13,12 @@
     "lint": "eslint .",
     "typecheck": "pnpm --recursive --if-present typecheck",
     "test": "pnpm build && vitest run",
+    "test:integration": "pnpm build && RUN_DATABASE_INTEGRATION_TESTS=true vitest run packages/database/src/history-reader.integration.test.ts",
     "test:watch": "vitest",
-    "db:generate": "pnpm --filter @damdai/database db:generate",
-    "db:migrate": "pnpm --filter @damdai/database db:migrate",
+    "db:generate": "pnpm --filter @damdai/config build && pnpm --filter @damdai/database db:generate",
+    "db:migrate": "pnpm --filter @damdai/config build && pnpm --filter @damdai/database db:migrate",
+    "openapi:generate": "pnpm --filter @damdai/api openapi:generate",
+    "openapi:check": "pnpm --filter @damdai/api openapi:generate && git diff --exit-code -- packages/contracts/generated/openapi.json",
     "compose:config": "docker compose config"
   },
   "devDependencies": {

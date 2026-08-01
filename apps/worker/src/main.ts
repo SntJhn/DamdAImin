@@ -1,5 +1,6 @@
+import { loadEnvironment } from '@damdai/config';
+
 import { createAnalysisWorker } from './worker.js';
-import { loadEnvironment } from './load-env.js';
 
 loadEnvironment();
 

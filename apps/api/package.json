@@ -13,18 +13,20 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "dev": "tsx watch src/main.ts",
+    "openapi:generate": "pnpm --filter @damdai/application build && pnpm --filter @damdai/contracts build && tsx src/generate-openapi.ts",
     "start": "node dist/main.js"
   },
   "dependencies": {
     "@damdai/application": "workspace:*",
+    "@damdai/config": "workspace:*",
     "@damdai/contracts": "workspace:*",
     "@damdai/database": "workspace:*",
     "@damdai/infrastructure": "workspace:*",
     "@fastify/cors": "^10.0.0",
     "@fastify/helmet": "^13.0.0",
     "@fastify/rate-limit": "^10.0.0",
+    "@fastify/swagger": "^9.8.1",
     "@sinclair/typebox": "^0.34.0",
-    "dotenv": "^16.0.0",
     "fastify": "^5.0.0",
     "ioredis": "^5.0.0",
     "jose": "^6.2.5"

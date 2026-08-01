@@ -22,7 +22,7 @@ The product requirements, local-first implementation route, and architecture are
 | Delivery state and dependencies          | [GitHub Issues](https://github.com/SntJhn/DamdAImin/issues)        |
 | Agent conventions                        | [AGENTS.md](AGENTS.md) and [docs/agents](docs/agents)              |
 
-TypeBox schemas and their generated OpenAPI and JSON Schema artifacts will own transport contracts once implementation starts. Drizzle schemas and committed migrations will own the application database structure. The README links those sources after they exist instead of copying their contents.
+TypeBox schemas and their generated OpenAPI and JSON Schema artifacts own transport contracts. The current generated API document is [packages/contracts/generated/openapi.json](packages/contracts/generated/openapi.json). Drizzle schemas and committed migrations own the application database structure. The README links those sources instead of copying their contents.
 
 ## Local development
 

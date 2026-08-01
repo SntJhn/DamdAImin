@@ -1,6 +1,5 @@
 import { createNeonAuth } from '@neondatabase/auth/next/server';
-
-import { loadEnvironment } from './load-env';
+import { loadEnvironment } from '@damdai/config';
 
 loadEnvironment();
 
