@@ -39,6 +39,10 @@ The supplied Neon credential is intentionally not stored in this repository. Kee
 
 The normal local runtime will use Docker for application dependencies and a Neon development branch for PostgreSQL and Neon Auth. Tests must use generated synthetic WAV fixtures rather than research recordings or user submissions.
 
+`pnpm test:integration` starts a disposable PostgreSQL 18 container for the database/API ownership test. It does not read the configured `DATABASE_URL`; Docker must be available locally.
+
+Run `pnpm quality` for the complete local gate, including formatting, linting, type checking, OpenAPI drift, unit tests, and the disposable database/API integration test.
+
 ## Research integration boundary
 
 Development will use a deterministic fake Research System that implements the same versioned contract as the completed neuro-symbolic service. The neural-only Baseline Model cannot serve as the DamdAImin analysis implementation.

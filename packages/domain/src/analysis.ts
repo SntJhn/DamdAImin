@@ -14,6 +14,7 @@ export type AnalysisLanguage = (typeof analysisLanguages)[number];
 
 export interface AnalysisSummary {
   id: string;
+  accountId: string;
   status: AnalysisStatus;
   createdAt: Date;
 }
