@@ -104,16 +104,40 @@ describe('Analysis telemetry', () => {
     });
 
     try {
-      observability.telemetry.record({
-        name: 'analysis.stage',
-        analysisId: '8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01',
-        stage: 'completed',
-        language: 'taglish',
-        contractVersion: 'taglish-v1',
-        audioBase64: 'SENTINEL_AUDIO',
-        transcript: 'SENTINEL_TRANSCRIPT',
-        explanation: 'SENTINEL_EXPLANATION',
-      } as AnalysisTelemetryEvent);
+      const lifecycleEvents: AnalysisTelemetryEvent[] = [
+        {
+          name: 'analysis.queued',
+          analysisId: '8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01',
+          stage: 'queued',
+          language: 'taglish',
+          contractVersion: 'taglish-v1',
+          requestId: 'request-1',
+        },
+        {
+          name: 'analysis.worker.received',
+          analysisId: '8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01',
+          stage: 'processing',
+          language: 'taglish',
+          contractVersion: 'taglish-v1',
+          jobId: 'job-1',
+        },
+        ...(['processing', 'completed', 'failed', 'canceled'] as const).map((stage) => ({
+          name: 'analysis.stage' as const,
+          analysisId: '8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01',
+          stage,
+          language: 'taglish' as const,
+          contractVersion: 'taglish-v1',
+        })),
+      ];
+
+      for (const event of lifecycleEvents) {
+        observability.telemetry.record({
+          ...event,
+          audioBase64: 'SENTINEL_AUDIO',
+          transcript: 'SENTINEL_TRANSCRIPT',
+          explanation: 'SENTINEL_EXPLANATION',
+        } as AnalysisTelemetryEvent);
+      }
       await observability.shutdown();
     } finally {
       await closeServer(server);

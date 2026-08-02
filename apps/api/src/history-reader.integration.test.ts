@@ -1,11 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import { dirname, resolve } from 'node:path';
+import { Writable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
   createAnalysisServices,
   type AnalysisJob,
+  type AnalysisTelemetryEvent,
   type AnalysisServices,
 } from '@damdai/application';
 import {
@@ -19,6 +21,7 @@ import {
   createAnalysisQueue,
   createAnalysisWorker,
   createGcsSourceAudioStorage,
+  createPrivacySafeLogger,
   createResearchSystemClient,
 } from '@damdai/infrastructure';
 import { buildResearchFake } from '@damdai/research-fake';
@@ -72,6 +75,23 @@ let researchFakeUrl = '';
 let integrationUploadId = '';
 let integrationObjectKey = '';
 const integrationJobs: AnalysisJob[] = [];
+const integrationTelemetryEvents: AnalysisTelemetryEvent[] = [];
+const integrationLogChunks: string[] = [];
+const integrationLogDestination = new Writable({
+  write(chunk, _encoding, callback) {
+    integrationLogChunks.push(String(chunk));
+    callback();
+  },
+});
+const integrationLogger = createPrivacySafeLogger(
+  { name: 'history-integration' },
+  integrationLogDestination,
+);
+const integrationTelemetry = {
+  record(event: AnalysisTelemetryEvent) {
+    integrationTelemetryEvents.push(event);
+  },
+};
 
 function createPcmWav(durationSeconds: number): Uint8Array {
   const sampleRateHz = 16_000;
@@ -347,6 +367,7 @@ beforeAll(async () => {
       },
     },
     researchClient: createResearchSystemClient({ baseUrl: researchFakeUrl }),
+    telemetry: integrationTelemetry,
   });
   const upload = await analysisServices.createUpload({
     accountId: accountA,
@@ -375,10 +396,14 @@ beforeAll(async () => {
     historyReader: createAnalysisHistoryReader(database.db),
     analysisServices,
     redisUrl: testRedisUrl,
+    loggerInstance: integrationLogger,
+    telemetry: integrationTelemetry,
   });
   integrationWorker = createAnalysisWorker({
     redisUrl: testRedisUrl,
     processAnalysis: analysisServices.processAnalysis,
+    logger: integrationLogger,
+    telemetry: integrationTelemetry,
   });
   await integrationWorker.waitUntilReady();
 });
@@ -488,6 +513,47 @@ describe('real database history ownership boundary', () => {
       result: { emotionClassification: 'happiness' },
     });
     await expect(integrationStorage!.stat(integrationObjectKey)).resolves.toBeNull();
+
+    expect(integrationTelemetryEvents).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'analysis.queued',
+          analysisId: submittedAnalysisId,
+          stage: 'queued',
+        }),
+        expect.objectContaining({
+          name: 'analysis.worker.received',
+          analysisId: submittedAnalysisId,
+          stage: 'processing',
+          jobId: expect.any(String),
+        }),
+        expect.objectContaining({
+          name: 'analysis.stage',
+          analysisId: submittedAnalysisId,
+          stage: 'processing',
+        }),
+        expect.objectContaining({
+          name: 'analysis.stage',
+          analysisId: submittedAnalysisId,
+          stage: 'completed',
+        }),
+      ]),
+    );
+    const logs = integrationLogChunks.join('');
+    expect(logs).toContain(submittedAnalysisId);
+    expect(logs).toContain('analysis queued');
+    expect(logs).toContain('Received analysis job');
+    for (const sentinel of [
+      'SENTINEL_AUDIO',
+      'SENTINEL_TRANSCRIPT',
+      'SENTINEL_EXPLANATION',
+      'SENTINEL_TRACE',
+      'SENTINEL_SIGNED_URL',
+      'SENTINEL_TOKEN',
+      'SENTINEL_EMAIL',
+    ]) {
+      expect(logs).not.toContain(sentinel);
+    }
 
     const otherAccount = await analysisApplication!.inject({
       method: 'GET',

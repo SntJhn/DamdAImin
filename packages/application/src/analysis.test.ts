@@ -249,6 +249,64 @@ describe('Analysis application service', () => {
     expect(repository.analyses.size).toBe(0);
   });
 
+  it('records a failed stage and deletes Source Audio when Research fails', async () => {
+    const repository = new MemoryRepository();
+    const storage = new MemoryStorage();
+    const telemetry: AnalysisTelemetry = { record: vi.fn() };
+    const services = createAnalysisServices({
+      repository,
+      storage,
+      queue: { enqueue: async () => undefined },
+      createId: (() => {
+        const ids = ['upload-id', 'analysis-id'];
+        return () => ids.shift()!;
+      })(),
+      researchClient: {
+        analyze: vi.fn(async () => {
+          throw new Error('SENTINEL_RESEARCH_FAILURE');
+        }),
+      },
+      telemetry,
+    });
+    const created = await services.createUpload({
+      accountId: 'account-a',
+      language: 'taglish',
+      contractVersion: 'taglish-v1',
+    });
+    storage.objects.set(created.upload.objectKey, {
+      bytes: createPcmWav(2),
+      contentType: 'audio/wav',
+    });
+
+    const queued = await services.finalizeUpload('account-a', created.upload.id);
+    await services.processAnalysis({
+      analysisId: queued.id,
+      language: queued.language,
+      contractVersion: queued.contractVersion,
+    });
+
+    expect(repository.analyses.get(queued.id)).toMatchObject({
+      status: 'failed',
+      stage: 'failed',
+      result: null,
+    });
+    expect(storage.objects.has(created.upload.objectKey)).toBe(false);
+    expect(telemetry.record).toHaveBeenCalledWith({
+      name: 'analysis.stage',
+      analysisId: queued.id,
+      stage: 'processing',
+      language: 'taglish',
+      contractVersion: 'taglish-v1',
+    });
+    expect(telemetry.record).toHaveBeenCalledWith({
+      name: 'analysis.stage',
+      analysisId: queued.id,
+      stage: 'failed',
+      language: 'taglish',
+      contractVersion: 'taglish-v1',
+    });
+  });
+
   it('re-enqueues an already-finalized queued Analysis after a queue failure', async () => {
     const repository = new MemoryRepository();
     const storage = new MemoryStorage();

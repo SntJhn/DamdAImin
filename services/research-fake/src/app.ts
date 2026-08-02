@@ -6,9 +6,18 @@ import {
   ResearchAnalysisResponseSchema,
   ResearchErrorResponseSchema,
   type ResearchAnalysisRequest,
+  type ResearchAnalysisResponse,
 } from '@damdai/contracts';
 
-export function buildResearchFake(): FastifyInstance {
+export interface ResearchFakeOptions {
+  responseFor?: (
+    request: ResearchAnalysisRequest,
+    defaultResponse: ResearchAnalysisResponse,
+  ) => unknown;
+  validateResponses?: boolean;
+}
+
+export function buildResearchFake(options: ResearchFakeOptions = {}): FastifyInstance {
   const application = Fastify({ logger: false });
 
   application.get(
@@ -34,16 +43,19 @@ export function buildResearchFake(): FastifyInstance {
         tags: ['Research System'],
         summary: 'Run the deterministic local Research System contract',
         body: ResearchAnalysisRequestSchema,
-        response: {
-          200: ResearchAnalysisResponseSchema,
-          400: ResearchErrorResponseSchema,
-        },
+        ...(options.validateResponses === false
+          ? {}
+          : {
+              response: {
+                200: ResearchAnalysisResponseSchema,
+                400: ResearchErrorResponseSchema,
+              },
+            }),
       },
     },
     async (request) => {
       const body = request.body as ResearchAnalysisRequest;
-
-      return {
+      const defaultResponse: ResearchAnalysisResponse = {
         analysisId: body.analysisId,
         result: {
           outcome: 'definitive' as const,
@@ -63,6 +75,8 @@ export function buildResearchFake(): FastifyInstance {
           ruleSetVersion: 'fake-rules-1',
         },
       };
+
+      return options.responseFor?.(body, defaultResponse) ?? defaultResponse;
     },
   );
 

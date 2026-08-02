@@ -1,6 +1,9 @@
+import { Writable } from 'node:stream';
+
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import type { Analysis, AnalysisServices } from '@damdai/application';
+import type { Analysis, AnalysisServices, AnalysisTelemetryEvent } from '@damdai/application';
+import { createPrivacySafeLogger } from '@damdai/infrastructure';
 
 import { buildApi } from './app.js';
 
@@ -79,9 +82,11 @@ describe('Analysis REST boundary', () => {
 
   it('returns 202 and a durable resource location after finalization', async () => {
     const analysisServices = createServices();
+    const telemetryEvents: AnalysisTelemetryEvent[] = [];
     const application = buildApi({
       authVerifier: { verify: async () => ({ accountId: 'account-a' }) },
       analysisServices,
+      telemetry: { record: (event) => telemetryEvents.push(event) },
     });
     applications.push(application);
 
@@ -98,6 +103,16 @@ describe('Analysis REST boundary', () => {
       analysis: { id: analysis.id, status: 'queued', stage: 'queued', language: 'taglish' },
       location: '/api/v1/analyses/8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01',
     });
+    expect(telemetryEvents).toEqual([
+      {
+        name: 'analysis.queued',
+        requestId: expect.any(String),
+        analysisId: analysis.id,
+        stage: 'queued',
+        language: 'taglish',
+        contractVersion: 'taglish-v1',
+      },
+    ]);
   });
 
   it('reads a single Analysis through the authenticated ownership boundary', async () => {
@@ -138,5 +153,37 @@ describe('Analysis REST boundary', () => {
       error: 'validation_error',
       message: 'The request did not match the required contract.',
     });
+  });
+
+  it('redacts sensitive runtime failure details from API logs', async () => {
+    const chunks: string[] = [];
+    const destination = new Writable({
+      write(chunk, _encoding, callback) {
+        chunks.push(String(chunk));
+        callback();
+      },
+    });
+    const analysisServices = createServices();
+    analysisServices.finalizeUpload = vi.fn(async () => {
+      throw new Error('SENTINEL_TRANSCRIPT');
+    });
+    const application = buildApi({
+      authVerifier: { verify: async () => ({ accountId: 'account-a' }) },
+      analysisServices,
+      loggerInstance: createPrivacySafeLogger({ name: 'api-runtime-test' }, destination),
+    });
+    applications.push(application);
+
+    const response = await application.inject({
+      method: 'POST',
+      url: '/api/v1/analyses',
+      headers: { authorization: 'Bearer verified-token' },
+      payload: { uploadId: 'a0ad9a3f-26b2-4014-8f51-ec7d67bb4f1a' },
+    });
+
+    expect(response.statusCode).toBe(503);
+    const output = chunks.join('');
+    expect(output).toContain('analysis submission unavailable');
+    expect(output).not.toContain('SENTINEL_TRANSCRIPT');
   });
 });

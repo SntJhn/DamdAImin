@@ -262,6 +262,9 @@ importers:
         specifier: ^9.0.0
         version: 9.14.0
     devDependencies:
+      '@damdai/research-fake':
+        specifier: workspace:*
+        version: link:../../services/research-fake
       typescript:
         specifier: ^5.0.0
         version: 5.9.3
