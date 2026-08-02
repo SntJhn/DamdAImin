@@ -6,6 +6,7 @@ import {
   ResearchAnalysisRequestSchema,
   ResearchAnalysisResponseSchema,
   ResearchErrorResponseSchema,
+  type ResearchErrorResponse,
 } from '@damdai/contracts';
 
 if (!FormatRegistry.Has('uuid')) {
@@ -44,7 +45,7 @@ export function createResearchSystemClient(options: ResearchClientOptions): Rese
       if (!response.ok) {
         const errorBody: unknown = await response.json().catch(() => undefined);
         const errorMessage = Value.Check(ResearchErrorResponseSchema, errorBody)
-          ? `Research System request failed (${response.status}): ${(errorBody as { error: string }).error}`
+          ? `Research System request failed (${response.status}): ${(errorBody as ResearchErrorResponse).error}`
           : `Research System request failed (${response.status}): invalid error response`;
         throw new Error(errorMessage);
       }
