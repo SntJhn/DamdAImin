@@ -1,6 +1,7 @@
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
+import swagger from '@fastify/swagger';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { Redis } from 'ioredis';
 
@@ -33,6 +34,26 @@ export function buildApi(options: ApiOptions = {}): FastifyInstance {
   const application = Fastify({ logger: options.logger ?? false });
   const redis = options.redisUrl ? new Redis(options.redisUrl, { lazyConnect: true }) : undefined;
 
+  application.register(swagger, {
+    openapi: {
+      openapi: '3.0.3',
+      info: {
+        title: 'DamdAImin API',
+        description: 'Versioned application API for authenticated DamdAImin journeys.',
+        version: options.version ?? '0.1.0',
+      },
+      servers: [{ url: 'http://localhost:4000' }],
+      components: {
+        securitySchemes: {
+          bearerAuth: {
+            type: 'http',
+            scheme: 'bearer',
+            bearerFormat: 'JWT',
+          },
+        },
+      },
+    },
+  });
   application.register(helmet);
   application.register(cors, {
     origin: options.allowedOrigin
@@ -69,6 +90,9 @@ export function buildApi(options: ApiOptions = {}): FastifyInstance {
         '/analyses',
         {
           schema: {
+            tags: ['Analysis History'],
+            summary: "List the authenticated account's Analysis History",
+            security: [{ bearerAuth: [] }],
             response: {
               200: AnalysisHistoryResponseSchema,
               401: UnauthorizedResponseSchema,
@@ -102,21 +126,25 @@ export function buildApi(options: ApiOptions = {}): FastifyInstance {
     { prefix: '/api/v1' },
   );
 
-  application.get(
-    '/healthz',
-    {
-      schema: {
-        response: {
-          200: HealthResponseSchema,
+  application.register(async (health) => {
+    health.get(
+      '/healthz',
+      {
+        schema: {
+          tags: ['Health'],
+          summary: 'Check API readiness',
+          response: {
+            200: HealthResponseSchema,
+          },
         },
       },
-    },
-    async () => ({
-      status: 'ok' as const,
-      service: 'api',
-      version: options.version ?? '0.1.0',
-    }),
-  );
+      async () => ({
+        status: 'ok' as const,
+        service: 'api',
+        version: options.version ?? '0.1.0',
+      }),
+    );
+  });
 
   application.addHook('onClose', async () => {
     if (redis) {

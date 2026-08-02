@@ -14,6 +14,8 @@ COPY packages ./packages
 COPY services ./services
 
 RUN pnpm install --frozen-lockfile
+COPY .npmrc .nvmrc ./
+COPY scripts ./scripts
 RUN pnpm build
 
 COPY . .

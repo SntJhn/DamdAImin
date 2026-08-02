@@ -22,7 +22,7 @@ The product requirements, local-first implementation route, and architecture are
 | Delivery state and dependencies          | [GitHub Issues](https://github.com/SntJhn/DamdAImin/issues)        |
 | Agent conventions                        | [AGENTS.md](AGENTS.md) and [docs/agents](docs/agents)              |
 
-TypeBox schemas and their generated OpenAPI and JSON Schema artifacts will own transport contracts once implementation starts. Drizzle schemas and committed migrations will own the application database structure. The README links those sources after they exist instead of copying their contents.
+TypeBox schemas and their generated OpenAPI and JSON Schema artifacts own transport contracts. The current generated API document is [packages/contracts/generated/openapi.json](packages/contracts/generated/openapi.json). Drizzle schemas and committed migrations own the application database structure. The README links those sources instead of copying their contents.
 
 ## Local development
 
@@ -38,6 +38,10 @@ To start locally:
 The supplied Neon credential is intentionally not stored in this repository. Keep it in the ignored `.env` file and rotate it if it has been exposed outside the intended development team.
 
 The normal local runtime will use Docker for application dependencies and a Neon development branch for PostgreSQL and Neon Auth. Tests must use generated synthetic WAV fixtures rather than research recordings or user submissions.
+
+`pnpm test:integration` starts a disposable PostgreSQL 18 container for the database/API ownership test. It does not read the configured `DATABASE_URL`; Docker must be available locally.
+
+Run `pnpm quality` for the complete local gate, including formatting, linting, type checking, OpenAPI drift, unit tests, and the disposable database/API integration test.
 
 ## Research integration boundary
 

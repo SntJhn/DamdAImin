@@ -10,9 +10,9 @@
     "start": "node dist/main.js"
   },
   "dependencies": {
+    "@damdai/config": "workspace:*",
     "@damdai/infrastructure": "workspace:*",
     "bullmq": "^5.0.0",
-    "dotenv": "^16.0.0",
     "pino": "^9.0.0"
   },
   "devDependencies": {

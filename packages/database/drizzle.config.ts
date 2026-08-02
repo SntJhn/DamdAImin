@@ -1,6 +1,5 @@
 import { defineConfig } from 'drizzle-kit';
-
-import { loadEnvironment } from './src/load-env.js';
+import { loadEnvironment } from '@damdai/config';
 
 loadEnvironment();
 

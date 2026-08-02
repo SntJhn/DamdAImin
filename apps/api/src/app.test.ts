@@ -26,17 +26,20 @@ describe('API health boundary', () => {
 
   it("returns only the authenticated account's Analysis History", async () => {
     const historyReader = {
-      listForAccount: vi.fn(async (accountId: string) =>
-        accountId === 'account-a'
-          ? [
-              {
-                id: '8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01',
-                status: 'queued' as const,
-                createdAt: new Date('2026-07-31T00:00:00.000Z'),
-              },
-            ]
-          : [],
-      ),
+      listAll: vi.fn(async () => [
+        {
+          id: '8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01',
+          accountId: 'account-a',
+          status: 'queued' as const,
+          createdAt: new Date('2026-07-31T00:00:00.000Z'),
+        },
+        {
+          id: 'a0ad9a3f-26b2-4014-8f51-ec7d67bb4f1a',
+          accountId: 'account-b',
+          status: 'completed' as const,
+          createdAt: new Date('2026-07-31T00:01:00.000Z'),
+        },
+      ]),
     };
     const authVerifier = {
       verify: vi.fn(async (token: string) => {
@@ -70,13 +73,13 @@ describe('API health boundary', () => {
         },
       ],
     });
-    expect(historyReader.listForAccount).toHaveBeenCalledWith('account-a');
+    expect(historyReader.listAll).toHaveBeenCalledOnce();
   });
 
   it('returns an empty history for a verified account with no analyses', async () => {
     const application = buildApi({
       authVerifier: { verify: async () => ({ accountId: 'account-empty' }) },
-      historyReader: { listForAccount: async () => [] },
+      historyReader: { listAll: async () => [] },
     });
     applications.push(application);
 
@@ -94,7 +97,7 @@ describe('API health boundary', () => {
     const application = buildApi({
       authVerifier: { verify: async () => ({ accountId: 'account-a' }) },
       historyReader: {
-        listForAccount: async () => {
+        listAll: async () => {
           throw new Error('database unavailable');
         },
       },
@@ -112,14 +115,14 @@ describe('API health boundary', () => {
   });
 
   it('rejects missing and invalid credentials before reaching application services', async () => {
-    const listForAccount = vi.fn(async () => []);
+    const listAll = vi.fn(async () => []);
     const application = buildApi({
       authVerifier: {
         verify: async () => {
           throw new AuthVerificationError('invalid token');
         },
       },
-      historyReader: { listForAccount },
+      historyReader: { listAll },
     });
     applications.push(application);
 
@@ -132,7 +135,7 @@ describe('API health boundary', () => {
 
     expect(missing.statusCode).toBe(401);
     expect(invalid.statusCode).toBe(401);
-    expect(listForAccount).not.toHaveBeenCalled();
+    expect(listAll).not.toHaveBeenCalled();
   });
 
   it('allows the configured origin and refuses a different origin', async () => {

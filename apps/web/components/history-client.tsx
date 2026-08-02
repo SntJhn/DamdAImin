@@ -3,13 +3,9 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
-import { authClient, getAuthToken } from '../lib/auth-client';
+import type { AnalysisHistoryItem, AnalysisHistoryResponse } from '@damdai/contracts';
 
-interface HistoryItem {
-  id: string;
-  status: 'queued' | 'processing' | 'completed' | 'failed';
-  createdAt: string;
-}
+import { authClient, getAuthToken } from '../lib/auth-client';
 
 const apiBaseUrl = (process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:4000/api/v1').replace(
   /\/$/,
@@ -18,7 +14,7 @@ const apiBaseUrl = (process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:40
 
 export function HistoryClient() {
   const router = useRouter();
-  const [analyses, setAnalyses] = useState<HistoryItem[]>([]);
+  const [analyses, setAnalyses] = useState<AnalysisHistoryItem[]>([]);
   const [accountEmail, setAccountEmail] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -60,7 +56,7 @@ export function HistoryClient() {
           throw new Error('history request failed');
         }
 
-        const body = (await response.json()) as { analyses?: HistoryItem[] };
+        const body = (await response.json()) as Partial<AnalysisHistoryResponse>;
         if (!cancelled) {
           setAnalyses(Array.isArray(body.analyses) ? body.analyses : []);
           setAccountEmail(user.email);
