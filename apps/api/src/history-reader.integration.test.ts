@@ -7,7 +7,6 @@ import {
   createAnalysisServices,
   type AnalysisJob,
   type AnalysisServices,
-  type SourceAudioStorage,
 } from '@damdai/application';
 import {
   analyses,
@@ -16,13 +15,18 @@ import {
   createDatabase,
   migrateDatabase,
 } from '@damdai/database';
+import { createGcsSourceAudioStorage } from '@damdai/infrastructure';
 
 import { buildApi } from './app.js';
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL;
+const testGcsEndpoint = process.env.TEST_GCS_ENDPOINT;
 
 if (!testDatabaseUrl) {
   throw new Error('TEST_DATABASE_URL is required; run pnpm test:integration');
+}
+if (!testGcsEndpoint) {
+  throw new Error('TEST_GCS_ENDPOINT is required; run pnpm test:integration');
 }
 
 interface DatabaseSchemaObject {
@@ -50,36 +54,10 @@ const neonAuthSentinel = 'migration must not change this row';
 let neonAuthBeforeMigration: DatabaseSchemaState;
 let analysisApplication: ReturnType<typeof buildApi> | undefined;
 let analysisServices: AnalysisServices | undefined;
-let integrationStorage: IntegrationStorage | undefined;
+let integrationStorage: ReturnType<typeof createGcsSourceAudioStorage> | undefined;
 let integrationUploadId = '';
+let integrationObjectKey = '';
 const integrationJobs: AnalysisJob[] = [];
-
-class IntegrationStorage implements SourceAudioStorage {
-  readonly objects = new Map<string, { bytes: Uint8Array; contentType: string }>();
-
-  async createUpload({ objectKey }: { objectKey: string; expiresAt: Date }) {
-    return {
-      uploadUrl: `https://storage.test/${encodeURIComponent(objectKey)}`,
-      uploadMethod: 'PUT' as const,
-      uploadHeaders: { 'content-type': 'audio/wav' as const },
-    };
-  }
-
-  async stat(objectKey: string) {
-    const object = this.objects.get(objectKey);
-    return object ? { contentType: object.contentType, size: object.bytes.byteLength } : null;
-  }
-
-  async read(objectKey: string) {
-    const object = this.objects.get(objectKey);
-    if (!object) throw new Error('missing source audio');
-    return object.bytes;
-  }
-
-  async delete(objectKey: string) {
-    this.objects.delete(objectKey);
-  }
-}
 
 function createPcmWav(durationSeconds: number): Uint8Array {
   const sampleRateHz = 16_000;
@@ -334,7 +312,11 @@ beforeAll(async () => {
     },
   ]);
 
-  const storage = new IntegrationStorage();
+  const storage = createGcsSourceAudioStorage({
+    endpoint: testGcsEndpoint,
+    bucket: `damdai-integration-${process.pid}`,
+    projectId: 'damdai-integration',
+  });
   integrationStorage = storage;
   analysisServices = createAnalysisServices({
     repository: createAnalysisRepository(database.db),
@@ -365,10 +347,13 @@ beforeAll(async () => {
     contractVersion: 'taglish-v1',
   });
   integrationUploadId = upload.upload.id;
-  storage.objects.set(upload.upload.objectKey, {
-    bytes: createPcmWav(1),
-    contentType: 'audio/wav',
+  integrationObjectKey = upload.upload.objectKey;
+  const sourceUpload = await fetch(upload.uploadUrl, {
+    method: upload.uploadMethod,
+    headers: upload.uploadHeaders,
+    body: createPcmWav(1).buffer as ArrayBuffer,
   });
+  expect(sourceUpload.ok).toBe(true);
   analysisApplication = buildApi({
     authVerifier: {
       verify: async (token) => {
@@ -464,7 +449,7 @@ describe('real database history ownership boundary', () => {
       status: 'completed',
       result: { emotionClassification: 'happiness' },
     });
-    expect(integrationStorage!.objects.size).toBe(0);
+    await expect(integrationStorage!.stat(integrationObjectKey)).resolves.toBeNull();
 
     const otherAccount = await analysisApplication!.inject({
       method: 'GET',

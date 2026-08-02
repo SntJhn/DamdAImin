@@ -8,6 +8,7 @@ import {
   createAnalysisQueue,
   createGcsSourceAudioStorage,
   createResearchSystemClient,
+  startObservability,
 } from '@damdai/infrastructure';
 import { createAnalysisServices } from '@damdai/application';
 
@@ -29,6 +30,7 @@ const authOrigin = new URL(authBaseUrl).origin;
 const database = createDatabase();
 const redisUrl = process.env.REDIS_URL ?? 'redis://localhost:6379';
 const analysisQueue = createAnalysisQueue(redisUrl);
+const observability = startObservability({ serviceName: 'damdai-api' });
 const analysisServices = createAnalysisServices({
   repository: createAnalysisRepository(database.db),
   storage: createGcsSourceAudioStorage({
@@ -56,11 +58,13 @@ const application = buildApi({
   analysisServices,
   logger: true,
   redisUrl,
+  telemetry: observability.telemetry,
 });
 
 application.addHook('onClose', async () => {
   await analysisQueue.close();
   await database.pool.end();
+  await observability.shutdown();
 });
 
 try {

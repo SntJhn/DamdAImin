@@ -4,17 +4,19 @@ import rateLimit from '@fastify/rate-limit';
 import swagger from '@fastify/swagger';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { Redis } from 'ioredis';
-import { Type } from '@sinclair/typebox';
 
 import {
   AnalysisInputError,
   AnalysisNotFoundError,
   listAnalysisHistory,
+  type Analysis,
   type AnalysisHistoryReader,
   type AnalysisServices,
+  type AnalysisTelemetry,
 } from '@damdai/application';
 import {
   AcceptedAnalysisResponseSchema,
+  AnalysisIdParamsSchema,
   AnalysisResourceSchema,
   AnalysisHistoryResponseSchema,
   CreateAnalysisUploadRequestSchema,
@@ -25,6 +27,10 @@ import {
   ServiceUnavailableResponseSchema,
   UnauthorizedResponseSchema,
   ValidationErrorResponseSchema,
+  type AnalysisIdParams,
+  type AnalysisResource,
+  type CreateAnalysisUploadRequest,
+  type FinalizeAnalysisRequest,
 } from '@damdai/contracts';
 
 import type { AuthVerifier } from './auth.js';
@@ -42,6 +48,7 @@ export interface ApiOptions {
   analysisServices?: AnalysisServices;
   redisUrl?: string;
   logger?: boolean;
+  telemetry?: AnalysisTelemetry;
   version?: string;
 }
 
@@ -149,6 +156,7 @@ export function buildApi(options: ApiOptions = {}): FastifyInstance {
             response: {
               201: CreateAnalysisUploadResponseSchema,
               400: ValidationErrorResponseSchema,
+              401: UnauthorizedResponseSchema,
               503: ServiceUnavailableResponseSchema,
             },
           },
@@ -159,10 +167,7 @@ export function buildApi(options: ApiOptions = {}): FastifyInstance {
           }
 
           try {
-            const body = request.body as {
-              language: 'taglish' | 'english' | 'tagalog';
-              contractVersion: string;
-            };
+            const body = request.body as CreateAnalysisUploadRequest;
             const created = await options.analysisServices.createUpload({
               accountId: request.accountId,
               language: body.language,
@@ -201,6 +206,7 @@ export function buildApi(options: ApiOptions = {}): FastifyInstance {
               202: AcceptedAnalysisResponseSchema,
               400: ValidationErrorResponseSchema,
               404: NotFoundResponseSchema,
+              401: UnauthorizedResponseSchema,
               503: ServiceUnavailableResponseSchema,
             },
           },
@@ -211,7 +217,7 @@ export function buildApi(options: ApiOptions = {}): FastifyInstance {
           }
 
           try {
-            const body = request.body as { uploadId: string };
+            const body = request.body as FinalizeAnalysisRequest;
             const analysis = await options.analysisServices.finalizeUpload(
               request.accountId,
               body.uploadId,
@@ -226,6 +232,14 @@ export function buildApi(options: ApiOptions = {}): FastifyInstance {
               },
               'analysis queued',
             );
+            options.telemetry?.record({
+              name: 'analysis.queued',
+              requestId: request.id,
+              analysisId: analysis.id,
+              stage: analysis.stage,
+              language: analysis.language,
+              contractVersion: analysis.contractVersion,
+            });
             return reply
               .code(202)
               .header('location', location)
@@ -254,10 +268,12 @@ export function buildApi(options: ApiOptions = {}): FastifyInstance {
             tags: ['Analyses'],
             summary: 'Read one authenticated Analysis resource',
             security: [{ bearerAuth: [] }],
-            params: Type.Object({ id: Type.String({ format: 'uuid' }) }),
+            params: AnalysisIdParamsSchema,
             response: {
               200: AnalysisResourceSchema,
+              400: ValidationErrorResponseSchema,
               404: NotFoundResponseSchema,
+              401: UnauthorizedResponseSchema,
               503: ServiceUnavailableResponseSchema,
             },
           },
@@ -268,7 +284,7 @@ export function buildApi(options: ApiOptions = {}): FastifyInstance {
           }
 
           try {
-            const params = request.params as { id: string };
+            const params = request.params as AnalysisIdParams;
             const analysis = await options.analysisServices.getAnalysis(
               request.accountId,
               params.id,
@@ -329,15 +345,7 @@ export function buildApi(options: ApiOptions = {}): FastifyInstance {
   return application;
 }
 
-function serializeAnalysis(analysis: {
-  id: string;
-  status: string;
-  stage: string;
-  language: 'taglish' | 'english' | 'tagalog';
-  createdAt: Date;
-  failureMessage: string | null;
-  result: unknown;
-}) {
+function serializeAnalysis(analysis: Analysis): AnalysisResource {
   return {
     id: analysis.id,
     status: analysis.status,

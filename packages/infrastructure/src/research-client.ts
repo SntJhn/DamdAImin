@@ -2,7 +2,11 @@ import { FormatRegistry } from '@sinclair/typebox/type';
 import { Value } from '@sinclair/typebox/value';
 
 import type { ResearchSystemClient } from '@damdai/application';
-import { ResearchAnalysisRequestSchema, ResearchAnalysisResponseSchema } from '@damdai/contracts';
+import {
+  ResearchAnalysisRequestSchema,
+  ResearchAnalysisResponseSchema,
+  ResearchErrorResponseSchema,
+} from '@damdai/contracts';
 
 if (!FormatRegistry.Has('uuid')) {
   FormatRegistry.Set('uuid', (value) =>
@@ -38,6 +42,10 @@ export function createResearchSystemClient(options: ResearchClientOptions): Rese
         body: JSON.stringify(request),
       });
       if (!response.ok) {
+        const errorBody: unknown = await response.json().catch(() => undefined);
+        if (!Value.Check(ResearchErrorResponseSchema, errorBody)) {
+          throw new Error(`Research System request failed (${response.status})`);
+        }
         throw new Error(`Research System request failed (${response.status})`);
       }
 

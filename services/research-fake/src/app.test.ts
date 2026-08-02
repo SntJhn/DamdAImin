@@ -31,4 +31,24 @@ describe('deterministic Research System contract', () => {
       await application.close();
     }
   });
+
+  it('returns the versioned error contract for invalid requests', async () => {
+    const application = buildResearchFake();
+
+    try {
+      const response = await application.inject({
+        method: 'POST',
+        url: '/v1/analyze',
+        payload: { analysisId: 'not-an-id' },
+      });
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json()).toEqual({
+        error: 'validation_error',
+        message: 'The Research System request did not match its contract.',
+      });
+    } finally {
+      await application.close();
+    }
+  });
 });

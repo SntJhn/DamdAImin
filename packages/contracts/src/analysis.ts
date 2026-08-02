@@ -70,6 +70,10 @@ export const FinalizeAnalysisRequestSchema = Type.Object({
   uploadId: Type.String({ format: 'uuid' }),
 });
 
+export const AnalysisIdParamsSchema = Type.Object({
+  id: Type.String({ format: 'uuid' }),
+});
+
 export const AnalysisResourceSchema = Type.Object({
   id: Type.String({ format: 'uuid' }),
   status: AnalysisStatusSchema,
@@ -112,5 +116,6 @@ export type AnalysisResult = Static<typeof AnalysisResultSchema>;
 export type CreateAnalysisUploadRequest = Static<typeof CreateAnalysisUploadRequestSchema>;
 export type CreateAnalysisUploadResponse = Static<typeof CreateAnalysisUploadResponseSchema>;
 export type FinalizeAnalysisRequest = Static<typeof FinalizeAnalysisRequestSchema>;
+export type AnalysisIdParams = Static<typeof AnalysisIdParamsSchema>;
 export type AnalysisResource = Static<typeof AnalysisResourceSchema>;
 export type AcceptedAnalysisResponse = Static<typeof AcceptedAnalysisResponseSchema>;

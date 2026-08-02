@@ -1,6 +1,7 @@
 export { HealthResponseSchema, type HealthResponse } from './health.js';
 export {
   AcceptedAnalysisResponseSchema,
+  AnalysisIdParamsSchema,
   AnalysisFailureResponseSchema,
   AnalysisLanguageSchema,
   AnalysisOutcomeSchema,
@@ -15,6 +16,7 @@ export {
   NotFoundResponseSchema,
   ValidationErrorResponseSchema,
   type AcceptedAnalysisResponse,
+  type AnalysisIdParams,
   type AnalysisLanguage,
   type AnalysisOutcome,
   type AnalysisResource,
@@ -39,4 +41,5 @@ export {
   ResearchErrorResponseSchema,
   type ResearchAnalysisRequest,
   type ResearchAnalysisResponse,
+  type ResearchErrorResponse,
 } from './research.js';

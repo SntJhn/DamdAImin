@@ -9,6 +9,8 @@ const postgresDatabase = 'damdai_integration';
 const postgresUser = 'damdai_integration';
 const postgresPassword = 'damdai_integration_password';
 const containerName = `damdai-integration-postgres-${process.pid}`;
+const fakeGcsImage = 'fsouza/fake-gcs-server:1.52.3';
+const fakeGcsContainerName = `damdai-integration-fake-gcs-${process.pid}`;
 
 async function runDocker(args) {
   const { stdout } = await execFileAsync('docker', args, {
@@ -39,8 +41,28 @@ async function waitForPostgres(containerId) {
   throw new Error(`PostgreSQL container ${containerId} did not become ready`);
 }
 
-async function readMappedPort(containerId) {
-  const output = await runDocker(['port', containerId, '5432/tcp']);
+async function waitForFakeGcs(containerId) {
+  for (let attempt = 0; attempt < 120; attempt += 1) {
+    try {
+      await runDocker([
+        'exec',
+        containerId,
+        'wget',
+        '-q',
+        '--spider',
+        'http://localhost:4443/storage/v1/b',
+      ]);
+      return;
+    } catch {
+      await sleep(500);
+    }
+  }
+
+  throw new Error(`fake-GCS container ${containerId} did not become ready`);
+}
+
+async function readMappedPort(containerId, containerPort) {
+  const output = await runDocker(['port', containerId, containerPort]);
   const port = output.match(/:(\d+)(?:\s|$)/)?.[1];
 
   if (!port) {
@@ -67,6 +89,7 @@ function runVitest(environment) {
 }
 
 let containerId;
+let fakeGcsContainerId;
 let exitCode = 1;
 
 try {
@@ -88,11 +111,30 @@ try {
   ]);
 
   await waitForPostgres(containerId);
-  const port = await readMappedPort(containerId);
+  const port = await readMappedPort(containerId, '5432/tcp');
+  fakeGcsContainerId = await runDocker([
+    'run',
+    '--detach',
+    '--rm',
+    '--name',
+    fakeGcsContainerName,
+    '--publish',
+    '127.0.0.1::4443',
+    fakeGcsImage,
+    '-scheme',
+    'http',
+    '-port',
+    '4443',
+    '-backend',
+    'memory',
+  ]);
+  await waitForFakeGcs(fakeGcsContainerId);
+  const fakeGcsPort = await readMappedPort(fakeGcsContainerId, '4443/tcp');
   const testEnvironment = {
     ...process.env,
     NODE_ENV: 'test',
     TEST_DATABASE_URL: `postgresql://${postgresUser}:${postgresPassword}@127.0.0.1:${port}/${postgresDatabase}`,
+    TEST_GCS_ENDPOINT: `http://127.0.0.1:${fakeGcsPort}`,
   };
 
   delete testEnvironment.DATABASE_URL;
@@ -109,6 +151,16 @@ try {
     } catch (error) {
       process.stderr.write(
         `Could not remove disposable PostgreSQL container ${containerId}: ${error instanceof Error ? error.message : error}\n`,
+      );
+      exitCode = exitCode === 0 ? 1 : exitCode;
+    }
+  }
+  if (fakeGcsContainerId) {
+    try {
+      await runDocker(['rm', '--force', fakeGcsContainerId]);
+    } catch (error) {
+      process.stderr.write(
+        `Could not remove disposable fake-GCS container ${fakeGcsContainerId}: ${error instanceof Error ? error.message : error}\n`,
       );
       exitCode = exitCode === 0 ? 1 : exitCode;
     }

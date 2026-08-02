@@ -9,6 +9,8 @@ export {
   type AnalysisRepository,
   type AnalysisServiceOptions,
   type AnalysisServices,
+  type AnalysisTelemetry,
+  type AnalysisTelemetryEvent,
   type AnalysisUpload,
   type AnalysisUploadStatus,
   type CreatedAnalysisUpload,

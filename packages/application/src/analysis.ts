@@ -42,6 +42,20 @@ export interface AnalysisJob {
   contractVersion: string;
 }
 
+export interface AnalysisTelemetryEvent {
+  name: 'analysis.queued' | 'analysis.stage' | 'analysis.worker.received';
+  analysisId: string;
+  stage: AnalysisStatus;
+  language: AnalysisLanguage;
+  contractVersion: string;
+  requestId?: string;
+  jobId?: string;
+}
+
+export interface AnalysisTelemetry {
+  record(event: AnalysisTelemetryEvent): void;
+}
+
 export interface AnalysisRepository {
   createUpload(upload: AnalysisUpload): Promise<AnalysisUpload>;
   getUpload(accountId: string, uploadId: string): Promise<AnalysisUpload | null>;
@@ -86,6 +100,7 @@ export interface AnalysisServiceOptions {
   storage: SourceAudioStorage;
   queue: AnalysisQueue;
   researchClient?: ResearchSystemClient;
+  telemetry?: AnalysisTelemetry;
   now?: () => Date;
   createId?: () => string;
   uploadLifetimeMs?: number;
@@ -175,6 +190,13 @@ export function createAnalysisServices(options: AnalysisServiceOptions): Analysi
       if (upload.analysisId) {
         const existing = await options.repository.getAnalysis(accountId, upload.analysisId);
         if (existing) {
+          if (existing.status === 'queued') {
+            await options.queue.enqueue({
+              analysisId: existing.id,
+              language: existing.language,
+              contractVersion: existing.contractVersion,
+            });
+          }
           return existing;
         }
       }
@@ -248,6 +270,14 @@ export function createAnalysisServices(options: AnalysisServiceOptions): Analysi
         return;
       }
 
+      options.telemetry?.record({
+        name: 'analysis.stage',
+        analysisId: analysis.id,
+        stage: 'processing',
+        language: analysis.language,
+        contractVersion: analysis.contractVersion,
+      });
+
       try {
         const audio = await options.storage.read(analysis.sourceAudioKey);
         const result = await options.researchClient.analyze({
@@ -257,12 +287,30 @@ export function createAnalysisServices(options: AnalysisServiceOptions): Analysi
           audio,
         });
 
-        await options.repository.completeAnalysis(analysis.id, result);
+        const completed = await options.repository.completeAnalysis(analysis.id, result);
+        if (completed) {
+          options.telemetry?.record({
+            name: 'analysis.stage',
+            analysisId: analysis.id,
+            stage: 'completed',
+            language: analysis.language,
+            contractVersion: analysis.contractVersion,
+          });
+        }
       } catch {
-        await options.repository.failAnalysis(
+        const failed = await options.repository.failAnalysis(
           analysis.id,
           'The Research System could not complete this Analysis.',
         );
+        if (failed) {
+          options.telemetry?.record({
+            name: 'analysis.stage',
+            analysisId: analysis.id,
+            stage: 'failed',
+            language: analysis.language,
+            contractVersion: analysis.contractVersion,
+          });
+        }
       } finally {
         await deleteBestEffort(options.storage, analysis.sourceAudioKey);
       }

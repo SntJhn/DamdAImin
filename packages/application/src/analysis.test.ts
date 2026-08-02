@@ -4,6 +4,7 @@ import type { AnalysisResult } from '@damdai/domain';
 
 import {
   type Analysis,
+  type AnalysisTelemetry,
   type AnalysisQueue,
   type AnalysisRepository,
   createAnalysisServices,
@@ -161,6 +162,7 @@ describe('Analysis application service', () => {
     const repository = new MemoryRepository();
     const storage = new MemoryStorage();
     const jobs: unknown[] = [];
+    const telemetry: AnalysisTelemetry = { record: vi.fn() };
     const queue: AnalysisQueue = {
       enqueue: async (job) => {
         jobs.push(job);
@@ -174,6 +176,7 @@ describe('Analysis application service', () => {
       queue,
       createId: () => ids.shift()!,
       researchClient: { analyze },
+      telemetry,
       now: () => new Date('2026-08-02T00:00:00.000Z'),
     });
 
@@ -201,6 +204,20 @@ describe('Analysis application service', () => {
     });
     expect(analyze).toHaveBeenCalledOnce();
     expect(storage.objects.has(created.upload.objectKey)).toBe(false);
+    expect(telemetry.record).toHaveBeenCalledWith({
+      name: 'analysis.stage',
+      analysisId: 'analysis-id',
+      stage: 'processing',
+      language: 'taglish',
+      contractVersion: 'taglish-v1',
+    });
+    expect(telemetry.record).toHaveBeenCalledWith({
+      name: 'analysis.stage',
+      analysisId: 'analysis-id',
+      stage: 'completed',
+      language: 'taglish',
+      contractVersion: 'taglish-v1',
+    });
   });
 
   it('rejects invalid WAV data before queueing an Analysis', async () => {
@@ -230,5 +247,50 @@ describe('Analysis application service', () => {
       'WAV data is too short',
     );
     expect(repository.analyses.size).toBe(0);
+  });
+
+  it('re-enqueues an already-finalized queued Analysis after a queue failure', async () => {
+    const repository = new MemoryRepository();
+    const storage = new MemoryStorage();
+    const jobs: unknown[] = [];
+    let failFirstEnqueue = true;
+    const queue: AnalysisQueue = {
+      enqueue: async (job) => {
+        jobs.push(job);
+        if (failFirstEnqueue) {
+          failFirstEnqueue = false;
+          throw new Error('queue unavailable');
+        }
+      },
+    };
+    const ids = ['upload-id', 'analysis-id'];
+    const services = createAnalysisServices({
+      repository,
+      storage,
+      queue,
+      createId: () => ids.shift()!,
+      now: () => new Date('2026-08-02T00:00:00.000Z'),
+    });
+
+    const created = await services.createUpload({
+      accountId: 'account-a',
+      language: 'taglish',
+      contractVersion: 'taglish-v1',
+    });
+    storage.objects.set(created.upload.objectKey, {
+      bytes: createPcmWav(2),
+      contentType: 'audio/wav',
+    });
+
+    await expect(services.finalizeUpload('account-a', created.upload.id)).rejects.toThrow(
+      'queue unavailable',
+    );
+    const retried = await services.finalizeUpload('account-a', created.upload.id);
+
+    expect(retried).toMatchObject({ id: 'analysis-id', status: 'queued' });
+    expect(jobs).toEqual([
+      { analysisId: 'analysis-id', language: 'taglish', contractVersion: 'taglish-v1' },
+      { analysisId: 'analysis-id', language: 'taglish', contractVersion: 'taglish-v1' },
+    ]);
   });
 });

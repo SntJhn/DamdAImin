@@ -2,7 +2,11 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { ResearchAnalysisRequestSchema, ResearchAnalysisResponseSchema } from './research.js';
+import {
+  ResearchAnalysisRequestSchema,
+  ResearchAnalysisResponseSchema,
+  ResearchErrorResponseSchema,
+} from './research.js';
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const outputDirectory = resolve(packageRoot, 'generated');
@@ -17,6 +21,11 @@ await writeArtifact(
   'research-response.json',
   'https://damdai.local/contracts/research-response-v1.json',
   ResearchAnalysisResponseSchema,
+);
+await writeArtifact(
+  'research-error.json',
+  'https://damdai.local/contracts/research-error-v1.json',
+  ResearchErrorResponseSchema,
 );
 
 async function writeArtifact(

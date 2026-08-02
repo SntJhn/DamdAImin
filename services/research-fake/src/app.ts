@@ -5,6 +5,7 @@ import {
   ResearchAnalysisRequestSchema,
   ResearchAnalysisResponseSchema,
   ResearchErrorResponseSchema,
+  type ResearchAnalysisRequest,
 } from '@damdai/contracts';
 
 export function buildResearchFake(): FastifyInstance {
@@ -40,11 +41,7 @@ export function buildResearchFake(): FastifyInstance {
       },
     },
     async (request) => {
-      const body = request.body as {
-        analysisId: string;
-        language: 'taglish' | 'english' | 'tagalog';
-        contractVersion: string;
-      };
+      const body = request.body as ResearchAnalysisRequest;
 
       return {
         analysisId: body.analysisId,
@@ -68,6 +65,17 @@ export function buildResearchFake(): FastifyInstance {
       };
     },
   );
+
+  application.setErrorHandler((error, _request, reply) => {
+    if (typeof error === 'object' && error !== null && 'validation' in error) {
+      return reply.code(400).send({
+        error: 'validation_error',
+        message: 'The Research System request did not match its contract.',
+      });
+    }
+
+    return reply.send(error);
+  });
 
   return application;
 }

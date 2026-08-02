@@ -21,3 +21,4 @@ export const ResearchErrorResponseSchema = Type.Object({
 
 export type ResearchAnalysisRequest = Static<typeof ResearchAnalysisRequestSchema>;
 export type ResearchAnalysisResponse = Static<typeof ResearchAnalysisResponseSchema>;
+export type ResearchErrorResponse = Static<typeof ResearchErrorResponseSchema>;

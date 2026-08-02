@@ -1,7 +1,7 @@
 import { Worker } from 'bullmq';
 import pino from 'pino';
 
-import type { AnalysisJob } from '@damdai/application';
+import type { AnalysisJob, AnalysisTelemetry } from '@damdai/application';
 import { parseRedisConnectionUrl } from '@damdai/infrastructure';
 
 const logger = pino({ name: 'damdai-worker' });
@@ -9,6 +9,7 @@ const logger = pino({ name: 'damdai-worker' });
 export interface AnalysisWorkerOptions {
   redisUrl: string;
   processAnalysis(job: AnalysisJob): Promise<void>;
+  telemetry?: AnalysisTelemetry;
 }
 
 export function createAnalysisWorker(options: AnalysisWorkerOptions): Worker<AnalysisJob> {
@@ -25,6 +26,14 @@ export function createAnalysisWorker(options: AnalysisWorkerOptions): Worker<Ana
         },
         'Received analysis job',
       );
+      options.telemetry?.record({
+        name: 'analysis.worker.received',
+        jobId: job.id,
+        analysisId: job.data.analysisId,
+        stage: 'processing',
+        language: job.data.language,
+        contractVersion: job.data.contractVersion,
+      });
       await options.processAnalysis(job.data);
     },
     {

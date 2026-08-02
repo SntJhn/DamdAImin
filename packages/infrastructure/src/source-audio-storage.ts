@@ -36,8 +36,10 @@ export function createGcsSourceAudioStorage(
 
   return {
     async createUpload({ objectKey, expiresAt }) {
-      if (options.autoCreateBucket ?? true) {
-        bucketReady ??= ensureBucket(endpoint, options.bucket, options.projectId, fetchImpl);
+      if (options.autoCreateBucket ?? isFakeGcsEndpoint(endpoint)) {
+        bucketReady ??= isFakeGcsEndpoint(endpoint)
+          ? ensureFakeBucket(endpoint, options.bucket, options.projectId, fetchImpl)
+          : ensureGoogleBucket(storage, options.bucket);
         await bucketReady;
       }
 
@@ -75,6 +77,19 @@ export function createGcsSourceAudioStorage(
     },
 
     async stat(objectKey) {
+      if (!isFakeGcsEndpoint(endpoint)) {
+        try {
+          const [metadata] = await storage.bucket(options.bucket).file(objectKey).getMetadata();
+          return {
+            contentType: metadata.contentType ?? 'application/octet-stream',
+            size: Number(metadata.size ?? 0),
+          };
+        } catch (error) {
+          if (isGcsNotFound(error)) return null;
+          throw new Error('Source Audio metadata request failed');
+        }
+      }
+
       const response = await fetchImpl(objectUrl(endpoint, options.bucket, objectKey));
       if (response.status === 404) return null;
       if (!response.ok)
@@ -88,12 +103,30 @@ export function createGcsSourceAudioStorage(
     },
 
     async read(objectKey) {
+      if (!isFakeGcsEndpoint(endpoint)) {
+        try {
+          const [bytes] = await storage.bucket(options.bucket).file(objectKey).download();
+          return new Uint8Array(bytes);
+        } catch {
+          throw new Error('Source Audio read failed');
+        }
+      }
+
       const response = await fetchImpl(downloadUrl(endpoint, options.bucket, objectKey));
       if (!response.ok) throw new Error(`Source Audio read failed (${response.status})`);
       return new Uint8Array(await response.arrayBuffer());
     },
 
     async delete(objectKey) {
+      if (!isFakeGcsEndpoint(endpoint)) {
+        try {
+          await storage.bucket(options.bucket).file(objectKey).delete();
+        } catch (error) {
+          if (!isGcsNotFound(error)) throw new Error('Source Audio deletion failed');
+        }
+        return;
+      }
+
       const response = await fetchImpl(objectUrl(endpoint, options.bucket, objectKey), {
         method: 'DELETE',
       });
@@ -104,7 +137,12 @@ export function createGcsSourceAudioStorage(
 }
 
 function isFakeGcsEndpoint(endpoint: string): boolean {
-  return endpoint.includes('localhost:4443') || endpoint.includes('fake-gcs');
+  try {
+    const hostname = new URL(endpoint).hostname;
+    return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === 'fake-gcs';
+  } catch {
+    return endpoint.includes('fake-gcs');
+  }
 }
 
 function createSigningCredentials(options: GcsSourceAudioStorageOptions) {
@@ -126,7 +164,7 @@ function createSigningCredentials(options: GcsSourceAudioStorageOptions) {
   };
 }
 
-async function ensureBucket(
+async function ensureFakeBucket(
   endpoint: string,
   bucket: string,
   projectId: string | undefined,
@@ -143,6 +181,21 @@ async function ensureBucket(
   if (!response.ok && response.status !== 409) {
     throw new Error(`Source Audio bucket is unavailable (${response.status})`);
   }
+}
+
+async function ensureGoogleBucket(storage: Storage, bucketName: string): Promise<void> {
+  const bucket = storage.bucket(bucketName);
+  const [exists] = await bucket.exists();
+  if (!exists) await bucket.create();
+}
+
+function isGcsNotFound(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code?: unknown }).code === 404
+  );
 }
 
 function objectUrl(endpoint: string, bucket: string, objectKey: string): string {

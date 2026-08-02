@@ -6,16 +6,7 @@ import { createGcsSourceAudioStorage } from './source-audio-storage.js';
 
 describe('private Source Audio storage port', () => {
   it('creates one short-lived operation-scoped upload URL and uses the GCS object boundary', async () => {
-    const fetchImpl = vi.fn<typeof fetch>(async (input, init) => {
-      const url = String(input);
-      if (url.includes('/storage/v1/b?')) return new Response(null, { status: 200 });
-      if (init?.method === 'DELETE') return new Response(null, { status: 204 });
-      if (url.includes('alt=media')) return new Response(new Uint8Array([1, 2, 3]));
-      return new Response(JSON.stringify({ contentType: 'audio/wav', size: '3' }), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      });
-    });
+    const fetchImpl = vi.fn<typeof fetch>();
     const storage = createGcsSourceAudioStorage({
       endpoint: 'http://gcs.test',
       bucket: 'source-audio',
@@ -24,6 +15,7 @@ describe('private Source Audio storage port', () => {
       signingPrivateKey: generateKeyPairSync('rsa', { modulusLength: 2048 })
         .privateKey.export({ type: 'pkcs8', format: 'pem' })
         .toString(),
+      autoCreateBucket: false,
       fetchImpl,
     });
 
@@ -43,22 +35,20 @@ describe('private Source Audio storage port', () => {
     expect(first.uploadUrl).toContain('X-Goog-Expires=');
     expect(first.uploadUrl).toContain('upload.wav');
     expect(second.uploadUrl).toContain('second.wav');
-    expect(fetchImpl).toHaveBeenCalledTimes(1);
-
-    await expect(storage.stat('accounts/account-a/source-audio/upload.wav')).resolves.toEqual({
-      contentType: 'audio/wav',
-      size: 3,
-    });
-    await expect(storage.read('accounts/account-a/source-audio/upload.wav')).resolves.toEqual(
-      new Uint8Array([1, 2, 3]),
-    );
-    await expect(
-      storage.delete('accounts/account-a/source-audio/upload.wav'),
-    ).resolves.toBeUndefined();
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 
-  it('uses a browser-reachable public endpoint for local direct uploads', async () => {
-    const fetchImpl = vi.fn<typeof fetch>(async () => new Response(null, { status: 200 }));
+  it('uses the emulator REST boundary for local direct uploads and object lifecycle', async () => {
+    const fetchImpl = vi.fn<typeof fetch>(async (input, init) => {
+      const url = String(input);
+      if (url.includes('/storage/v1/b?')) return new Response(null, { status: 200 });
+      if (init?.method === 'DELETE') return new Response(null, { status: 204 });
+      if (url.includes('alt=media')) return new Response(new Uint8Array([1, 2, 3]));
+      return new Response(JSON.stringify({ contentType: 'audio/wav', size: '3' }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    });
     const storage = createGcsSourceAudioStorage({
       endpoint: 'http://fake-gcs:4443',
       publicEndpoint: 'http://localhost:4443',
@@ -73,5 +63,15 @@ describe('private Source Audio storage port', () => {
 
     expect(upload.uploadMethod).toBe('POST');
     expect(upload.uploadUrl).toMatch(/^http:\/\/localhost:4443\/upload\//);
+    await expect(storage.stat('accounts/account-a/source-audio/upload.wav')).resolves.toEqual({
+      contentType: 'audio/wav',
+      size: 3,
+    });
+    await expect(storage.read('accounts/account-a/source-audio/upload.wav')).resolves.toEqual(
+      new Uint8Array([1, 2, 3]),
+    );
+    await expect(
+      storage.delete('accounts/account-a/source-audio/upload.wav'),
+    ).resolves.toBeUndefined();
   });
 });

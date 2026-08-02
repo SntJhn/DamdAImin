@@ -22,6 +22,26 @@ export function AnalysisDetailClient({ analysisId }: { analysisId: string }) {
   useEffect(() => {
     let cancelled = false;
     let timeout: ReturnType<typeof setTimeout> | undefined;
+    let currentStatus: AnalysisResource['status'] | undefined;
+
+    function clearPoll() {
+      if (timeout) clearTimeout(timeout);
+      timeout = undefined;
+    }
+
+    function isActive() {
+      return currentStatus === 'queued' || currentStatus === 'processing';
+    }
+
+    function schedulePoll() {
+      clearPoll();
+      if (!cancelled && !document.hidden && isActive()) {
+        timeout = setTimeout(() => {
+          timeout = undefined;
+          void loadAnalysis();
+        }, 2_000);
+      }
+    }
 
     async function loadAnalysis() {
       try {
@@ -60,12 +80,10 @@ export function AnalysisDetailClient({ analysisId }: { analysisId: string }) {
 
         const body = (await response.json()) as AnalysisResource;
         if (cancelled) return;
+        currentStatus = body.status;
         setAnalysis(body);
         setAccountEmail(user.email);
-
-        if (body.status === 'queued' || body.status === 'processing') {
-          if (!document.hidden) timeout = setTimeout(() => void loadAnalysis(), 2_000);
-        }
+        schedulePoll();
       } catch (loadError) {
         if (!cancelled) {
           setError(
@@ -76,14 +94,18 @@ export function AnalysisDetailClient({ analysisId }: { analysisId: string }) {
     }
 
     function handleVisibilityChange() {
-      if (!document.hidden) void loadAnalysis();
+      if (document.hidden) {
+        clearPoll();
+      } else if (isActive()) {
+        void loadAnalysis();
+      }
     }
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     void loadAnalysis();
     return () => {
       cancelled = true;
-      if (timeout) clearTimeout(timeout);
+      clearPoll();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [analysisId, router]);

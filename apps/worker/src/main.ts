@@ -1,13 +1,18 @@
 import { loadEnvironment } from '@damdai/config';
 import { createAnalysisServices } from '@damdai/application';
 import { createAnalysisRepository, createDatabase } from '@damdai/database';
-import { createGcsSourceAudioStorage, createResearchSystemClient } from '@damdai/infrastructure';
+import {
+  createGcsSourceAudioStorage,
+  createResearchSystemClient,
+  startObservability,
+} from '@damdai/infrastructure';
 
 import { createAnalysisWorker } from './worker.js';
 
 loadEnvironment();
 
 const database = createDatabase();
+const observability = startObservability({ serviceName: 'damdai-worker' });
 const services = createAnalysisServices({
   repository: createAnalysisRepository(database.db),
   storage: createGcsSourceAudioStorage({
@@ -18,6 +23,7 @@ const services = createAnalysisServices({
     signingPrivateKey: process.env.GCS_SIGNING_PRIVATE_KEY?.replace(/\\n/g, '\n'),
   }),
   queue: { enqueue: async () => undefined },
+  telemetry: observability.telemetry,
   researchClient: createResearchSystemClient({
     baseUrl: process.env.RESEARCH_FAKE_URL ?? 'http://localhost:4100',
   }),
@@ -26,6 +32,7 @@ const services = createAnalysisServices({
 const worker = createAnalysisWorker({
   redisUrl: process.env.REDIS_URL ?? 'redis://localhost:6379',
   processAnalysis: services.processAnalysis,
+  telemetry: observability.telemetry,
 });
 
 worker.on('ready', () => {
@@ -38,6 +45,7 @@ worker.on('error', (error) => {
 const shutdown = async () => {
   await worker.close();
   await database.pool.end();
+  await observability.shutdown();
 };
 
 process.once('SIGINT', () => void shutdown());
