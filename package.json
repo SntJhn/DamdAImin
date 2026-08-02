@@ -17,7 +17,7 @@
     "test:e2e": "pnpm runtime:check && pnpm build && playwright test",
     "test:integration": "pnpm runtime:check && pnpm build && node scripts/run-database-integration.mjs",
     "test:watch": "pnpm runtime:check && vitest",
-    "quality": "pnpm runtime:check && pnpm format && pnpm lint && pnpm test && pnpm typecheck && pnpm test:integration",
+    "quality": "pnpm runtime:check && pnpm format && pnpm lint && pnpm test && pnpm typecheck && pnpm test:integration && pnpm test:e2e",
     "db:generate": "pnpm runtime:check && pnpm --filter @damdai/config build && pnpm --filter @damdai/database db:generate",
     "db:migrate": "pnpm runtime:check && pnpm --filter @damdai/config build && pnpm --filter @damdai/database db:migrate",
     "openapi:generate": "pnpm runtime:check && pnpm --filter @damdai/api openapi:generate",

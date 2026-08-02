@@ -11,7 +11,7 @@ describe('Analysis telemetry', () => {
     const add = vi.fn();
     const tracer = { startSpan } as unknown as Tracer;
     const meter = { createCounter: vi.fn(() => ({ add })) } as unknown as Meter;
-    const event: AnalysisTelemetryEvent = {
+    const event = {
       name: 'analysis.stage',
       analysisId: '8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01',
       stage: 'completed',
@@ -19,7 +19,10 @@ describe('Analysis telemetry', () => {
       contractVersion: 'taglish-v1',
       requestId: 'req-1',
       jobId: 'job-1',
-    };
+      audioBase64: 'SENTINEL_AUDIO_MUST_NOT_BE_EMITTED',
+      transcript: 'SENTINEL_TRANSCRIPT_MUST_NOT_BE_EMITTED',
+      explanation: 'SENTINEL_EXPLANATION_MUST_NOT_BE_EMITTED',
+    } as AnalysisTelemetryEvent;
 
     createAnalysisTelemetry({ tracer, meter }).record(event);
 
@@ -37,5 +40,6 @@ describe('Analysis telemetry', () => {
     expect(attributes).not.toHaveProperty('audioBase64');
     expect(attributes).not.toHaveProperty('transcript');
     expect(attributes).not.toHaveProperty('explanation');
+    expect(JSON.stringify(attributes)).not.toContain('SENTINEL_');
   });
 });

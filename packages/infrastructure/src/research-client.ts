@@ -43,15 +43,22 @@ export function createResearchSystemClient(options: ResearchClientOptions): Rese
       });
       if (!response.ok) {
         const errorBody: unknown = await response.json().catch(() => undefined);
-        if (!Value.Check(ResearchErrorResponseSchema, errorBody)) {
-          throw new Error(`Research System request failed (${response.status})`);
-        }
-        throw new Error(`Research System request failed (${response.status})`);
+        const errorMessage = Value.Check(ResearchErrorResponseSchema, errorBody)
+          ? `Research System request failed (${response.status}): ${(errorBody as { error: string }).error}`
+          : `Research System request failed (${response.status}): invalid error response`;
+        throw new Error(errorMessage);
       }
 
       const body: unknown = await response.json();
       if (!Value.Check(ResearchAnalysisResponseSchema, body)) {
         throw new Error('Research System response does not satisfy the versioned contract');
+      }
+
+      if (body.analysisId !== input.analysisId) {
+        throw new Error('Research System response has a mismatched Analysis identifier');
+      }
+      if (body.result.contractVersion !== input.contractVersion) {
+        throw new Error('Research System response has a mismatched contract version');
       }
 
       const hasClassification = body.result.emotionClassification !== undefined;

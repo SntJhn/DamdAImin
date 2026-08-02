@@ -9,6 +9,8 @@ const postgresDatabase = 'damdai_integration';
 const postgresUser = 'damdai_integration';
 const postgresPassword = 'damdai_integration_password';
 const containerName = `damdai-integration-postgres-${process.pid}`;
+const redisImage = 'redis:7-alpine';
+const redisContainerName = `damdai-integration-redis-${process.pid}`;
 const fakeGcsImage = 'fsouza/fake-gcs-server:1.52.3';
 const fakeGcsContainerName = `damdai-integration-fake-gcs-${process.pid}`;
 
@@ -61,12 +63,25 @@ async function waitForFakeGcs(containerId) {
   throw new Error(`fake-GCS container ${containerId} did not become ready`);
 }
 
+async function waitForRedis(containerId) {
+  for (let attempt = 0; attempt < 120; attempt += 1) {
+    try {
+      await runDocker(['exec', containerId, 'redis-cli', 'ping']);
+      return;
+    } catch {
+      await sleep(500);
+    }
+  }
+
+  throw new Error(`Redis container ${containerId} did not become ready`);
+}
+
 async function readMappedPort(containerId, containerPort) {
   const output = await runDocker(['port', containerId, containerPort]);
   const port = output.match(/:(\d+)(?:\s|$)/)?.[1];
 
   if (!port) {
-    throw new Error(`Could not determine the mapped PostgreSQL port from: ${output}`);
+    throw new Error(`Could not determine the mapped port from: ${output}`);
   }
 
   return port;
@@ -89,6 +104,7 @@ function runVitest(environment) {
 }
 
 let containerId;
+let redisContainerId;
 let fakeGcsContainerId;
 let exitCode = 1;
 
@@ -112,6 +128,18 @@ try {
 
   await waitForPostgres(containerId);
   const port = await readMappedPort(containerId, '5432/tcp');
+  redisContainerId = await runDocker([
+    'run',
+    '--detach',
+    '--rm',
+    '--name',
+    redisContainerName,
+    '--publish',
+    '127.0.0.1::6379',
+    redisImage,
+  ]);
+  await waitForRedis(redisContainerId);
+  const redisPort = await readMappedPort(redisContainerId, '6379/tcp');
   fakeGcsContainerId = await runDocker([
     'run',
     '--detach',
@@ -134,6 +162,7 @@ try {
     ...process.env,
     NODE_ENV: 'test',
     TEST_DATABASE_URL: `postgresql://${postgresUser}:${postgresPassword}@127.0.0.1:${port}/${postgresDatabase}`,
+    TEST_REDIS_URL: `redis://127.0.0.1:${redisPort}`,
     TEST_GCS_ENDPOINT: `http://127.0.0.1:${fakeGcsPort}`,
   };
 
@@ -161,6 +190,16 @@ try {
     } catch (error) {
       process.stderr.write(
         `Could not remove disposable fake-GCS container ${fakeGcsContainerId}: ${error instanceof Error ? error.message : error}\n`,
+      );
+      exitCode = exitCode === 0 ? 1 : exitCode;
+    }
+  }
+  if (redisContainerId) {
+    try {
+      await runDocker(['rm', '--force', redisContainerId]);
+    } catch (error) {
+      process.stderr.write(
+        `Could not remove disposable Redis container ${redisContainerId}: ${error instanceof Error ? error.message : error}\n`,
       );
       exitCode = exitCode === 0 ? 1 : exitCode;
     }

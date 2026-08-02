@@ -15,11 +15,12 @@ import {
   createDatabase,
   migrateDatabase,
 } from '@damdai/database';
-import { createGcsSourceAudioStorage } from '@damdai/infrastructure';
+import { createAnalysisQueue, createGcsSourceAudioStorage } from '@damdai/infrastructure';
 
 import { buildApi } from './app.js';
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL;
+const testRedisUrl = process.env.TEST_REDIS_URL;
 const testGcsEndpoint = process.env.TEST_GCS_ENDPOINT;
 
 if (!testDatabaseUrl) {
@@ -27,6 +28,9 @@ if (!testDatabaseUrl) {
 }
 if (!testGcsEndpoint) {
   throw new Error('TEST_GCS_ENDPOINT is required; run pnpm test:integration');
+}
+if (!testRedisUrl) {
+  throw new Error('TEST_REDIS_URL is required; run pnpm test:integration');
 }
 
 interface DatabaseSchemaObject {
@@ -54,6 +58,7 @@ const neonAuthSentinel = 'migration must not change this row';
 let neonAuthBeforeMigration: DatabaseSchemaState;
 let analysisApplication: ReturnType<typeof buildApi> | undefined;
 let analysisServices: AnalysisServices | undefined;
+let integrationQueue: ReturnType<typeof createAnalysisQueue> | undefined;
 let integrationStorage: ReturnType<typeof createGcsSourceAudioStorage> | undefined;
 let integrationUploadId = '';
 let integrationObjectKey = '';
@@ -268,6 +273,7 @@ const application = buildApi({
     },
   },
   historyReader: createAnalysisHistoryReader(database.db),
+  redisUrl: testRedisUrl,
 });
 
 beforeAll(async () => {
@@ -318,12 +324,14 @@ beforeAll(async () => {
     projectId: 'damdai-integration',
   });
   integrationStorage = storage;
+  integrationQueue = createAnalysisQueue(testRedisUrl);
   analysisServices = createAnalysisServices({
     repository: createAnalysisRepository(database.db),
     storage,
     queue: {
       enqueue: async (job) => {
         integrationJobs.push(job);
+        await integrationQueue!.enqueue(job);
       },
     },
     researchClient: {
@@ -367,12 +375,14 @@ beforeAll(async () => {
     },
     historyReader: createAnalysisHistoryReader(database.db),
     analysisServices,
+    redisUrl: testRedisUrl,
   });
 });
 
 afterAll(async () => {
   await application.close();
   await analysisApplication?.close();
+  await integrationQueue?.close();
   await database.pool.end();
 });
 

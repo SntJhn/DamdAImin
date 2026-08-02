@@ -56,6 +56,40 @@ describe('Research System HTTP contract client', () => {
     ).rejects.toThrow('response does not satisfy');
   });
 
+  it('rejects a valid response for a different Analysis', async () => {
+    const fetchImpl = vi.fn<typeof fetch>(
+      async () =>
+        new Response(
+          JSON.stringify({
+            analysisId: 'a0ad9a3f-26b2-4014-8f51-ec7d67bb4f1a',
+            result: {
+              outcome: 'definitive',
+              emotionClassification: 'happiness',
+              confidence: { happiness: 0.91, sadness: 0.03, anger: 0.02, neutrality: 0.04 },
+              transcript: 'Masaya ako',
+              explanation: 'Synthetic fixture',
+              technicalTrace: [{ cue: 'fixture', value: 'happy' }],
+              contractVersion: 'taglish-v1',
+              modelVersion: 'fake-model-1',
+              preprocessingVersion: 'fake-preprocessing-1',
+              ruleSetVersion: 'fake-rules-1',
+            },
+          }),
+          { status: 200 },
+        ),
+    );
+    const client = createResearchSystemClient({ baseUrl: 'http://research.test', fetchImpl });
+
+    await expect(
+      client.analyze({
+        analysisId: '8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01',
+        language: 'taglish',
+        contractVersion: 'taglish-v1',
+        audio: new Uint8Array([1]),
+      }),
+    ).rejects.toThrow('mismatched Analysis identifier');
+  });
+
   it('rejects a definitive response without an Emotion Classification', async () => {
     const fetchImpl = vi.fn<typeof fetch>(
       async () =>
