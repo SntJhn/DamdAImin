@@ -135,6 +135,793 @@
             }
           }
         }
+      },
+      "post": {
+        "summary": "Finalize Source Audio and queue an Analysis",
+        "tags": [
+          "Analyses"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "uploadId"
+                ],
+                "properties": {
+                  "uploadId": {
+                    "format": "uuid",
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "analysis",
+                    "location"
+                  ],
+                  "properties": {
+                    "analysis": {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "status",
+                        "stage",
+                        "language",
+                        "createdAt"
+                      ],
+                      "properties": {
+                        "id": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "status": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "queued"
+                              ]
+                            },
+                            {
+                              "type": "string",
+                              "enum": [
+                                "processing"
+                              ]
+                            },
+                            {
+                              "type": "string",
+                              "enum": [
+                                "completed"
+                              ]
+                            },
+                            {
+                              "type": "string",
+                              "enum": [
+                                "failed"
+                              ]
+                            },
+                            {
+                              "type": "string",
+                              "enum": [
+                                "canceled"
+                              ]
+                            }
+                          ]
+                        },
+                        "stage": {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "language": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "taglish"
+                              ]
+                            },
+                            {
+                              "type": "string",
+                              "enum": [
+                                "english"
+                              ]
+                            },
+                            {
+                              "type": "string",
+                              "enum": [
+                                "tagalog"
+                              ]
+                            }
+                          ]
+                        },
+                        "createdAt": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "failureMessage": {
+                          "type": "string"
+                        },
+                        "result": {
+                          "type": "object",
+                          "required": [
+                            "outcome",
+                            "confidence",
+                            "transcript",
+                            "explanation",
+                            "technicalTrace",
+                            "contractVersion",
+                            "modelVersion",
+                            "preprocessingVersion",
+                            "ruleSetVersion"
+                          ],
+                          "properties": {
+                            "outcome": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "definitive"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "inconclusive"
+                                  ]
+                                }
+                              ]
+                            },
+                            "emotionClassification": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "happiness"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "sadness"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "anger"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "neutrality"
+                                  ]
+                                }
+                              ]
+                            },
+                            "confidence": {
+                              "type": "object",
+                              "required": [
+                                "happiness",
+                                "sadness",
+                                "anger",
+                                "neutrality"
+                              ],
+                              "properties": {
+                                "happiness": {
+                                  "minimum": 0,
+                                  "maximum": 1,
+                                  "type": "number"
+                                },
+                                "sadness": {
+                                  "minimum": 0,
+                                  "maximum": 1,
+                                  "type": "number"
+                                },
+                                "anger": {
+                                  "minimum": 0,
+                                  "maximum": 1,
+                                  "type": "number"
+                                },
+                                "neutrality": {
+                                  "minimum": 0,
+                                  "maximum": 1,
+                                  "type": "number"
+                                }
+                              }
+                            },
+                            "transcript": {
+                              "type": "string"
+                            },
+                            "explanation": {
+                              "type": "string"
+                            },
+                            "technicalTrace": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "required": [
+                                  "cue",
+                                  "value"
+                                ],
+                                "properties": {
+                                  "cue": {
+                                    "type": "string"
+                                  },
+                                  "value": {
+                                    "type": "string"
+                                  }
+                                }
+                              }
+                            },
+                            "contractVersion": {
+                              "minLength": 1,
+                              "type": "string"
+                            },
+                            "modelVersion": {
+                              "minLength": 1,
+                              "type": "string"
+                            },
+                            "preprocessingVersion": {
+                              "minLength": 1,
+                              "type": "string"
+                            },
+                            "ruleSetVersion": {
+                              "minLength": 1,
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "location": {
+                      "format": "uri-reference",
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error",
+                    "message"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "enum": [
+                        "validation_error"
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "enum": [
+                        "not_found"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "enum": [
+                        "service_unavailable"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/analysis-uploads": {
+      "post": {
+        "summary": "Create a private Source Audio upload operation",
+        "tags": [
+          "Analyses"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "language",
+                  "contractVersion"
+                ],
+                "properties": {
+                  "language": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "taglish"
+                        ]
+                      },
+                      {
+                        "type": "string",
+                        "enum": [
+                          "english"
+                        ]
+                      },
+                      {
+                        "type": "string",
+                        "enum": [
+                          "tagalog"
+                        ]
+                      }
+                    ]
+                  },
+                  "contractVersion": {
+                    "minLength": 1,
+                    "maxLength": 64,
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "uploadId",
+                    "uploadUrl",
+                    "uploadMethod",
+                    "uploadHeaders",
+                    "expiresAt"
+                  ],
+                  "properties": {
+                    "uploadId": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "uploadUrl": {
+                      "format": "uri",
+                      "type": "string"
+                    },
+                    "uploadMethod": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "PUT"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "POST"
+                          ]
+                        }
+                      ]
+                    },
+                    "uploadHeaders": {
+                      "type": "object",
+                      "required": [
+                        "content-type"
+                      ],
+                      "properties": {
+                        "content-type": {
+                          "type": "string",
+                          "enum": [
+                            "audio/wav"
+                          ]
+                        }
+                      }
+                    },
+                    "expiresAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error",
+                    "message"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "enum": [
+                        "validation_error"
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "enum": [
+                        "service_unavailable"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/analyses/{id}": {
+      "get": {
+        "summary": "Read one authenticated Analysis resource",
+        "tags": [
+          "Analyses"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "status",
+                    "stage",
+                    "language",
+                    "createdAt"
+                  ],
+                  "properties": {
+                    "id": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "status": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "queued"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "processing"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "completed"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "failed"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "canceled"
+                          ]
+                        }
+                      ]
+                    },
+                    "stage": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "language": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "taglish"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "english"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "tagalog"
+                          ]
+                        }
+                      ]
+                    },
+                    "createdAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "failureMessage": {
+                      "type": "string"
+                    },
+                    "result": {
+                      "type": "object",
+                      "required": [
+                        "outcome",
+                        "confidence",
+                        "transcript",
+                        "explanation",
+                        "technicalTrace",
+                        "contractVersion",
+                        "modelVersion",
+                        "preprocessingVersion",
+                        "ruleSetVersion"
+                      ],
+                      "properties": {
+                        "outcome": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "definitive"
+                              ]
+                            },
+                            {
+                              "type": "string",
+                              "enum": [
+                                "inconclusive"
+                              ]
+                            }
+                          ]
+                        },
+                        "emotionClassification": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "happiness"
+                              ]
+                            },
+                            {
+                              "type": "string",
+                              "enum": [
+                                "sadness"
+                              ]
+                            },
+                            {
+                              "type": "string",
+                              "enum": [
+                                "anger"
+                              ]
+                            },
+                            {
+                              "type": "string",
+                              "enum": [
+                                "neutrality"
+                              ]
+                            }
+                          ]
+                        },
+                        "confidence": {
+                          "type": "object",
+                          "required": [
+                            "happiness",
+                            "sadness",
+                            "anger",
+                            "neutrality"
+                          ],
+                          "properties": {
+                            "happiness": {
+                              "minimum": 0,
+                              "maximum": 1,
+                              "type": "number"
+                            },
+                            "sadness": {
+                              "minimum": 0,
+                              "maximum": 1,
+                              "type": "number"
+                            },
+                            "anger": {
+                              "minimum": 0,
+                              "maximum": 1,
+                              "type": "number"
+                            },
+                            "neutrality": {
+                              "minimum": 0,
+                              "maximum": 1,
+                              "type": "number"
+                            }
+                          }
+                        },
+                        "transcript": {
+                          "type": "string"
+                        },
+                        "explanation": {
+                          "type": "string"
+                        },
+                        "technicalTrace": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "required": [
+                              "cue",
+                              "value"
+                            ],
+                            "properties": {
+                              "cue": {
+                                "type": "string"
+                              },
+                              "value": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        },
+                        "contractVersion": {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "modelVersion": {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "preprocessingVersion": {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "ruleSetVersion": {
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "enum": [
+                        "not_found"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "enum": [
+                        "service_unavailable"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/healthz": {

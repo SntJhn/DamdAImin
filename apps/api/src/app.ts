@@ -4,13 +4,27 @@ import rateLimit from '@fastify/rate-limit';
 import swagger from '@fastify/swagger';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { Redis } from 'ioredis';
+import { Type } from '@sinclair/typebox';
 
-import { listAnalysisHistory, type AnalysisHistoryReader } from '@damdai/application';
 import {
+  AnalysisInputError,
+  AnalysisNotFoundError,
+  listAnalysisHistory,
+  type AnalysisHistoryReader,
+  type AnalysisServices,
+} from '@damdai/application';
+import {
+  AcceptedAnalysisResponseSchema,
+  AnalysisResourceSchema,
   AnalysisHistoryResponseSchema,
+  CreateAnalysisUploadRequestSchema,
+  CreateAnalysisUploadResponseSchema,
+  FinalizeAnalysisRequestSchema,
   HealthResponseSchema,
+  NotFoundResponseSchema,
   ServiceUnavailableResponseSchema,
   UnauthorizedResponseSchema,
+  ValidationErrorResponseSchema,
 } from '@damdai/contracts';
 
 import type { AuthVerifier } from './auth.js';
@@ -25,6 +39,7 @@ export interface ApiOptions {
   allowedOrigin?: string;
   authVerifier?: AuthVerifier;
   historyReader?: AnalysisHistoryReader;
+  analysisServices?: AnalysisServices;
   redisUrl?: string;
   logger?: boolean;
   version?: string;
@@ -122,9 +137,168 @@ export function buildApi(options: ApiOptions = {}): FastifyInstance {
           };
         },
       );
+
+      api.post(
+        '/analysis-uploads',
+        {
+          schema: {
+            tags: ['Analyses'],
+            summary: 'Create a private Source Audio upload operation',
+            security: [{ bearerAuth: [] }],
+            body: CreateAnalysisUploadRequestSchema,
+            response: {
+              201: CreateAnalysisUploadResponseSchema,
+              400: ValidationErrorResponseSchema,
+              503: ServiceUnavailableResponseSchema,
+            },
+          },
+        },
+        async (request, reply) => {
+          if (!options.analysisServices || !request.accountId) {
+            return reply.code(503).send({ error: 'service_unavailable' as const });
+          }
+
+          try {
+            const body = request.body as {
+              language: 'taglish' | 'english' | 'tagalog';
+              contractVersion: string;
+            };
+            const created = await options.analysisServices.createUpload({
+              accountId: request.accountId,
+              language: body.language,
+              contractVersion: body.contractVersion,
+            });
+
+            return reply.code(201).send({
+              uploadId: created.upload.id,
+              uploadUrl: created.uploadUrl,
+              uploadMethod: created.uploadMethod,
+              uploadHeaders: created.uploadHeaders,
+              expiresAt: created.upload.expiresAt.toISOString(),
+            });
+          } catch (error) {
+            if (error instanceof AnalysisInputError) {
+              return reply
+                .code(400)
+                .send({ error: 'validation_error' as const, message: error.message });
+            }
+
+            request.log.error(error, 'analysis upload operation unavailable');
+            return reply.code(503).send({ error: 'service_unavailable' as const });
+          }
+        },
+      );
+
+      api.post(
+        '/analyses',
+        {
+          schema: {
+            tags: ['Analyses'],
+            summary: 'Finalize Source Audio and queue an Analysis',
+            security: [{ bearerAuth: [] }],
+            body: FinalizeAnalysisRequestSchema,
+            response: {
+              202: AcceptedAnalysisResponseSchema,
+              400: ValidationErrorResponseSchema,
+              404: NotFoundResponseSchema,
+              503: ServiceUnavailableResponseSchema,
+            },
+          },
+        },
+        async (request, reply) => {
+          if (!options.analysisServices || !request.accountId) {
+            return reply.code(503).send({ error: 'service_unavailable' as const });
+          }
+
+          try {
+            const body = request.body as { uploadId: string };
+            const analysis = await options.analysisServices.finalizeUpload(
+              request.accountId,
+              body.uploadId,
+            );
+            const location = `/api/v1/analyses/${analysis.id}`;
+            request.log.info(
+              {
+                requestId: request.id,
+                analysisId: analysis.id,
+                contractVersion: analysis.contractVersion,
+                stage: analysis.stage,
+              },
+              'analysis queued',
+            );
+            return reply
+              .code(202)
+              .header('location', location)
+              .send({ analysis: serializeAnalysis(analysis), location });
+          } catch (error) {
+            if (error instanceof AnalysisInputError) {
+              return reply
+                .code(400)
+                .send({ error: 'validation_error' as const, message: error.message });
+            }
+
+            if (error instanceof AnalysisNotFoundError) {
+              return reply.code(404).send({ error: 'not_found' as const });
+            }
+
+            request.log.error(error, 'analysis submission unavailable');
+            return reply.code(503).send({ error: 'service_unavailable' as const });
+          }
+        },
+      );
+
+      api.get(
+        '/analyses/:id',
+        {
+          schema: {
+            tags: ['Analyses'],
+            summary: 'Read one authenticated Analysis resource',
+            security: [{ bearerAuth: [] }],
+            params: Type.Object({ id: Type.String({ format: 'uuid' }) }),
+            response: {
+              200: AnalysisResourceSchema,
+              404: NotFoundResponseSchema,
+              503: ServiceUnavailableResponseSchema,
+            },
+          },
+        },
+        async (request, reply) => {
+          if (!options.analysisServices || !request.accountId) {
+            return reply.code(503).send({ error: 'service_unavailable' as const });
+          }
+
+          try {
+            const params = request.params as { id: string };
+            const analysis = await options.analysisServices.getAnalysis(
+              request.accountId,
+              params.id,
+            );
+            return serializeAnalysis(analysis);
+          } catch (error) {
+            if (error instanceof AnalysisNotFoundError) {
+              return reply.code(404).send({ error: 'not_found' as const });
+            }
+
+            request.log.error(error, 'analysis resource unavailable');
+            return reply.code(503).send({ error: 'service_unavailable' as const });
+          }
+        },
+      );
     },
     { prefix: '/api/v1' },
   );
+
+  application.setErrorHandler((error, request, reply) => {
+    if (typeof error === 'object' && error !== null && 'validation' in error) {
+      return reply.code(400).send({
+        error: 'validation_error' as const,
+        message: 'The request did not match the required contract.',
+      });
+    }
+
+    request.log.error(error, 'request failed');
+    return reply.send(error);
+  });
 
   application.register(async (health) => {
     health.get(
@@ -153,4 +327,24 @@ export function buildApi(options: ApiOptions = {}): FastifyInstance {
   });
 
   return application;
+}
+
+function serializeAnalysis(analysis: {
+  id: string;
+  status: string;
+  stage: string;
+  language: 'taglish' | 'english' | 'tagalog';
+  createdAt: Date;
+  failureMessage: string | null;
+  result: unknown;
+}) {
+  return {
+    id: analysis.id,
+    status: analysis.status,
+    stage: analysis.stage,
+    language: analysis.language,
+    createdAt: analysis.createdAt.toISOString(),
+    ...(analysis.failureMessage ? { failureMessage: analysis.failureMessage } : {}),
+    ...(analysis.result ? { result: analysis.result } : {}),
+  };
 }

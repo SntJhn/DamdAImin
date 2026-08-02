@@ -15,7 +15,11 @@
   },
   "dependencies": {
     "@damdai/application": "workspace:*",
+    "@damdai/contracts": "workspace:*",
     "@damdai/database": "workspace:*",
+    "@google-cloud/storage": "^7.21.0",
+    "@sinclair/typebox": "^0.34.0",
+    "bullmq": "^5.0.0",
     "ioredis": "^5.0.0"
   },
   "devDependencies": {

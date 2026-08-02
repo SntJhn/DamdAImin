@@ -20,7 +20,9 @@
     "db:generate": "pnpm runtime:check && pnpm --filter @damdai/config build && pnpm --filter @damdai/database db:generate",
     "db:migrate": "pnpm runtime:check && pnpm --filter @damdai/config build && pnpm --filter @damdai/database db:migrate",
     "openapi:generate": "pnpm runtime:check && pnpm --filter @damdai/api openapi:generate",
-    "openapi:check": "pnpm runtime:check && pnpm --filter @damdai/api openapi:generate && git diff --exit-code -- packages/contracts/generated/openapi.json",
+    "research-schema:generate": "pnpm runtime:check && pnpm --filter @damdai/contracts research-schema:generate",
+    "research-schema:check": "pnpm runtime:check && pnpm --filter @damdai/contracts research-schema:generate && git diff --exit-code -- packages/contracts/generated/research-request.json packages/contracts/generated/research-response.json",
+    "openapi:check": "pnpm runtime:check && pnpm --filter @damdai/api openapi:generate && pnpm --filter @damdai/contracts research-schema:generate && git diff --exit-code -- packages/contracts/generated/openapi.json packages/contracts/generated/research-request.json packages/contracts/generated/research-response.json",
     "compose:config": "docker compose config"
   },
   "devDependencies": {

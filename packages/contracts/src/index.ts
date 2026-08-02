@@ -1,5 +1,31 @@
 export { HealthResponseSchema, type HealthResponse } from './health.js';
 export {
+  AcceptedAnalysisResponseSchema,
+  AnalysisFailureResponseSchema,
+  AnalysisLanguageSchema,
+  AnalysisOutcomeSchema,
+  AnalysisResourceSchema,
+  AnalysisResultSchema,
+  AnalysisStatusSchema,
+  ConflictResponseSchema,
+  CreateAnalysisUploadRequestSchema,
+  CreateAnalysisUploadResponseSchema,
+  EmotionClassificationSchema,
+  FinalizeAnalysisRequestSchema,
+  NotFoundResponseSchema,
+  ValidationErrorResponseSchema,
+  type AcceptedAnalysisResponse,
+  type AnalysisLanguage,
+  type AnalysisOutcome,
+  type AnalysisResource,
+  type AnalysisResult,
+  type AnalysisStatus,
+  type CreateAnalysisUploadRequest,
+  type CreateAnalysisUploadResponse,
+  type EmotionClassification,
+  type FinalizeAnalysisRequest,
+} from './analysis.js';
+export {
   AnalysisHistoryItemSchema,
   AnalysisHistoryResponseSchema,
   ServiceUnavailableResponseSchema,
@@ -7,3 +33,10 @@ export {
   type AnalysisHistoryItem,
   type AnalysisHistoryResponse,
 } from './analysis-history.js';
+export {
+  ResearchAnalysisRequestSchema,
+  ResearchAnalysisResponseSchema,
+  ResearchErrorResponseSchema,
+  type ResearchAnalysisRequest,
+  type ResearchAnalysisResponse,
+} from './research.js';

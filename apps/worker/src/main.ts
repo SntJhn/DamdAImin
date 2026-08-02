@@ -1,10 +1,32 @@
 import { loadEnvironment } from '@damdai/config';
+import { createAnalysisServices } from '@damdai/application';
+import { createAnalysisRepository, createDatabase } from '@damdai/database';
+import { createGcsSourceAudioStorage, createResearchSystemClient } from '@damdai/infrastructure';
 
 import { createAnalysisWorker } from './worker.js';
 
 loadEnvironment();
 
-const worker = createAnalysisWorker(process.env.REDIS_URL ?? 'redis://localhost:6379');
+const database = createDatabase();
+const services = createAnalysisServices({
+  repository: createAnalysisRepository(database.db),
+  storage: createGcsSourceAudioStorage({
+    endpoint: process.env.GCS_ENDPOINT ?? 'http://localhost:4443',
+    bucket: process.env.GCS_SOURCE_BUCKET ?? 'damdai-source-audio',
+    projectId: process.env.GCS_PROJECT_ID ?? 'damdai-local',
+    signingClientEmail: process.env.GCS_SIGNING_CLIENT_EMAIL,
+    signingPrivateKey: process.env.GCS_SIGNING_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+  }),
+  queue: { enqueue: async () => undefined },
+  researchClient: createResearchSystemClient({
+    baseUrl: process.env.RESEARCH_FAKE_URL ?? 'http://localhost:4100',
+  }),
+});
+
+const worker = createAnalysisWorker({
+  redisUrl: process.env.REDIS_URL ?? 'redis://localhost:6379',
+  processAnalysis: services.processAnalysis,
+});
 
 worker.on('ready', () => {
   process.stdout.write('DamdAImin analysis worker ready\n');
@@ -15,6 +37,7 @@ worker.on('error', (error) => {
 
 const shutdown = async () => {
   await worker.close();
+  await database.pool.end();
 };
 
 process.once('SIGINT', () => void shutdown());

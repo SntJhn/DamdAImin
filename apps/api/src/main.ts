@@ -1,5 +1,15 @@
-import { createAnalysisHistoryReader, createDatabase } from '@damdai/database';
+import {
+  createAnalysisHistoryReader,
+  createAnalysisRepository,
+  createDatabase,
+} from '@damdai/database';
 import { loadEnvironment } from '@damdai/config';
+import {
+  createAnalysisQueue,
+  createGcsSourceAudioStorage,
+  createResearchSystemClient,
+} from '@damdai/infrastructure';
+import { createAnalysisServices } from '@damdai/application';
 
 import { buildApi } from './app.js';
 import { createNeonAuthTokenVerifier } from './auth.js';
@@ -17,6 +27,23 @@ if (!authBaseUrl) {
 const authOrigin = new URL(authBaseUrl).origin;
 
 const database = createDatabase();
+const redisUrl = process.env.REDIS_URL ?? 'redis://localhost:6379';
+const analysisQueue = createAnalysisQueue(redisUrl);
+const analysisServices = createAnalysisServices({
+  repository: createAnalysisRepository(database.db),
+  storage: createGcsSourceAudioStorage({
+    endpoint: process.env.GCS_ENDPOINT ?? 'http://localhost:4443',
+    publicEndpoint: process.env.GCS_PUBLIC_ENDPOINT,
+    bucket: process.env.GCS_SOURCE_BUCKET ?? 'damdai-source-audio',
+    projectId: process.env.GCS_PROJECT_ID ?? 'damdai-local',
+    signingClientEmail: process.env.GCS_SIGNING_CLIENT_EMAIL,
+    signingPrivateKey: process.env.GCS_SIGNING_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+  }),
+  queue: analysisQueue,
+  researchClient: createResearchSystemClient({
+    baseUrl: process.env.RESEARCH_FAKE_URL ?? 'http://localhost:4100',
+  }),
+});
 
 const application = buildApi({
   allowedOrigin: process.env.CORS_ALLOWED_ORIGIN ?? 'http://localhost:3000',
@@ -26,11 +53,13 @@ const application = buildApi({
     jwksUrl: process.env.NEON_AUTH_JWKS_URL ?? `${authBaseUrl}/.well-known/jwks.json`,
   }),
   historyReader: createAnalysisHistoryReader(database.db),
+  analysisServices,
   logger: true,
-  redisUrl: process.env.REDIS_URL,
+  redisUrl,
 });
 
 application.addHook('onClose', async () => {
+  await analysisQueue.close();
   await database.pool.end();
 });
 

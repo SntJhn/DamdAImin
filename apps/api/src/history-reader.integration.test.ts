@@ -4,7 +4,14 @@ import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
+  createAnalysisServices,
+  type AnalysisJob,
+  type AnalysisServices,
+  type SourceAudioStorage,
+} from '@damdai/application';
+import {
   analyses,
+  createAnalysisRepository,
   createAnalysisHistoryReader,
   createDatabase,
   migrateDatabase,
@@ -41,6 +48,65 @@ const migrationsFolder = resolve(
 );
 const neonAuthSentinel = 'migration must not change this row';
 let neonAuthBeforeMigration: DatabaseSchemaState;
+let analysisApplication: ReturnType<typeof buildApi> | undefined;
+let analysisServices: AnalysisServices | undefined;
+let integrationStorage: IntegrationStorage | undefined;
+let integrationUploadId = '';
+const integrationJobs: AnalysisJob[] = [];
+
+class IntegrationStorage implements SourceAudioStorage {
+  readonly objects = new Map<string, { bytes: Uint8Array; contentType: string }>();
+
+  async createUpload({ objectKey }: { objectKey: string; expiresAt: Date }) {
+    return {
+      uploadUrl: `https://storage.test/${encodeURIComponent(objectKey)}`,
+      uploadMethod: 'PUT' as const,
+      uploadHeaders: { 'content-type': 'audio/wav' as const },
+    };
+  }
+
+  async stat(objectKey: string) {
+    const object = this.objects.get(objectKey);
+    return object ? { contentType: object.contentType, size: object.bytes.byteLength } : null;
+  }
+
+  async read(objectKey: string) {
+    const object = this.objects.get(objectKey);
+    if (!object) throw new Error('missing source audio');
+    return object.bytes;
+  }
+
+  async delete(objectKey: string) {
+    this.objects.delete(objectKey);
+  }
+}
+
+function createPcmWav(durationSeconds: number): Uint8Array {
+  const sampleRateHz = 16_000;
+  const dataByteLength = sampleRateHz * durationSeconds * 2;
+  const bytes = new Uint8Array(44 + dataByteLength);
+  const view = new DataView(bytes.buffer);
+  const write = (offset: number, value: string) => {
+    for (const [index, character] of Array.from(value).entries()) {
+      view.setUint8(offset + index, character.charCodeAt(0));
+    }
+  };
+
+  write(0, 'RIFF');
+  view.setUint32(4, bytes.byteLength - 8, true);
+  write(8, 'WAVE');
+  write(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRateHz, true);
+  view.setUint32(28, sampleRateHz * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  write(36, 'data');
+  view.setUint32(40, dataByteLength, true);
+  return bytes;
+}
 
 async function readSchemaState(schemaName: string): Promise<DatabaseSchemaState> {
   const metadata = await database.pool.query<DatabaseSchemaObject>(
@@ -267,10 +333,61 @@ beforeAll(async () => {
       createdAt: new Date('2026-08-01T00:04:00.000Z'),
     },
   ]);
+
+  const storage = new IntegrationStorage();
+  integrationStorage = storage;
+  analysisServices = createAnalysisServices({
+    repository: createAnalysisRepository(database.db),
+    storage,
+    queue: {
+      enqueue: async (job) => {
+        integrationJobs.push(job);
+      },
+    },
+    researchClient: {
+      analyze: async ({ contractVersion }) => ({
+        outcome: 'definitive' as const,
+        emotionClassification: 'happiness' as const,
+        confidence: { happiness: 0.91, sadness: 0.03, anger: 0.02, neutrality: 0.04 },
+        transcript: 'Masaya ako',
+        explanation: 'Synthetic integration fixture',
+        technicalTrace: [{ cue: 'fixture', value: 'happy' }],
+        contractVersion,
+        modelVersion: 'fake-model-1',
+        preprocessingVersion: 'fake-preprocessing-1',
+        ruleSetVersion: 'fake-rules-1',
+      }),
+    },
+  });
+  const upload = await analysisServices.createUpload({
+    accountId: accountA,
+    language: 'taglish',
+    contractVersion: 'taglish-v1',
+  });
+  integrationUploadId = upload.upload.id;
+  storage.objects.set(upload.upload.objectKey, {
+    bytes: createPcmWav(1),
+    contentType: 'audio/wav',
+  });
+  analysisApplication = buildApi({
+    authVerifier: {
+      verify: async (token) => {
+        const accountId = new Map([
+          ['account-a-token', accountA],
+          ['account-b-token', accountB],
+        ]).get(token);
+        if (!accountId) throw new Error('invalid test token');
+        return { accountId };
+      },
+    },
+    historyReader: createAnalysisHistoryReader(database.db),
+    analysisServices,
+  });
 });
 
 afterAll(async () => {
   await application.close();
+  await analysisApplication?.close();
   await database.pool.end();
 });
 
@@ -318,5 +435,42 @@ describe('real database history ownership boundary', () => {
         'SELECT "value" FROM "neon_auth"."migration_sentinel"',
       ),
     ).resolves.toMatchObject({ rows: [{ value: neonAuthSentinel }] });
+  });
+
+  it('persists one queued Analysis, completes it through the worker seam, and enforces ownership', async () => {
+    expect(analysisApplication).toBeDefined();
+    expect(analysisServices).toBeDefined();
+
+    const submitted = await analysisApplication!.inject({
+      method: 'POST',
+      url: '/api/v1/analyses',
+      headers: { authorization: 'Bearer account-a-token' },
+      payload: { uploadId: integrationUploadId },
+    });
+
+    expect(submitted.statusCode).toBe(202);
+    const submittedAnalysisId = submitted.json().analysis.id as string;
+    expect(integrationJobs).toHaveLength(1);
+
+    await analysisServices!.processAnalysis(integrationJobs[0]!);
+    const completed = await analysisApplication!.inject({
+      method: 'GET',
+      url: `/api/v1/analyses/${submittedAnalysisId}`,
+      headers: { authorization: 'Bearer account-a-token' },
+    });
+    expect(completed.statusCode).toBe(200);
+    expect(completed.json()).toMatchObject({
+      id: submittedAnalysisId,
+      status: 'completed',
+      result: { emotionClassification: 'happiness' },
+    });
+    expect(integrationStorage!.objects.size).toBe(0);
+
+    const otherAccount = await analysisApplication!.inject({
+      method: 'GET',
+      url: `/api/v1/analyses/${submittedAnalysisId}`,
+      headers: { authorization: 'Bearer account-b-token' },
+    });
+    expect(otherAccount.statusCode).toBe(404);
   });
 });

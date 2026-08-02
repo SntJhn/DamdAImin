@@ -1,0 +1,116 @@
+import { Type, type Static } from '@sinclair/typebox';
+
+export const AnalysisLanguageSchema = Type.Union([
+  Type.Literal('taglish'),
+  Type.Literal('english'),
+  Type.Literal('tagalog'),
+]);
+
+export const AnalysisStatusSchema = Type.Union([
+  Type.Literal('queued'),
+  Type.Literal('processing'),
+  Type.Literal('completed'),
+  Type.Literal('failed'),
+  Type.Literal('canceled'),
+]);
+
+export const AnalysisOutcomeSchema = Type.Union([
+  Type.Literal('definitive'),
+  Type.Literal('inconclusive'),
+]);
+
+export const EmotionClassificationSchema = Type.Union([
+  Type.Literal('happiness'),
+  Type.Literal('sadness'),
+  Type.Literal('anger'),
+  Type.Literal('neutrality'),
+]);
+
+export const ConfidenceBreakdownSchema = Type.Object({
+  happiness: Type.Number({ minimum: 0, maximum: 1 }),
+  sadness: Type.Number({ minimum: 0, maximum: 1 }),
+  anger: Type.Number({ minimum: 0, maximum: 1 }),
+  neutrality: Type.Number({ minimum: 0, maximum: 1 }),
+});
+
+export const AnalysisResultSchema = Type.Object({
+  outcome: AnalysisOutcomeSchema,
+  emotionClassification: Type.Optional(EmotionClassificationSchema),
+  confidence: ConfidenceBreakdownSchema,
+  transcript: Type.String(),
+  explanation: Type.String(),
+  technicalTrace: Type.Array(
+    Type.Object({
+      cue: Type.String(),
+      value: Type.String(),
+    }),
+  ),
+  contractVersion: Type.String({ minLength: 1 }),
+  modelVersion: Type.String({ minLength: 1 }),
+  preprocessingVersion: Type.String({ minLength: 1 }),
+  ruleSetVersion: Type.String({ minLength: 1 }),
+});
+
+export const CreateAnalysisUploadRequestSchema = Type.Object({
+  language: AnalysisLanguageSchema,
+  contractVersion: Type.String({ minLength: 1, maxLength: 64 }),
+});
+
+export const CreateAnalysisUploadResponseSchema = Type.Object({
+  uploadId: Type.String({ format: 'uuid' }),
+  uploadUrl: Type.String({ format: 'uri' }),
+  uploadMethod: Type.Union([Type.Literal('PUT'), Type.Literal('POST')]),
+  uploadHeaders: Type.Object({
+    'content-type': Type.Literal('audio/wav'),
+  }),
+  expiresAt: Type.String({ format: 'date-time' }),
+});
+
+export const FinalizeAnalysisRequestSchema = Type.Object({
+  uploadId: Type.String({ format: 'uuid' }),
+});
+
+export const AnalysisResourceSchema = Type.Object({
+  id: Type.String({ format: 'uuid' }),
+  status: AnalysisStatusSchema,
+  stage: Type.String({ minLength: 1 }),
+  language: AnalysisLanguageSchema,
+  createdAt: Type.String({ format: 'date-time' }),
+  failureMessage: Type.Optional(Type.String()),
+  result: Type.Optional(AnalysisResultSchema),
+});
+
+export const AcceptedAnalysisResponseSchema = Type.Object({
+  analysis: AnalysisResourceSchema,
+  location: Type.String({ format: 'uri-reference' }),
+});
+
+export const ValidationErrorResponseSchema = Type.Object({
+  error: Type.Literal('validation_error'),
+  message: Type.String(),
+});
+
+export const NotFoundResponseSchema = Type.Object({
+  error: Type.Literal('not_found'),
+});
+
+export const ConflictResponseSchema = Type.Object({
+  error: Type.Literal('conflict'),
+  message: Type.String(),
+});
+
+export const AnalysisFailureResponseSchema = Type.Object({
+  error: Type.Literal('analysis_failed'),
+  message: Type.String(),
+});
+
+export type AnalysisLanguage = Static<typeof AnalysisLanguageSchema>;
+export type AnalysisStatus = Static<typeof AnalysisStatusSchema>;
+export type AnalysisOutcome = Static<typeof AnalysisOutcomeSchema>;
+export type EmotionClassification = Static<typeof EmotionClassificationSchema>;
+export type AnalysisResult = Static<typeof AnalysisResultSchema>;
+export type CreateAnalysisUploadRequest = Static<typeof CreateAnalysisUploadRequestSchema>;
+export type CreateAnalysisUploadResponse = Static<typeof CreateAnalysisUploadResponseSchema>;
+export type FinalizeAnalysisRequest = Static<typeof FinalizeAnalysisRequestSchema>;
+export type AnalysisResource = Static<typeof AnalysisResourceSchema>;
+export type AcceptedAnalysisResponse = Static<typeof AcceptedAnalysisResponseSchema>;

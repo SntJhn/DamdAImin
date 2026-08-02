@@ -4,7 +4,7 @@ DamdAImin is the application shell for the completed explainable speech-emotion 
 
 ## Status
 
-The product requirements, local-first implementation route, and architecture are specified. The local foundation is now scaffolded; authenticated account and Analysis History behavior remains the next implementation slice.
+The product requirements, local-first implementation route, and architecture are specified. The authenticated foundation and first complete Analysis tracer bullet are implemented locally: a verified user can upload one Taglish WAV, observe durable processing, and receive a deterministic completed classification through the API, queue, worker, storage, and Research System fake boundaries.
 
 - Product scope: [PRD: DamdAImin MVP](https://github.com/SntJhn/DamdAImin/issues/1)
 - Implementation plan: [MVP implementation plan](docs/plans/mvp-implementation-plan.md)
@@ -38,6 +38,8 @@ To start locally:
 The supplied Neon credential is intentionally not stored in this repository. Keep it in the ignored `.env` file and rotate it if it has been exposed outside the intended development team.
 
 The normal local runtime will use Docker for application dependencies and a Neon development branch for PostgreSQL and Neon Auth. Tests must use generated synthetic WAV fixtures rather than research recordings or user submissions.
+
+The issue #3 tracer bullet is available at `/analyze` after sign-in. It validates one WAV utterance against the provisional 20-second envelope, uploads it to the private local source-audio bucket, queues the durable Analysis, and polls `/analyses/{id}` until a terminal stage. The fake returns a deterministic definitive classification; full confidence, Transcript, Explanation, and Technical Trace presentation remains assigned to the result slice.
 
 `pnpm test:integration` starts a disposable PostgreSQL 18 container for the database/API ownership test. It does not read the configured `DATABASE_URL`; Docker must be available locally.
 

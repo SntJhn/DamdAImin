@@ -16,9 +16,23 @@ services:
 
   fake-gcs:
     image: fsouza/fake-gcs-server:1.52.3
-    command: ['-scheme', 'http', '-port', '4443', '-backend', 'memory']
+    command:
+      [
+        '-scheme',
+        'http',
+        '-port',
+        '4443',
+        '-backend',
+        'filesystem',
+        '-filesystem-root',
+        '/data',
+        '-cors-headers',
+        'content-type,origin',
+      ]
     ports:
       - '4443:4443'
+    volumes:
+      - fake-gcs-data:/data
     healthcheck:
       test: ['CMD-SHELL', 'wget -q --spider http://localhost:4443/storage/v1/b || exit 1']
       interval: 5s
@@ -50,6 +64,17 @@ services:
       RESEARCH_FAKE_PORT: 4100
     ports:
       - '4100:4100'
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://localhost:4100/healthz').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   api:
     build:
@@ -66,9 +91,18 @@ services:
       NEON_AUTH_ISSUER: ${NEON_AUTH_ISSUER:?NEON_AUTH_ISSUER is required}
       NEON_AUTH_AUDIENCE: ${NEON_AUTH_AUDIENCE:?NEON_AUTH_AUDIENCE is required}
       REDIS_URL: redis://redis:6379
+      RESEARCH_FAKE_URL: http://research-fake:4100
+      GCS_ENDPOINT: http://fake-gcs:4443
+      GCS_PUBLIC_ENDPOINT: http://localhost:4443
+      GCS_PROJECT_ID: damdai-local
+      GCS_SOURCE_BUCKET: damdai-source-audio
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
     depends_on:
       redis:
+        condition: service_healthy
+      fake-gcs:
+        condition: service_healthy
+      research-fake:
         condition: service_healthy
       otel-collector:
         condition: service_healthy
@@ -92,14 +126,20 @@ services:
       dockerfile: Dockerfile
     command: ['node', 'apps/worker/dist/main.js']
     environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       REDIS_URL: redis://redis:6379
       RESEARCH_FAKE_URL: http://research-fake:4100
+      GCS_ENDPOINT: http://fake-gcs:4443
+      GCS_PROJECT_ID: damdai-local
+      GCS_SOURCE_BUCKET: damdai-source-audio
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
     depends_on:
       redis:
         condition: service_healthy
+      fake-gcs:
+        condition: service_healthy
       research-fake:
-        condition: service_started
+        condition: service_healthy
 
   web:
     build:
@@ -129,3 +169,4 @@ services:
 
 volumes:
   redis-data:
+  fake-gcs-data:
