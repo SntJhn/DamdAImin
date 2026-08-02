@@ -25,7 +25,8 @@
     "@opentelemetry/sdk-node": "^0.221.0",
     "@sinclair/typebox": "^0.34.0",
     "bullmq": "^5.0.0",
-    "ioredis": "^5.0.0"
+    "ioredis": "^5.0.0",
+    "pino": "^9.0.0"
   },
   "devDependencies": {
     "typescript": "^5.0.0"

@@ -81,6 +81,9 @@ importers:
         specifier: ^6.2.5
         version: 6.2.5
     devDependencies:
+      '@damdai/research-fake':
+        specifier: workspace:*
+        version: link:../../services/research-fake
       tsx:
         specifier: ^4.0.0
         version: 4.23.1
@@ -255,6 +258,9 @@ importers:
       ioredis:
         specifier: ^5.0.0
         version: 5.11.1(supports-color@7.2.0)
+      pino:
+        specifier: ^9.0.0
+        version: 9.14.0
     devDependencies:
       typescript:
         specifier: ^5.0.0
@@ -265,6 +271,9 @@ importers:
       '@damdai/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      ajv:
+        specifier: ^8.17.1
+        version: 8.20.0
       fastify:
         specifier: ^5.0.0
         version: 5.10.0

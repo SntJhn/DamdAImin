@@ -7,6 +7,7 @@ import { loadEnvironment } from '@damdai/config';
 import {
   createAnalysisQueue,
   createGcsSourceAudioStorage,
+  createPrivacySafeLogger,
   createResearchSystemClient,
   startObservability,
 } from '@damdai/infrastructure';
@@ -31,6 +32,7 @@ const database = createDatabase();
 const redisUrl = process.env.REDIS_URL ?? 'redis://localhost:6379';
 const analysisQueue = createAnalysisQueue(redisUrl);
 const observability = startObservability({ serviceName: 'damdai-api' });
+const logger = createPrivacySafeLogger({ name: 'damdai-api' });
 const analysisServices = createAnalysisServices({
   repository: createAnalysisRepository(database.db),
   storage: createGcsSourceAudioStorage({
@@ -56,7 +58,7 @@ const application = buildApi({
   }),
   historyReader: createAnalysisHistoryReader(database.db),
   analysisServices,
-  logger: true,
+  loggerInstance: logger,
   redisUrl,
   telemetry: observability.telemetry,
 });

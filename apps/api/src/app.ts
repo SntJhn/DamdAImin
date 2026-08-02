@@ -2,7 +2,7 @@ import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import swagger from '@fastify/swagger';
-import Fastify, { type FastifyInstance } from 'fastify';
+import Fastify, { type FastifyBaseLogger, type FastifyInstance } from 'fastify';
 import { Redis } from 'ioredis';
 
 import {
@@ -48,12 +48,15 @@ export interface ApiOptions {
   analysisServices?: AnalysisServices;
   redisUrl?: string;
   logger?: boolean;
+  loggerInstance?: FastifyBaseLogger;
   telemetry?: AnalysisTelemetry;
   version?: string;
 }
 
 export function buildApi(options: ApiOptions = {}): FastifyInstance {
-  const application = Fastify({ logger: options.logger ?? false });
+  const application = options.loggerInstance
+    ? Fastify({ loggerInstance: options.loggerInstance })
+    : Fastify({ logger: options.logger ?? false });
   const redis = options.redisUrl ? new Redis(options.redisUrl, { lazyConnect: true }) : undefined;
 
   application.register(swagger, {

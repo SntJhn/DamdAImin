@@ -15,7 +15,13 @@ import {
   createDatabase,
   migrateDatabase,
 } from '@damdai/database';
-import { createAnalysisQueue, createGcsSourceAudioStorage } from '@damdai/infrastructure';
+import {
+  createAnalysisQueue,
+  createAnalysisWorker,
+  createGcsSourceAudioStorage,
+  createResearchSystemClient,
+} from '@damdai/infrastructure';
+import { buildResearchFake } from '@damdai/research-fake';
 
 import { buildApi } from './app.js';
 
@@ -59,7 +65,10 @@ let neonAuthBeforeMigration: DatabaseSchemaState;
 let analysisApplication: ReturnType<typeof buildApi> | undefined;
 let analysisServices: AnalysisServices | undefined;
 let integrationQueue: ReturnType<typeof createAnalysisQueue> | undefined;
+let integrationWorker: ReturnType<typeof createAnalysisWorker> | undefined;
 let integrationStorage: ReturnType<typeof createGcsSourceAudioStorage> | undefined;
+let researchFake: ReturnType<typeof buildResearchFake> | undefined;
+let researchFakeUrl = '';
 let integrationUploadId = '';
 let integrationObjectKey = '';
 const integrationJobs: AnalysisJob[] = [];
@@ -318,6 +327,9 @@ beforeAll(async () => {
     },
   ]);
 
+  researchFake = buildResearchFake();
+  researchFakeUrl = await researchFake.listen({ host: '127.0.0.1', port: 0 });
+
   const storage = createGcsSourceAudioStorage({
     endpoint: testGcsEndpoint,
     bucket: `damdai-integration-${process.pid}`,
@@ -334,20 +346,7 @@ beforeAll(async () => {
         await integrationQueue!.enqueue(job);
       },
     },
-    researchClient: {
-      analyze: async ({ contractVersion }) => ({
-        outcome: 'definitive' as const,
-        emotionClassification: 'happiness' as const,
-        confidence: { happiness: 0.91, sadness: 0.03, anger: 0.02, neutrality: 0.04 },
-        transcript: 'Masaya ako',
-        explanation: 'Synthetic integration fixture',
-        technicalTrace: [{ cue: 'fixture', value: 'happy' }],
-        contractVersion,
-        modelVersion: 'fake-model-1',
-        preprocessingVersion: 'fake-preprocessing-1',
-        ruleSetVersion: 'fake-rules-1',
-      }),
-    },
+    researchClient: createResearchSystemClient({ baseUrl: researchFakeUrl }),
   });
   const upload = await analysisServices.createUpload({
     accountId: accountA,
@@ -377,14 +376,44 @@ beforeAll(async () => {
     analysisServices,
     redisUrl: testRedisUrl,
   });
+  integrationWorker = createAnalysisWorker({
+    redisUrl: testRedisUrl,
+    processAnalysis: analysisServices.processAnalysis,
+  });
+  await integrationWorker.waitUntilReady();
 });
 
 afterAll(async () => {
+  await integrationWorker?.close();
   await application.close();
   await analysisApplication?.close();
   await integrationQueue?.close();
+  await researchFake?.close();
   await database.pool.end();
 });
+
+async function waitForCompletedAnalysis(analysisId: string): Promise<Record<string, unknown>> {
+  let lastStatus = 'unknown';
+
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    const response = await analysisApplication!.inject({
+      method: 'GET',
+      url: `/api/v1/analyses/${analysisId}`,
+      headers: { authorization: 'Bearer account-a-token' },
+    });
+
+    if (response.statusCode === 200) {
+      const body = response.json() as Record<string, unknown>;
+      lastStatus = String(body.status);
+      if (body.status === 'completed') return body;
+      if (body.status === 'failed') throw new Error('Integration Analysis failed');
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+
+  throw new Error(`Analysis did not complete; last status was ${lastStatus}`);
+}
 
 describe('real database history ownership boundary', () => {
   it('returns only the authenticated account history through Fastify and the HTTP endpoint', async () => {
@@ -446,15 +475,14 @@ describe('real database history ownership boundary', () => {
     expect(submitted.statusCode).toBe(202);
     const submittedAnalysisId = submitted.json().analysis.id as string;
     expect(integrationJobs).toHaveLength(1);
-
-    await analysisServices!.processAnalysis(integrationJobs[0]!);
-    const completed = await analysisApplication!.inject({
-      method: 'GET',
-      url: `/api/v1/analyses/${submittedAnalysisId}`,
-      headers: { authorization: 'Bearer account-a-token' },
+    expect(integrationJobs[0]).toEqual({
+      analysisId: submittedAnalysisId,
+      language: 'taglish',
+      contractVersion: 'taglish-v1',
     });
-    expect(completed.statusCode).toBe(200);
-    expect(completed.json()).toMatchObject({
+
+    const completed = await waitForCompletedAnalysis(submittedAnalysisId);
+    expect(completed).toMatchObject({
       id: submittedAnalysisId,
       status: 'completed',
       result: { emotionClassification: 'happiness' },
