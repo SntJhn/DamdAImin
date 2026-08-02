@@ -74,11 +74,45 @@ describe('deterministic Research System contract', () => {
     const requestSchema = await readGeneratedContract('research-request.json');
     const responseSchema = await readGeneratedContract('research-response.json');
     const errorSchema = await readGeneratedContract('research-error.json');
-    const request = {
-      analysisId: '8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01',
-      language: 'taglish',
-      contractVersion: 'taglish-v1',
-      audioBase64: 'UklGRg==',
+    const validRequests = [
+      {
+        analysisId: '8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01',
+        language: 'taglish',
+        contractVersion: 'taglish-v1',
+        audioBase64: 'UklGRg==',
+      },
+      {
+        analysisId: '8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01',
+        language: 'english',
+        contractVersion: 'english-v1',
+        audioBase64: 'UklGRg==',
+      },
+      {
+        analysisId: '8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01',
+        language: 'tagalog',
+        contractVersion: 'tagalog-v1',
+        audioBase64: 'UklGRg==',
+      },
+    ];
+    const invalidRequests = [
+      { ...validRequests[0], analysisId: 'not-an-id' },
+      { ...validRequests[0], language: 'unsupported' },
+      { ...validRequests[0], contractVersion: '' },
+      { ...validRequests[0], audioBase64: '' },
+    ];
+    const inconclusiveFixture = {
+      analysisId: validRequests[0].analysisId,
+      result: {
+        outcome: 'inconclusive',
+        confidence: { happiness: 0.25, sadness: 0.25, anger: 0.25, neutrality: 0.25 },
+        transcript: '',
+        explanation: 'The deterministic fixture is insufficient for a definitive result.',
+        technicalTrace: [],
+        contractVersion: 'taglish-v1',
+        modelVersion: 'fake-model-1',
+        preprocessingVersion: 'fake-preprocessing-1',
+        ruleSetVersion: 'fake-rules-1',
+      },
     };
     const validator = new Ajv2020({ strict: false });
     validator.addFormat(
@@ -90,20 +124,30 @@ describe('deterministic Research System contract', () => {
     const errorConforms = validator.compile(errorSchema);
 
     try {
-      const response = await application.inject({
-        method: 'POST',
-        url: '/v1/analyze',
-        payload: request,
-      });
-      const invalidRequest = await application.inject({
-        method: 'POST',
-        url: '/v1/analyze',
-        payload: { analysisId: 'not-an-id' },
-      });
+      for (const request of validRequests) {
+        const response = await application.inject({
+          method: 'POST',
+          url: '/v1/analyze',
+          payload: request,
+        });
 
-      expect(requestConforms(request)).toBe(true);
-      expect(responseConforms(response.json())).toBe(true);
-      expect(errorConforms(invalidRequest.json())).toBe(true);
+        expect(response.statusCode).toBe(200);
+        expect(requestConforms(request)).toBe(true);
+        expect(responseConforms(response.json())).toBe(true);
+      }
+
+      for (const request of invalidRequests) {
+        const response = await application.inject({
+          method: 'POST',
+          url: '/v1/analyze',
+          payload: request,
+        });
+
+        expect(response.statusCode).toBe(400);
+        expect(errorConforms(response.json())).toBe(true);
+      }
+
+      expect(responseConforms(inconclusiveFixture)).toBe(true);
     } finally {
       await application.close();
     }

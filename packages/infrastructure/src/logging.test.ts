@@ -14,6 +14,7 @@ describe('runtime Pino privacy redaction', () => {
       },
     });
     const logger = createPrivacySafeLogger({ name: 'redaction-test' }, destination);
+    const runtimeError = new Error('SENTINEL_ERROR_MESSAGE');
 
     logger.info(
       {
@@ -41,6 +42,7 @@ describe('runtime Pino privacy redaction', () => {
       },
       'analysis runtime log',
     );
+    logger.error(runtimeError, 'analysis runtime error');
 
     const output = chunks.join('');
     expect(output).toContain('8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01');

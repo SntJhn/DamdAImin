@@ -1,9 +1,11 @@
+import { createServer } from 'node:http';
+
 import type { Meter, Tracer } from '@opentelemetry/api';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { AnalysisTelemetryEvent } from '@damdai/application';
 
-import { createAnalysisTelemetry } from './telemetry.js';
+import { createAnalysisTelemetry, startObservability } from './telemetry.js';
 
 describe('Analysis telemetry', () => {
   it('emits only safe correlation attributes', () => {
@@ -72,4 +74,61 @@ describe('Analysis telemetry', () => {
     expect(JSON.stringify(startSpan.mock.calls[0])).not.toContain('SENTINEL_');
     expect(JSON.stringify(add.mock.calls[0])).not.toContain('SENTINEL_');
   });
+
+  it('keeps sensitive values out of exported OTLP traces and metrics', async () => {
+    const requests: Array<{ path: string; body: Buffer }> = [];
+    const server = createServer((request, response) => {
+      const chunks: Buffer[] = [];
+      request.on('data', (chunk: Buffer) => chunks.push(chunk));
+      request.on('end', () => {
+        requests.push({ path: request.url ?? '', body: Buffer.concat(chunks) });
+        response.statusCode = 200;
+        response.end();
+      });
+    });
+
+    await new Promise<void>((resolve, reject) => {
+      server.once('error', reject);
+      server.listen(0, '127.0.0.1', resolve);
+    });
+
+    const address = server.address();
+    if (!address || typeof address === 'string') {
+      await closeServer(server);
+      throw new Error('OTLP test collector did not expose a TCP address');
+    }
+
+    const observability = startObservability({
+      serviceName: 'telemetry-test',
+      endpoint: `http://127.0.0.1:${address.port}`,
+    });
+
+    try {
+      observability.telemetry.record({
+        name: 'analysis.stage',
+        analysisId: '8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01',
+        stage: 'completed',
+        language: 'taglish',
+        contractVersion: 'taglish-v1',
+        audioBase64: 'SENTINEL_AUDIO',
+        transcript: 'SENTINEL_TRANSCRIPT',
+        explanation: 'SENTINEL_EXPLANATION',
+      } as AnalysisTelemetryEvent);
+      await observability.shutdown();
+    } finally {
+      await closeServer(server);
+    }
+
+    expect(requests.map(({ path }) => path)).toEqual(
+      expect.arrayContaining(['/v1/traces', '/v1/metrics']),
+    );
+    const exportedPayload = Buffer.concat(requests.map(({ body }) => body)).toString('utf8');
+    expect(exportedPayload).not.toContain('SENTINEL_');
+  });
 });
+
+async function closeServer(server: ReturnType<typeof createServer>): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    server.close((error) => (error ? reject(error) : resolve()));
+  });
+}
