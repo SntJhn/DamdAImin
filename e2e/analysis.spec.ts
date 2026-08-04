@@ -60,6 +60,26 @@ async function mockVerifiedSession(page: Page) {
   });
 }
 
+async function trackRejectedSubmissionCalls(page: Page) {
+  const calls = { uploadOperations: 0, analysisCreations: 0 };
+  await page.route('**/api/v1/analysis-uploads', async (route) => {
+    calls.uploadOperations += 1;
+    await route.abort();
+  });
+  await page.route('**/api/v1/analyses', async (route) => {
+    calls.analysisCreations += 1;
+    await route.abort();
+  });
+  return calls;
+}
+
+async function startAndStopVirtualRecording(page: Page) {
+  await page.getByRole('button', { name: 'Grant access and record' }).click();
+  await expect(page.getByText(/Recording — .* seconds elapsed/)).toBeVisible();
+  await page.waitForTimeout(350);
+  await page.getByRole('button', { name: 'Stop recording' }).click();
+}
+
 test('submits one WAV utterance and lands on the durable Analysis resource', async ({ page }) => {
   await mockVerifiedSession(page);
   await page.route('**/api/v1/analysis-uploads', async (route) => {
@@ -109,6 +129,7 @@ test('submits one WAV utterance and lands on the durable Analysis resource', asy
   ).toBeVisible();
   await expect(page.getByText('Long audio is not segmented into multiple Analyses.')).toBeVisible();
 
+  await page.getByRole('radio', { name: 'Upload WAV' }).check();
   await page.locator('#analysis-file').setInputFiles({
     name: 'synthetic.wav',
     mimeType: 'audio/wav',
@@ -119,7 +140,260 @@ test('submits one WAV utterance and lands on the durable Analysis resource', asy
   await expect(page).toHaveURL(`/analyses/${analysisId}`);
 });
 
-test('shows a persisted completed result and has no accessibility violations', async ({ page }) => {
+test('records virtual synthetic media, replaces it locally, and submits the converted WAV', async ({
+  page,
+}) => {
+  await mockVerifiedSession(page);
+  let uploadOperations = 0;
+  let analysisCreations = 0;
+  let analysisReads = 0;
+  let uploadedWav: Buffer | null = null;
+
+  await page.route('**/api/v1/analysis-uploads', async (route) => {
+    uploadOperations += 1;
+    await route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        uploadId: 'a0ad9a3f-26b2-4014-8f51-ec7d67bb4f1a',
+        uploadUrl: 'http://upload.test/recorded-source.wav',
+        uploadMethod: 'PUT',
+        uploadHeaders: { 'content-type': 'audio/wav' },
+        expiresAt: '2026-08-02T00:15:00.000Z',
+      }),
+    });
+  });
+  await page.route('http://upload.test/**', async (route) => {
+    uploadedWav = route.request().postDataBuffer();
+    await route.fulfill({ status: 200 });
+  });
+  await page.route(`**/api/v1/analyses/${analysisId}`, async (route) => {
+    analysisReads += 1;
+    const completed = analysisReads > 1;
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: analysisId,
+        status: completed ? 'completed' : 'queued',
+        stage: completed ? 'completed' : 'queued',
+        language: 'english',
+        createdAt: '2026-08-02T00:00:00.000Z',
+        ...(completed
+          ? {
+              result: {
+                outcome: 'definitive',
+                emotionClassification: 'happiness',
+                confidence: {
+                  happiness: 0.91,
+                  sadness: 0.03,
+                  anger: 0.02,
+                  neutrality: 0.04,
+                },
+                transcript: 'Synthetic virtual microphone fixture.',
+                explanation: 'Synthetic fixture.',
+                technicalTrace: [{ cue: 'synthetic-positive-cue', value: 'happiness' }],
+                contractVersion: 'taglish-v1',
+                modelVersion: 'fake-model-1',
+                preprocessingVersion: 'fake-preprocessing-1',
+                ruleSetVersion: 'fake-rules-1',
+              },
+            }
+          : {}),
+      }),
+    });
+  });
+  await page.route('**/api/v1/analyses', async (route) => {
+    analysisCreations += 1;
+    await route.fulfill({
+      status: 202,
+      contentType: 'application/json',
+      headers: { location: `/api/v1/analyses/${analysisId}` },
+      body: JSON.stringify({
+        analysis: {
+          id: analysisId,
+          status: 'queued',
+          stage: 'queued',
+          language: 'english',
+          createdAt: '2026-08-02T00:00:00.000Z',
+        },
+        location: `/api/v1/analyses/${analysisId}`,
+      }),
+    });
+  });
+
+  await page.goto('/analyze');
+  await expect(page.getByText('verified@example.test')).toBeVisible();
+  await page.locator('#analysis-language').focus();
+  await page.keyboard.press('ArrowDown');
+
+  const start = page.getByRole('button', { name: 'Grant access and record' });
+  await start.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByText(/Recording — .* seconds elapsed/)).toBeVisible();
+  await page.waitForTimeout(500);
+  const stop = page.getByRole('button', { name: 'Stop recording' });
+  await stop.focus();
+  await page.keyboard.press('Space');
+  await expect(
+    page.locator('.recorder-status').getByText(/WAV Source Audio is ready/),
+  ).toBeVisible();
+  await expect(page.getByText(/Only the converted WAV remains/)).toBeVisible();
+  expect(uploadOperations).toBe(0);
+  expect(analysisCreations).toBe(0);
+
+  const discard = page.getByRole('button', { name: 'Discard recording' });
+  await discard.focus();
+  await page.keyboard.press('Space');
+  await expect(page.getByText('Microphone is ready when you are.')).toBeVisible();
+  await page.getByRole('button', { name: 'Submit Analysis' }).click();
+  await expect(page.getByText('Record one utterance before submitting.')).toBeVisible();
+  expect(uploadOperations).toBe(0);
+  expect(analysisCreations).toBe(0);
+
+  await startAndStopVirtualRecording(page);
+  await expect(
+    page.locator('.recorder-status').getByText(/WAV Source Audio is ready/),
+  ).toBeVisible();
+  await expect(page.getByText('Record one utterance before submitting.')).toBeHidden();
+
+  const replace = page.getByRole('button', { name: 'Replace recording' });
+  await replace.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByText(/Recording — .* seconds elapsed/)).toBeVisible();
+  await page.waitForTimeout(500);
+  await page.getByRole('button', { name: 'Stop recording' }).click();
+  await expect(
+    page.locator('.recorder-status').getByText(/WAV Source Audio is ready/),
+  ).toBeVisible();
+  expect(uploadOperations).toBe(0);
+  expect(analysisCreations).toBe(0);
+
+  await expect(new AxeBuilder({ page }).analyze()).resolves.toMatchObject({ violations: [] });
+  const submit = page.getByRole('button', { name: 'Submit Analysis' });
+  await submit.focus();
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(`/analyses/${analysisId}`);
+  await expect(page.getByText('queued', { exact: true })).toBeVisible();
+  await expect(page.getByText('Emotion Classification')).toBeVisible({ timeout: 4_000 });
+  await page.reload();
+  await expect(page.getByText('Emotion Classification')).toBeVisible();
+
+  expect(uploadOperations).toBe(1);
+  expect(analysisCreations).toBe(1);
+  expect(analysisReads).toBe(3);
+  expect(uploadedWav?.subarray(0, 4).toString('ascii')).toBe('RIFF');
+  expect(uploadedWav?.subarray(8, 12).toString('ascii')).toBe('WAVE');
+  expect(uploadedWav?.readUInt16LE(20)).toBe(1);
+  expect(uploadedWav?.readUInt16LE(34)).toBe(16);
+});
+
+test('reports denied microphone permission without creating an Analysis', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: {
+        getUserMedia: async () => {
+          throw new DOMException('Synthetic permission denial', 'NotAllowedError');
+        },
+      },
+    });
+  });
+  await mockVerifiedSession(page);
+  const calls = await trackRejectedSubmissionCalls(page);
+
+  await page.goto('/analyze');
+  await expect(page.getByText('verified@example.test')).toBeVisible();
+  await page.getByRole('button', { name: 'Grant access and record' }).click();
+
+  await expect(page.getByText(/Microphone permission was denied/)).toBeVisible();
+  expect(calls).toEqual({ uploadOperations: 0, analysisCreations: 0 });
+  await expect(new AxeBuilder({ page }).analyze()).resolves.toMatchObject({ violations: [] });
+});
+
+test('reports unavailable microphone hardware without creating an Analysis', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: {
+        getUserMedia: async () => {
+          throw new DOMException('Synthetic missing device', 'NotFoundError');
+        },
+      },
+    });
+  });
+  await mockVerifiedSession(page);
+  const calls = await trackRejectedSubmissionCalls(page);
+
+  await page.goto('/analyze');
+  await expect(page.getByText('verified@example.test')).toBeVisible();
+  await page.getByRole('button', { name: 'Grant access and record' }).click();
+
+  await expect(page.getByText(/No microphone is available/)).toBeVisible();
+  expect(calls).toEqual({ uploadOperations: 0, analysisCreations: 0 });
+});
+
+test('reports microphone conversion failure without creating an Analysis', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(AudioContext.prototype, 'decodeAudioData', {
+      configurable: true,
+      value: async () => {
+        throw new DOMException('Synthetic decode failure', 'EncodingError');
+      },
+    });
+  });
+  await mockVerifiedSession(page);
+  const calls = await trackRejectedSubmissionCalls(page);
+
+  await page.goto('/analyze');
+  await expect(page.getByText('verified@example.test')).toBeVisible();
+  await startAndStopVirtualRecording(page);
+
+  await expect(page.getByText(/could not be converted into a valid WAV/)).toBeVisible();
+  expect(calls).toEqual({ uploadOperations: 0, analysisCreations: 0 });
+});
+
+test('reports invalid converted output without creating an Analysis', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(AudioContext.prototype, 'decodeAudioData', {
+      configurable: true,
+      value: async () => ({
+        length: 0,
+        numberOfChannels: 1,
+        sampleRate: 16_000,
+        getChannelData: () => new Float32Array(),
+      }),
+    });
+  });
+  await mockVerifiedSession(page);
+  const calls = await trackRejectedSubmissionCalls(page);
+
+  await page.goto('/analyze');
+  await expect(page.getByText('verified@example.test')).toBeVisible();
+  await startAndStopVirtualRecording(page);
+
+  await expect(page.getByText(/could not be converted into a valid WAV/)).toBeVisible();
+  expect(calls).toEqual({ uploadOperations: 0, analysisCreations: 0 });
+});
+
+test('stops an over-limit capture without creating an Analysis', async ({ page }) => {
+  await mockVerifiedSession(page);
+  const calls = await trackRejectedSubmissionCalls(page);
+
+  await page.goto('/analyze');
+  await expect(page.getByText('verified@example.test')).toBeVisible();
+  await page.clock.install();
+  await page.getByRole('button', { name: 'Grant access and record' }).click();
+  await expect(page.getByText(/Recording — .* seconds elapsed/)).toBeVisible();
+  await page.clock.fastForward(20_200);
+
+  await expect(page.getByText(/Recording exceeded the 20-second maximum/)).toBeVisible();
+  expect(calls).toEqual({ uploadOperations: 0, analysisCreations: 0 });
+});
+
+test('shows a persisted completed result after reload and has no accessibility violations', async ({
+  page,
+}) => {
   await mockVerifiedSession(page);
   let reads = 0;
   await page.route(`**/api/v1/analyses/${analysisId}`, async (route) => {
@@ -154,6 +428,8 @@ test('shows a persisted completed result and has no accessibility violations', a
   await expect(page.getByText('Emotion Classification')).toBeVisible();
   await expect(page.getByText('happiness', { exact: true })).toBeVisible();
   await expect(new AxeBuilder({ page }).analyze()).resolves.toMatchObject({ violations: [] });
+  await page.reload();
+  await expect(page.getByText('Emotion Classification')).toBeVisible();
   await page.waitForTimeout(2_100);
-  expect(reads).toBe(1);
+  expect(reads).toBe(2);
 });
