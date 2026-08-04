@@ -80,7 +80,7 @@ export function AnalysisSubmitClient() {
           authorization: `Bearer ${token}`,
           'content-type': 'application/json',
         },
-        body: JSON.stringify({ language, contractVersion: 'taglish-v1' }),
+        body: JSON.stringify({ language, contractVersion: 'taglish-v2' }),
       });
       if (uploadResponse.status === 401) {
         router.replace('/auth/sign-in?next=/analyze');

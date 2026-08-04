@@ -13,7 +13,7 @@ const analysis: Analysis = {
   status: 'queued',
   stage: 'queued',
   language: 'taglish',
-  contractVersion: 'taglish-v1',
+  contractVersion: 'taglish-v2',
   sourceAudioKey: 'accounts/account-a/source-audio/upload-id.wav',
   sourceAudioSize: 64_044,
   createdAt: new Date('2026-08-02T00:00:00.000Z'),
@@ -54,8 +54,8 @@ const completedAnalysis: Analysis = {
         after: { happiness: 0.91, sadness: 0.03, anger: 0.02, neutrality: 0.04 },
       },
     },
-    contractVersion: 'taglish-v1',
-    schemaVersion: 'research-response-v1',
+    contractVersion: 'taglish-v2',
+    schemaVersion: 'research-response-v2',
     modelVersion: 'fake-model-1',
     preprocessingVersion: 'fake-preprocessing-1',
     ruleSetVersion: 'fake-rules-1',
@@ -70,7 +70,7 @@ function createServices(currentAnalysis: Analysis = analysis): AnalysisServices 
         accountId: 'account-a',
         objectKey: 'accounts/account-a/source-audio/upload.wav',
         language: 'taglish' as const,
-        contractVersion: 'taglish-v1',
+        contractVersion: 'taglish-v2',
         contentType: 'audio/wav' as const,
         status: 'created' as const,
         expiresAt: new Date('2026-08-02T00:15:00.000Z'),
@@ -105,7 +105,7 @@ describe('Analysis REST boundary', () => {
       method: 'POST',
       url: '/api/v1/analysis-uploads',
       headers: { authorization: 'Bearer verified-token' },
-      payload: { language: 'taglish', contractVersion: 'taglish-v1' },
+      payload: { language: 'taglish', contractVersion: 'taglish-v2' },
     });
 
     expect(response.statusCode).toBe(201);
@@ -117,7 +117,7 @@ describe('Analysis REST boundary', () => {
     expect(analysisServices.createUpload).toHaveBeenCalledWith({
       accountId: 'account-a',
       language: 'taglish',
-      contractVersion: 'taglish-v1',
+      contractVersion: 'taglish-v2',
     });
   });
 
@@ -151,7 +151,7 @@ describe('Analysis REST boundary', () => {
         analysisId: analysis.id,
         stage: 'queued',
         language: 'taglish',
-        contractVersion: 'taglish-v1',
+        contractVersion: 'taglish-v2',
       },
     ]);
   });
@@ -198,7 +198,7 @@ describe('Analysis REST boundary', () => {
         emotionClassification: 'happiness',
         transcript: completedAnalysis.result?.transcript,
         technicalTrace: completedAnalysis.result?.technicalTrace,
-        schemaVersion: 'research-response-v1',
+        schemaVersion: 'research-response-v2',
       },
     });
   });

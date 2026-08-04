@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://damdai.local/contracts/research-response-v1.json",
+  "$id": "https://damdai.local/contracts/research-response-v2.json",
   "type": "object",
   "required": [
     "analysisId",

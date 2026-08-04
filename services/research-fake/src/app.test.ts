@@ -50,7 +50,7 @@ describe('deterministic Research System contract', () => {
         payload: {
           analysisId: '8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01',
           language: 'taglish',
-          contractVersion: 'taglish-v1',
+          contractVersion: 'taglish-v2',
           audioBase64: 'UklGRg==',
         },
       });
@@ -62,7 +62,7 @@ describe('deterministic Research System contract', () => {
         result: {
           outcome: 'definitive',
           emotionClassification: 'happiness',
-          contractVersion: 'taglish-v1',
+          contractVersion: 'taglish-v2',
           technicalTrace: expect.any(Object),
         },
       });
@@ -104,7 +104,7 @@ describe('deterministic Research System contract', () => {
         payload: {
           analysisId: '8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01',
           language: 'taglish',
-          contractVersion: 'taglish-v1',
+          contractVersion: 'taglish-v2',
           audioBase64: 'UklGRg==',
         },
       });
@@ -151,19 +151,19 @@ describe('deterministic Research System contract', () => {
       {
         analysisId: '8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01',
         language: 'taglish',
-        contractVersion: 'taglish-v1',
+        contractVersion: 'taglish-v2',
         audioBase64: 'UklGRg==',
       },
       {
         analysisId: '8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01',
         language: 'english',
-        contractVersion: 'english-v1',
+        contractVersion: 'english-v2',
         audioBase64: 'UklGRg==',
       },
       {
         analysisId: '8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01',
         language: 'tagalog',
-        contractVersion: 'tagalog-v1',
+        contractVersion: 'tagalog-v2',
         audioBase64: 'UklGRg==',
       },
     ];
@@ -189,8 +189,8 @@ describe('deterministic Research System contract', () => {
             after: { happiness: 0.25, sadness: 0.25, anger: 0.25, neutrality: 0.25 },
           },
         },
-        contractVersion: 'taglish-v1',
-        schemaVersion: 'research-response-v1',
+        contractVersion: 'taglish-v2',
+        schemaVersion: 'research-response-v2',
         modelVersion: 'fake-model-1',
         preprocessingVersion: 'fake-preprocessing-1',
         ruleSetVersion: 'fake-rules-1',
@@ -245,7 +245,7 @@ describe('deterministic Research System contract', () => {
         {
           responseFor: (_request, defaultResponse) => ({
             ...defaultResponse,
-            result: { ...defaultResponse.result, contractVersion: 'taglish-v2' },
+            result: { ...defaultResponse.result, contractVersion: 'taglish-v3' },
           }),
         },
         validRequests[0],
@@ -253,7 +253,7 @@ describe('deterministic Research System contract', () => {
       expect(wrongVersionResponse.status).toBe(200);
       expect(responseConforms(wrongVersionResponse.body)).toBe(true);
       expect(wrongVersionResponse.body).toMatchObject({
-        result: { contractVersion: 'taglish-v2' },
+        result: { contractVersion: 'taglish-v3' },
       });
 
       const malformedResponse = await analyzeOverHttp(

@@ -7,7 +7,7 @@ import { createResearchSystemClient } from './research-client.js';
 const analysisInput = {
   analysisId: '8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01',
   language: 'taglish' as const,
-  contractVersion: 'taglish-v1',
+  contractVersion: 'taglish-v2',
   audio: new Uint8Array([1]),
 };
 
@@ -70,8 +70,8 @@ describe('Research System HTTP contract client', () => {
             transcript: 'Masaya ako',
             explanation: 'Synthetic fixture',
             technicalTrace: definitiveTechnicalTrace,
-            contractVersion: 'taglish-v1',
-            schemaVersion: 'research-response-v1',
+            contractVersion: 'taglish-v2',
+            schemaVersion: 'research-response-v2',
             modelVersion: 'fake-model-1',
             preprocessingVersion: 'fake-preprocessing-1',
             ruleSetVersion: 'fake-rules-1',
@@ -86,7 +86,7 @@ describe('Research System HTTP contract client', () => {
       client.analyze({
         analysisId: '8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01',
         language: 'taglish',
-        contractVersion: 'taglish-v1',
+        contractVersion: 'taglish-v2',
         audio: new Uint8Array([1, 2, 3]),
       }),
     ).resolves.toMatchObject({ outcome: 'definitive', emotionClassification: 'happiness' });
@@ -115,7 +115,7 @@ describe('Research System HTTP contract client', () => {
       client.analyze({
         analysisId: '8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01',
         language: 'taglish',
-        contractVersion: 'taglish-v1',
+        contractVersion: 'taglish-v2',
         audio: new Uint8Array([1]),
       }),
     ).rejects.toThrow('response does not satisfy');
@@ -134,8 +134,8 @@ describe('Research System HTTP contract client', () => {
               transcript: 'Masaya ako',
               explanation: 'Synthetic fixture',
               technicalTrace: definitiveTechnicalTrace,
-              contractVersion: 'taglish-v1',
-              schemaVersion: 'research-response-v1',
+              contractVersion: 'taglish-v2',
+              schemaVersion: 'research-response-v2',
               modelVersion: 'fake-model-1',
               preprocessingVersion: 'fake-preprocessing-1',
               ruleSetVersion: 'fake-rules-1',
@@ -150,7 +150,7 @@ describe('Research System HTTP contract client', () => {
       client.analyze({
         analysisId: '8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01',
         language: 'taglish',
-        contractVersion: 'taglish-v1',
+        contractVersion: 'taglish-v2',
         audio: new Uint8Array([1]),
       }),
     ).rejects.toThrow('mismatched Analysis identifier');
@@ -168,8 +168,8 @@ describe('Research System HTTP contract client', () => {
               transcript: 'Masaya ako',
               explanation: 'Synthetic fixture',
               technicalTrace: inconclusiveTechnicalTrace,
-              contractVersion: 'taglish-v1',
-              schemaVersion: 'research-response-v1',
+              contractVersion: 'taglish-v2',
+              schemaVersion: 'research-response-v2',
               modelVersion: 'fake-model-1',
               preprocessingVersion: 'fake-preprocessing-1',
               ruleSetVersion: 'fake-rules-1',
@@ -184,7 +184,7 @@ describe('Research System HTTP contract client', () => {
       client.analyze({
         analysisId: '8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01',
         language: 'taglish',
-        contractVersion: 'taglish-v1',
+        contractVersion: 'taglish-v2',
         audio: new Uint8Array([1]),
       }),
     ).rejects.toThrow('response does not satisfy');
@@ -212,7 +212,7 @@ describe('Research System HTTP contract client', () => {
                 },
               },
               contractVersion: analysisInput.contractVersion,
-              schemaVersion: 'research-response-v1',
+              schemaVersion: 'research-response-v2',
               modelVersion: 'fake-model-1',
               preprocessingVersion: 'fake-preprocessing-1',
               ruleSetVersion: 'fake-rules-1',
@@ -238,8 +238,8 @@ describe('Research System HTTP contract client', () => {
           transcript: 'Masaya ako',
           explanation: 'Synthetic fixture',
           technicalTrace: definitiveTechnicalTrace,
-          contractVersion: 'taglish-v2',
-          schemaVersion: 'research-response-v1',
+          contractVersion: 'taglish-v3',
+          schemaVersion: 'research-response-v2',
           modelVersion: 'fake-model-1',
           preprocessingVersion: 'fake-preprocessing-1',
           ruleSetVersion: 'fake-rules-1',

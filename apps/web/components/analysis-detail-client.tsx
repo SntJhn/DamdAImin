@@ -211,8 +211,9 @@ function AnalysisRecord({
 
       <p className="analysis-outcome-copy">{outcomePresentation.description}</p>
       <p className="analysis-speech-scope">
-        This is a classification of expressed speech from this Analysis Record, based on the
-        evidence returned by the Research System.
+        {classification
+          ? 'This is a classification of expressed speech from this Analysis Record, based on the evidence returned by the Research System.'
+          : 'This completed Analysis concerns expressed speech from this Analysis Record. It does not provide a definitive classification because the returned evidence was insufficient.'}
       </p>
 
       {classification ? (

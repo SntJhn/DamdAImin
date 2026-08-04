@@ -239,8 +239,8 @@ test('records virtual synthetic media, replaces it locally, and submits the conv
                 transcript: 'Synthetic virtual microphone fixture.',
                 explanation: 'Synthetic fixture.',
                 technicalTrace: definitiveTechnicalTrace,
-                contractVersion: 'taglish-v1',
-                schemaVersion: 'research-response-v1',
+                contractVersion: 'taglish-v2',
+                schemaVersion: 'research-response-v2',
                 modelVersion: 'fake-model-1',
                 preprocessingVersion: 'fake-preprocessing-1',
                 ruleSetVersion: 'fake-rules-1',
@@ -461,8 +461,8 @@ test('shows a persisted completed result after reload and has no accessibility v
           transcript: 'Masaya ako sa araw na ito.',
           explanation: 'Synthetic fixture.',
           technicalTrace: definitiveTechnicalTrace,
-          contractVersion: 'taglish-v1',
-          schemaVersion: 'research-response-v1',
+          contractVersion: 'taglish-v2',
+          schemaVersion: 'research-response-v2',
           modelVersion: 'fake-model-1',
           preprocessingVersion: 'fake-preprocessing-1',
           ruleSetVersion: 'fake-rules-1',
@@ -488,7 +488,7 @@ test('shows a persisted completed result after reload and has no accessibility v
   await expect(page.getByText('Score adjustments', { exact: true })).toBeVisible();
   await expect(page.getByText('Before-and-after probabilities', { exact: true })).toBeVisible();
   await expect(page.getByText('Version identifiers', { exact: true })).toBeVisible();
-  await expect(page.getByText('research-response-v1', { exact: true })).toBeVisible();
+  await expect(page.getByText('research-response-v2', { exact: true })).toBeVisible();
   await expect(page.getByText('fake-model-1', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: /edit|correct/i })).toHaveCount(0);
   await expect(new AxeBuilder({ page }).analyze()).resolves.toMatchObject({ violations: [] });
@@ -519,8 +519,8 @@ test('presents an Inconclusive Result without a headline class or visible raw pr
           explanation:
             'The returned fixture did not provide sufficient acoustic and linguistic evidence for a definitive classification.',
           technicalTrace: inconclusiveTechnicalTrace,
-          contractVersion: 'english-v1',
-          schemaVersion: 'research-response-v1',
+          contractVersion: 'english-v2',
+          schemaVersion: 'research-response-v2',
           modelVersion: 'fake-model-1',
           preprocessingVersion: 'fake-preprocessing-1',
           ruleSetVersion: 'fake-rules-1',
@@ -536,6 +536,11 @@ test('presents an Inconclusive Result without a headline class or visible raw pr
   ).toBeVisible();
   await expect(page.getByText('English', { exact: true })).toBeVisible();
   await expect(page.getByText('Experimental', { exact: true })).toBeVisible();
+  await expect(
+    page.getByText(
+      'It does not provide a definitive classification because the returned evidence was insufficient.',
+    ),
+  ).toBeVisible();
   await expect(page.getByText('Confidence breakdown')).toHaveCount(0);
   await expect(page.locator('.probability-table')).toBeHidden();
   await expect(page.getByRole('button', { name: /edit|correct/i })).toHaveCount(0);

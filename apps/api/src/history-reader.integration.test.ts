@@ -372,7 +372,7 @@ beforeAll(async () => {
   const upload = await analysisServices.createUpload({
     accountId: accountA,
     language: 'taglish',
-    contractVersion: 'taglish-v1',
+    contractVersion: 'taglish-v2',
   });
   integrationUploadId = upload.upload.id;
   integrationObjectKey = upload.upload.objectKey;
@@ -503,7 +503,7 @@ describe('real database history ownership boundary', () => {
     expect(integrationJobs[0]).toEqual({
       analysisId: submittedAnalysisId,
       language: 'taglish',
-      contractVersion: 'taglish-v1',
+      contractVersion: 'taglish-v2',
     });
 
     const completed = await waitForCompletedAnalysis(submittedAnalysisId);
