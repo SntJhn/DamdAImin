@@ -11,6 +11,7 @@
   "dependencies": {
     "@damdai/config": "workspace:*",
     "@damdai/contracts": "workspace:*",
+    "@damdai/domain": "workspace:*",
     "@neondatabase/auth": "0.4.2-beta",
     "next": "^16.0.0",
     "react": "^19.2.0",

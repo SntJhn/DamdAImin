@@ -99,6 +99,9 @@ importers:
       '@damdai/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@damdai/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
       '@neondatabase/auth':
         specifier: 0.4.2-beta
         version: 0.4.2-beta(e2b3b46349485ad34ee6feaebb8419b0)

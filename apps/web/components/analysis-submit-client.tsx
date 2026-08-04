@@ -7,6 +7,7 @@ import { type FormEvent, useEffect, useState } from 'react';
 import type { CreateAnalysisUploadResponse, AcceptedAnalysisResponse } from '@damdai/contracts';
 
 import { authClient, getAuthToken } from '../lib/auth-client';
+import { MicrophoneRecorder } from './microphone-recorder';
 
 const apiBaseUrl = (process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:4000/api/v1').replace(
   /\/$/,
@@ -17,6 +18,7 @@ export function AnalysisSubmitClient() {
   const router = useRouter();
   const [accountEmail, setAccountEmail] = useState('');
   const [language, setLanguage] = useState<'taglish' | 'english' | 'tagalog'>('taglish');
+  const [inputMethod, setInputMethod] = useState<'microphone' | 'upload'>('microphone');
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -51,7 +53,11 @@ export function AnalysisSubmitClient() {
     setError('');
 
     if (!file) {
-      setError('Choose one WAV utterance before submitting.');
+      setError(
+        inputMethod === 'microphone'
+          ? 'Record one utterance before submitting.'
+          : 'Choose one WAV utterance before submitting.',
+      );
       return;
     }
 
@@ -136,6 +142,17 @@ export function AnalysisSubmitClient() {
     router.replace('/auth/sign-in');
   }
 
+  function chooseInputMethod(method: 'microphone' | 'upload') {
+    setInputMethod(method);
+    setFile(null);
+    setError('');
+  }
+
+  function selectSpeechSample(nextFile: File | null) {
+    setFile(nextFile);
+    if (nextFile) setError('');
+  }
+
   return (
     <main className="analysis-page">
       <header className="history-header">
@@ -154,14 +171,15 @@ export function AnalysisSubmitClient() {
           <p className="eyebrow">New Analysis</p>
           <h1 id="analysis-title">One utterance. One honest signal.</h1>
           <p>
-            Upload a synthetic or personal WAV sample for the first complete Taglish Analysis path.
+            Record in your browser or upload a WAV, then send one private Speech Sample through the
+            same durable Analysis path.
           </p>
         </div>
         <div className="analysis-layout">
           <form className="analysis-card auth-form" onSubmit={submit} noValidate>
             <div className="form-heading">
               <p className="card-kicker">Input</p>
-              <h2>Choose the language and file</h2>
+              <h2>Choose the language and Speech Sample</h2>
             </div>
             <label className="field" htmlFor="analysis-language">
               <span>Analysis Language</span>
@@ -175,17 +193,48 @@ export function AnalysisSubmitClient() {
                 <option value="tagalog">Tagalog — experimental</option>
               </select>
             </label>
-            <label className="field" htmlFor="analysis-file">
-              <span>WAV utterance</span>
-              <input
-                id="analysis-file"
-                name="file"
-                type="file"
-                accept=".wav,audio/wav"
-                onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+            <fieldset className="input-method">
+              <legend>Speech Sample input</legend>
+              <label>
+                <input
+                  type="radio"
+                  name="input-method"
+                  value="microphone"
+                  checked={inputMethod === 'microphone'}
+                  onChange={() => chooseInputMethod('microphone')}
+                />
+                Record with microphone
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name="input-method"
+                  value="upload"
+                  checked={inputMethod === 'upload'}
+                  onChange={() => chooseInputMethod('upload')}
+                />
+                Upload WAV
+              </label>
+            </fieldset>
+            {inputMethod === 'microphone' ? (
+              <MicrophoneRecorder
+                disabled={busy}
+                onDiscard={() => selectSpeechSample(null)}
+                onRecordingReady={selectSpeechSample}
               />
-              <small className="field-hint">{file?.name ?? 'No file selected'}</small>
-            </label>
+            ) : (
+              <label className="field" htmlFor="analysis-file">
+                <span>WAV utterance</span>
+                <input
+                  id="analysis-file"
+                  name="file"
+                  type="file"
+                  accept=".wav,audio/wav"
+                  onChange={(event) => selectSpeechSample(event.target.files?.[0] ?? null)}
+                />
+                <small className="field-hint">{file?.name ?? 'No file selected'}</small>
+              </label>
+            )}
             {error ? (
               <p className="form-message" role="alert">
                 {error}
