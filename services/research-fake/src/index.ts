@@ -1,1 +1,1 @@
-export { buildResearchFake } from './app.js';
+export { buildResearchFake, type ResearchFakeOptions } from './app.js';

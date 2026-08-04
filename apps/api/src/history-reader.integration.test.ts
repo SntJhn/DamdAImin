@@ -1,21 +1,45 @@
 import { randomUUID } from 'node:crypto';
 import { dirname, resolve } from 'node:path';
+import { Writable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
+  createAnalysisServices,
+  type AnalysisJob,
+  type AnalysisTelemetryEvent,
+  type AnalysisServices,
+} from '@damdai/application';
+import {
   analyses,
+  createAnalysisRepository,
   createAnalysisHistoryReader,
   createDatabase,
   migrateDatabase,
 } from '@damdai/database';
+import {
+  createAnalysisQueue,
+  createAnalysisWorker,
+  createGcsSourceAudioStorage,
+  createPrivacySafeLogger,
+  createResearchSystemClient,
+} from '@damdai/infrastructure';
+import { buildResearchFake } from '@damdai/research-fake';
 
 import { buildApi } from './app.js';
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL;
+const testRedisUrl = process.env.TEST_REDIS_URL;
+const testGcsEndpoint = process.env.TEST_GCS_ENDPOINT;
 
 if (!testDatabaseUrl) {
   throw new Error('TEST_DATABASE_URL is required; run pnpm test:integration');
+}
+if (!testGcsEndpoint) {
+  throw new Error('TEST_GCS_ENDPOINT is required; run pnpm test:integration');
+}
+if (!testRedisUrl) {
+  throw new Error('TEST_REDIS_URL is required; run pnpm test:integration');
 }
 
 interface DatabaseSchemaObject {
@@ -41,6 +65,60 @@ const migrationsFolder = resolve(
 );
 const neonAuthSentinel = 'migration must not change this row';
 let neonAuthBeforeMigration: DatabaseSchemaState;
+let analysisApplication: ReturnType<typeof buildApi> | undefined;
+let analysisServices: AnalysisServices | undefined;
+let integrationQueue: ReturnType<typeof createAnalysisQueue> | undefined;
+let integrationWorker: ReturnType<typeof createAnalysisWorker> | undefined;
+let integrationStorage: ReturnType<typeof createGcsSourceAudioStorage> | undefined;
+let researchFake: ReturnType<typeof buildResearchFake> | undefined;
+let researchFakeUrl = '';
+let integrationUploadId = '';
+let integrationObjectKey = '';
+const integrationJobs: AnalysisJob[] = [];
+const integrationTelemetryEvents: AnalysisTelemetryEvent[] = [];
+const integrationLogChunks: string[] = [];
+const integrationLogDestination = new Writable({
+  write(chunk, _encoding, callback) {
+    integrationLogChunks.push(String(chunk));
+    callback();
+  },
+});
+const integrationLogger = createPrivacySafeLogger(
+  { name: 'history-integration' },
+  integrationLogDestination,
+);
+const integrationTelemetry = {
+  record(event: AnalysisTelemetryEvent) {
+    integrationTelemetryEvents.push(event);
+  },
+};
+
+function createPcmWav(durationSeconds: number): Uint8Array {
+  const sampleRateHz = 16_000;
+  const dataByteLength = sampleRateHz * durationSeconds * 2;
+  const bytes = new Uint8Array(44 + dataByteLength);
+  const view = new DataView(bytes.buffer);
+  const write = (offset: number, value: string) => {
+    for (const [index, character] of Array.from(value).entries()) {
+      view.setUint8(offset + index, character.charCodeAt(0));
+    }
+  };
+
+  write(0, 'RIFF');
+  view.setUint32(4, bytes.byteLength - 8, true);
+  write(8, 'WAVE');
+  write(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRateHz, true);
+  view.setUint32(28, sampleRateHz * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  write(36, 'data');
+  view.setUint32(40, dataByteLength, true);
+  return bytes;
+}
 
 async function readSchemaState(schemaName: string): Promise<DatabaseSchemaState> {
   const metadata = await database.pool.query<DatabaseSchemaObject>(
@@ -224,6 +302,7 @@ const application = buildApi({
     },
   },
   historyReader: createAnalysisHistoryReader(database.db),
+  redisUrl: testRedisUrl,
 });
 
 beforeAll(async () => {
@@ -267,12 +346,99 @@ beforeAll(async () => {
       createdAt: new Date('2026-08-01T00:04:00.000Z'),
     },
   ]);
+
+  researchFake = buildResearchFake();
+  researchFakeUrl = await researchFake.listen({ host: '127.0.0.1', port: 0 });
+
+  const storage = createGcsSourceAudioStorage({
+    endpoint: testGcsEndpoint,
+    bucket: `damdai-integration-${process.pid}`,
+    projectId: 'damdai-integration',
+  });
+  integrationStorage = storage;
+  integrationQueue = createAnalysisQueue(testRedisUrl);
+  analysisServices = createAnalysisServices({
+    repository: createAnalysisRepository(database.db),
+    storage,
+    queue: {
+      enqueue: async (job) => {
+        integrationJobs.push(job);
+        await integrationQueue!.enqueue(job);
+      },
+    },
+    researchClient: createResearchSystemClient({ baseUrl: researchFakeUrl }),
+    telemetry: integrationTelemetry,
+  });
+  const upload = await analysisServices.createUpload({
+    accountId: accountA,
+    language: 'taglish',
+    contractVersion: 'taglish-v1',
+  });
+  integrationUploadId = upload.upload.id;
+  integrationObjectKey = upload.upload.objectKey;
+  const sourceUpload = await fetch(upload.uploadUrl, {
+    method: upload.uploadMethod,
+    headers: upload.uploadHeaders,
+    body: createPcmWav(1).buffer as ArrayBuffer,
+  });
+  expect(sourceUpload.ok).toBe(true);
+  analysisApplication = buildApi({
+    authVerifier: {
+      verify: async (token) => {
+        const accountId = new Map([
+          ['account-a-token', accountA],
+          ['account-b-token', accountB],
+        ]).get(token);
+        if (!accountId) throw new Error('invalid test token');
+        return { accountId };
+      },
+    },
+    historyReader: createAnalysisHistoryReader(database.db),
+    analysisServices,
+    redisUrl: testRedisUrl,
+    loggerInstance: integrationLogger,
+    telemetry: integrationTelemetry,
+  });
+  integrationWorker = createAnalysisWorker({
+    redisUrl: testRedisUrl,
+    processAnalysis: analysisServices.processAnalysis,
+    logger: integrationLogger,
+    telemetry: integrationTelemetry,
+  });
+  await integrationWorker.waitUntilReady();
 });
 
 afterAll(async () => {
+  await integrationWorker?.close();
   await application.close();
+  await analysisApplication?.close();
+  await integrationQueue?.close();
+  await researchFake?.close();
   await database.pool.end();
 });
+
+async function waitForCompletedAnalysis(analysisId: string): Promise<Record<string, unknown>> {
+  let lastStatus = 'unknown';
+
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    const response = await analysisApplication!.inject({
+      method: 'GET',
+      url: `/api/v1/analyses/${analysisId}`,
+      headers: { authorization: 'Bearer account-a-token' },
+    });
+
+    if (response.statusCode === 200) {
+      const body = response.json() as Record<string, unknown>;
+      lastStatus = String(body.status);
+      if (body.status === 'completed') return body;
+      if (body.status === 'failed') throw new Error('Integration Analysis failed');
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+
+  throw new Error(`Analysis did not complete; last status was ${lastStatus}`);
+}
 
 describe('real database history ownership boundary', () => {
   it('returns only the authenticated account history through Fastify and the HTTP endpoint', async () => {
@@ -318,5 +484,82 @@ describe('real database history ownership boundary', () => {
         'SELECT "value" FROM "neon_auth"."migration_sentinel"',
       ),
     ).resolves.toMatchObject({ rows: [{ value: neonAuthSentinel }] });
+  });
+
+  it('persists one queued Analysis, completes it through the worker seam, and enforces ownership', async () => {
+    expect(analysisApplication).toBeDefined();
+    expect(analysisServices).toBeDefined();
+
+    const submitted = await analysisApplication!.inject({
+      method: 'POST',
+      url: '/api/v1/analyses',
+      headers: { authorization: 'Bearer account-a-token' },
+      payload: { uploadId: integrationUploadId },
+    });
+
+    expect(submitted.statusCode).toBe(202);
+    const submittedAnalysisId = submitted.json().analysis.id as string;
+    expect(integrationJobs).toHaveLength(1);
+    expect(integrationJobs[0]).toEqual({
+      analysisId: submittedAnalysisId,
+      language: 'taglish',
+      contractVersion: 'taglish-v1',
+    });
+
+    const completed = await waitForCompletedAnalysis(submittedAnalysisId);
+    expect(completed).toMatchObject({
+      id: submittedAnalysisId,
+      status: 'completed',
+      result: { emotionClassification: 'happiness' },
+    });
+    await expect(integrationStorage!.stat(integrationObjectKey)).resolves.toBeNull();
+
+    expect(integrationTelemetryEvents).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'analysis.queued',
+          analysisId: submittedAnalysisId,
+          stage: 'queued',
+        }),
+        expect.objectContaining({
+          name: 'analysis.worker.received',
+          analysisId: submittedAnalysisId,
+          stage: 'processing',
+          jobId: expect.any(String),
+        }),
+        expect.objectContaining({
+          name: 'analysis.stage',
+          analysisId: submittedAnalysisId,
+          stage: 'processing',
+        }),
+        expect.objectContaining({
+          name: 'analysis.stage',
+          analysisId: submittedAnalysisId,
+          stage: 'completed',
+        }),
+      ]),
+    );
+    const logs = integrationLogChunks.join('');
+    expect(logs).toContain(submittedAnalysisId);
+    expect(logs).toContain('analysis queued');
+    expect(logs).toContain('Received analysis job');
+    for (const sentinel of [
+      'SENTINEL_AUDIO',
+      'SENTINEL_TRANSCRIPT',
+      'SENTINEL_EXPLANATION',
+      'SENTINEL_TRACE',
+      'SENTINEL_SIGNED_URL',
+      'SENTINEL_TOKEN',
+      'SENTINEL_EMAIL',
+    ]) {
+      expect(logs).not.toContain(sentinel);
+    }
+
+    const otherAccount = await analysisApplication!.inject({
+      method: 'GET',
+      url: `/api/v1/analyses/${submittedAnalysisId}`,
+      headers: { authorization: 'Bearer account-b-token' },
+    });
+    expect(otherAccount.statusCode).toBe(404);
   });
 });

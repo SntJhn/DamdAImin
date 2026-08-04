@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
 import type { AnalysisHistoryItem, AnalysisHistoryResponse } from '@damdai/contracts';
@@ -101,6 +102,11 @@ export function HistoryClient() {
           <p className="eyebrow">Analysis History</p>
           <h1 id="history-title">Your signal archive.</h1>
           <p>Queued, processing, failed, and completed analyses will appear here, newest first.</p>
+          <div className="landing-actions">
+            <a className="primary-button" href="/analyze">
+              New Analysis
+            </a>
+          </div>
         </div>
         {loading ? (
           <p className="loading-state" role="status">
@@ -131,10 +137,12 @@ export function HistoryClient() {
           <ul className="history-list">
             {analyses.map((analysis) => (
               <li key={analysis.id}>
-                <span>{analysis.status}</span>
-                <time dateTime={analysis.createdAt}>
-                  {new Date(analysis.createdAt).toLocaleString()}
-                </time>
+                <Link className="history-item-link" href={`/analyses/${analysis.id}`}>
+                  <span>{analysis.status}</span>
+                  <time dateTime={analysis.createdAt}>
+                    {new Date(analysis.createdAt).toLocaleString()}
+                  </time>
+                </Link>
               </li>
             ))}
           </ul>

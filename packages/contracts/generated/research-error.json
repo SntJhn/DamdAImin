@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://damdai.local/contracts/research-error-v1.json",
+  "type": "object",
+  "required": [
+    "error",
+    "message"
+  ],
+  "properties": {
+    "error": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "message": {
+      "minLength": 1,
+      "type": "string"
+    }
+  }
+}

@@ -1,7 +1,17 @@
 export {
   analysisLanguages,
+  analysisOutcomes,
   analysisStatuses,
+  emotionClassifications,
+  InvalidWavError,
+  inspectWavAudio,
   type AnalysisLanguage,
+  type AnalysisOutcome,
+  type AnalysisResult,
   type AnalysisStatus,
   type AnalysisSummary,
+  type ConfidenceBreakdown,
+  type EmotionClassification,
+  type TechnicalTraceEntry,
+  type WavInspection,
 } from './analysis.js';

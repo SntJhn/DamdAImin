@@ -8,6 +8,13 @@
       "when": 1785406868926,
       "tag": "0000_giant_the_watchers",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1785650726588,
+      "tag": "0001_lively_romulus",
+      "breakpoints": true
     }
   ]
 }

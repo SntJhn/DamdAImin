@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://damdai.local/contracts/research-response-v1.json",
+  "type": "object",
+  "required": [
+    "analysisId",
+    "result"
+  ],
+  "properties": {
+    "analysisId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "result": {
+      "type": "object",
+      "required": [
+        "outcome",
+        "confidence",
+        "transcript",
+        "explanation",
+        "technicalTrace",
+        "contractVersion",
+        "modelVersion",
+        "preprocessingVersion",
+        "ruleSetVersion"
+      ],
+      "properties": {
+        "outcome": {
+          "anyOf": [
+            {
+              "const": "definitive",
+              "type": "string"
+            },
+            {
+              "const": "inconclusive",
+              "type": "string"
+            }
+          ]
+        },
+        "emotionClassification": {
+          "anyOf": [
+            {
+              "const": "happiness",
+              "type": "string"
+            },
+            {
+              "const": "sadness",
+              "type": "string"
+            },
+            {
+              "const": "anger",
+              "type": "string"
+            },
+            {
+              "const": "neutrality",
+              "type": "string"
+            }
+          ]
+        },
+        "confidence": {
+          "type": "object",
+          "required": [
+            "happiness",
+            "sadness",
+            "anger",
+            "neutrality"
+          ],
+          "properties": {
+            "happiness": {
+              "minimum": 0,
+              "maximum": 1,
+              "type": "number"
+            },
+            "sadness": {
+              "minimum": 0,
+              "maximum": 1,
+              "type": "number"
+            },
+            "anger": {
+              "minimum": 0,
+              "maximum": 1,
+              "type": "number"
+            },
+            "neutrality": {
+              "minimum": 0,
+              "maximum": 1,
+              "type": "number"
+            }
+          }
+        },
+        "transcript": {
+          "type": "string"
+        },
+        "explanation": {
+          "type": "string"
+        },
+        "technicalTrace": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "cue",
+              "value"
+            ],
+            "properties": {
+              "cue": {
+                "type": "string"
+              },
+              "value": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "contractVersion": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "modelVersion": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "preprocessingVersion": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "ruleSetVersion": {
+          "minLength": 1,
+          "type": "string"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://damdai.local/contracts/research-request-v1.json",
+  "type": "object",
+  "required": [
+    "analysisId",
+    "language",
+    "contractVersion",
+    "audioBase64"
+  ],
+  "properties": {
+    "analysisId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "language": {
+      "anyOf": [
+        {
+          "const": "taglish",
+          "type": "string"
+        },
+        {
+          "const": "english",
+          "type": "string"
+        },
+        {
+          "const": "tagalog",
+          "type": "string"
+        }
+      ]
+    },
+    "contractVersion": {
+      "minLength": 1,
+      "maxLength": 64,
+      "type": "string"
+    },
+    "audioBase64": {
+      "minLength": 1,
+      "type": "string"
+    }
+  }
+}
