@@ -103,7 +103,7 @@ describe('Analysis REST boundary', () => {
 
     const response = await application.inject({
       method: 'POST',
-      url: '/api/v1/analysis-uploads',
+      url: '/api/v2/analysis-uploads',
       headers: { authorization: 'Bearer verified-token' },
       payload: { language: 'taglish', contractVersion: 'taglish-v2' },
     });
@@ -133,16 +133,16 @@ describe('Analysis REST boundary', () => {
 
     const response = await application.inject({
       method: 'POST',
-      url: '/api/v1/analyses',
+      url: '/api/v2/analyses',
       headers: { authorization: 'Bearer verified-token' },
       payload: { uploadId: 'a0ad9a3f-26b2-4014-8f51-ec7d67bb4f1a' },
     });
 
     expect(response.statusCode).toBe(202);
-    expect(response.headers.location).toBe('/api/v1/analyses/8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01');
+    expect(response.headers.location).toBe('/api/v2/analyses/8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01');
     expect(response.json()).toMatchObject({
       analysis: { id: analysis.id, status: 'queued', stage: 'queued', language: 'taglish' },
-      location: '/api/v1/analyses/8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01',
+      location: '/api/v2/analyses/8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01',
     });
     expect(telemetryEvents).toEqual([
       {
@@ -166,7 +166,7 @@ describe('Analysis REST boundary', () => {
 
     const response = await application.inject({
       method: 'GET',
-      url: `/api/v1/analyses/${analysis.id}`,
+      url: `/api/v2/analyses/${analysis.id}`,
       headers: { authorization: 'Bearer verified-token' },
     });
 
@@ -185,7 +185,7 @@ describe('Analysis REST boundary', () => {
 
     const response = await application.inject({
       method: 'GET',
-      url: `/api/v1/analyses/${completedAnalysis.id}`,
+      url: `/api/v2/analyses/${completedAnalysis.id}`,
       headers: { authorization: 'Bearer verified-token' },
     });
 
@@ -212,7 +212,7 @@ describe('Analysis REST boundary', () => {
 
     const response = await application.inject({
       method: 'POST',
-      url: '/api/v1/analysis-uploads',
+      url: '/api/v2/analysis-uploads',
       headers: { authorization: 'Bearer verified-token' },
       payload: { language: 'taglish' },
     });
@@ -245,7 +245,7 @@ describe('Analysis REST boundary', () => {
 
     const response = await application.inject({
       method: 'POST',
-      url: '/api/v1/analyses',
+      url: '/api/v2/analyses',
       headers: { authorization: 'Bearer verified-token' },
       payload: { uploadId: 'a0ad9a3f-26b2-4014-8f51-ec7d67bb4f1a' },
     });

@@ -16,7 +16,7 @@
     "schemas": {}
   },
   "paths": {
-    "/api/v1/analyses": {
+    "/api/v2/analyses": {
       "get": {
         "summary": "List the authenticated account's Analysis History",
         "tags": [
@@ -949,7 +949,7 @@
         }
       }
     },
-    "/api/v1/analysis-uploads": {
+    "/api/v2/analysis-uploads": {
       "post": {
         "summary": "Create a private Source Audio upload operation",
         "tags": [
@@ -1135,7 +1135,7 @@
         }
       }
     },
-    "/api/v1/analyses/{id}": {
+    "/api/v2/analyses/{id}": {
       "get": {
         "summary": "Read one authenticated Analysis resource",
         "tags": [

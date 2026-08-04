@@ -225,7 +225,7 @@ export function buildApi(options: ApiOptions = {}): FastifyInstance {
               request.accountId,
               body.uploadId,
             );
-            const location = `/api/v1/analyses/${analysis.id}`;
+            const location = `/api/v2/analyses/${analysis.id}`;
             request.log.info(
               {
                 requestId: request.id,
@@ -304,7 +304,7 @@ export function buildApi(options: ApiOptions = {}): FastifyInstance {
         },
       );
     },
-    { prefix: '/api/v1' },
+    { prefix: '/api/v2' },
   );
 
   application.setErrorHandler((error, request, reply) => {

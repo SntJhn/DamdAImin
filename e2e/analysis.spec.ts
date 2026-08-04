@@ -108,11 +108,11 @@ async function mockVerifiedSession(page: Page) {
 
 async function trackRejectedSubmissionCalls(page: Page) {
   const calls = { uploadOperations: 0, analysisCreations: 0 };
-  await page.route('**/api/v1/analysis-uploads', async (route) => {
+  await page.route('**/api/v2/analysis-uploads', async (route) => {
     calls.uploadOperations += 1;
     await route.abort();
   });
-  await page.route('**/api/v1/analyses', async (route) => {
+  await page.route('**/api/v2/analyses', async (route) => {
     calls.analysisCreations += 1;
     await route.abort();
   });
@@ -128,7 +128,7 @@ async function startAndStopVirtualRecording(page: Page) {
 
 test('submits one WAV utterance and lands on the durable Analysis resource', async ({ page }) => {
   await mockVerifiedSession(page);
-  await page.route('**/api/v1/analysis-uploads', async (route) => {
+  await page.route('**/api/v2/analysis-uploads', async (route) => {
     await route.fulfill({
       status: 201,
       contentType: 'application/json',
@@ -144,11 +144,11 @@ test('submits one WAV utterance and lands on the durable Analysis resource', asy
   await page.route('http://upload.test/**', async (route) => {
     await route.fulfill({ status: 200 });
   });
-  await page.route('**/api/v1/analyses', async (route) => {
+  await page.route('**/api/v2/analyses', async (route) => {
     await route.fulfill({
       status: 202,
       contentType: 'application/json',
-      headers: { location: `/api/v1/analyses/${analysisId}` },
+      headers: { location: `/api/v2/analyses/${analysisId}` },
       body: JSON.stringify({
         analysis: {
           id: analysisId,
@@ -157,7 +157,7 @@ test('submits one WAV utterance and lands on the durable Analysis resource', asy
           language: 'taglish',
           createdAt: '2026-08-02T00:00:00.000Z',
         },
-        location: `/api/v1/analyses/${analysisId}`,
+        location: `/api/v2/analyses/${analysisId}`,
       }),
     });
   });
@@ -195,7 +195,7 @@ test('records virtual synthetic media, replaces it locally, and submits the conv
   let analysisReads = 0;
   let uploadedWav: Buffer | null = null;
 
-  await page.route('**/api/v1/analysis-uploads', async (route) => {
+  await page.route('**/api/v2/analysis-uploads', async (route) => {
     uploadOperations += 1;
     await route.fulfill({
       status: 201,
@@ -213,7 +213,7 @@ test('records virtual synthetic media, replaces it locally, and submits the conv
     uploadedWav = route.request().postDataBuffer();
     await route.fulfill({ status: 200 });
   });
-  await page.route(`**/api/v1/analyses/${analysisId}`, async (route) => {
+  await page.route(`**/api/v2/analyses/${analysisId}`, async (route) => {
     analysisReads += 1;
     const completed = analysisReads > 1;
     await route.fulfill({
@@ -250,12 +250,12 @@ test('records virtual synthetic media, replaces it locally, and submits the conv
       }),
     });
   });
-  await page.route('**/api/v1/analyses', async (route) => {
+  await page.route('**/api/v2/analyses', async (route) => {
     analysisCreations += 1;
     await route.fulfill({
       status: 202,
       contentType: 'application/json',
-      headers: { location: `/api/v1/analyses/${analysisId}` },
+      headers: { location: `/api/v2/analyses/${analysisId}` },
       body: JSON.stringify({
         analysis: {
           id: analysisId,
@@ -264,7 +264,7 @@ test('records virtual synthetic media, replaces it locally, and submits the conv
           language: 'english',
           createdAt: '2026-08-02T00:00:00.000Z',
         },
-        location: `/api/v1/analyses/${analysisId}`,
+        location: `/api/v2/analyses/${analysisId}`,
       }),
     });
   });
@@ -443,7 +443,7 @@ test('shows a persisted completed result after reload and has no accessibility v
 }) => {
   await mockVerifiedSession(page);
   let reads = 0;
-  await page.route(`**/api/v1/analyses/${analysisId}`, async (route) => {
+  await page.route(`**/api/v2/analyses/${analysisId}`, async (route) => {
     reads += 1;
     await route.fulfill({
       status: 200,
@@ -502,7 +502,7 @@ test('presents an Inconclusive Result without a headline class or visible raw pr
   page,
 }) => {
   await mockVerifiedSession(page);
-  await page.route(`**/api/v1/analyses/${analysisId}`, async (route) => {
+  await page.route(`**/api/v2/analyses/${analysisId}`, async (route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',

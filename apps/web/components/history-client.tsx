@@ -8,7 +8,7 @@ import type { AnalysisHistoryItem, AnalysisHistoryResponse } from '@damdai/contr
 
 import { authClient, getAuthToken } from '../lib/auth-client';
 
-const apiBaseUrl = (process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:4000/api/v1').replace(
+const apiBaseUrl = (process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:4000/api/v2').replace(
   /\/$/,
   '',
 );

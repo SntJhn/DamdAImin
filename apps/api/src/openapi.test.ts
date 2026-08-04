@@ -26,7 +26,7 @@ describe('OpenAPI document', () => {
     try {
       await application.ready();
       const document = application.swagger() as OpenApiDocument;
-      const analysesRoute = document.paths?.['/api/v1/analyses']?.get;
+      const analysesRoute = document.paths?.['/api/v2/analyses']?.get;
       const healthRoute = document.paths?.['/healthz']?.get;
 
       expect(document.openapi).toBe('3.0.3');
