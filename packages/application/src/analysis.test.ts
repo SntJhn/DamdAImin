@@ -49,8 +49,31 @@ const result: AnalysisResult = {
   confidence: { happiness: 0.91, sadness: 0.03, anger: 0.02, neutrality: 0.04 },
   transcript: 'masaya ako',
   explanation: 'The synthetic fixture contains the deterministic happy cue.',
-  technicalTrace: [{ cue: 'synthetic-cue', value: 'happy' }],
+  technicalTrace: {
+    cueSpans: [
+      {
+        source: 'linguistic',
+        startMs: 0,
+        endMs: 400,
+        cue: 'positive lexical cue',
+        value: 'masaya',
+      },
+    ],
+    activatedRules: [{ id: 'synthetic-rule', description: 'Synthetic fixture rule.' }],
+    scoreAdjustments: [
+      {
+        emotionClassification: 'happiness',
+        delta: 0.66,
+        reason: 'Synthetic fixture evidence.',
+      },
+    ],
+    probabilities: {
+      before: { happiness: 0.25, sadness: 0.25, anger: 0.25, neutrality: 0.25 },
+      after: { happiness: 0.91, sadness: 0.03, anger: 0.02, neutrality: 0.04 },
+    },
+  },
   contractVersion: 'taglish-v1',
+  schemaVersion: 'research-response-v1',
   modelVersion: 'fake-model-1',
   preprocessingVersion: 'fake-preprocess-1',
   ruleSetVersion: 'fake-rules-1',

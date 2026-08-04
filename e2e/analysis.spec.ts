@@ -3,6 +3,52 @@ import { expect, test, type Page } from '@playwright/test';
 
 const analysisId = '8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01';
 
+const definitiveTechnicalTrace = {
+  cueSpans: [
+    {
+      source: 'acoustic',
+      startMs: 0,
+      endMs: 800,
+      cue: 'pitch contour',
+      value: 'rising positive contour',
+    },
+    {
+      source: 'linguistic',
+      startMs: 850,
+      endMs: 1_450,
+      cue: 'positive lexical cue',
+      value: 'Masaya',
+    },
+  ],
+  activatedRules: [
+    {
+      id: 'rule-happiness-positive-cue',
+      description: 'Positive acoustic and linguistic cues increase the happiness score.',
+    },
+  ],
+  scoreAdjustments: [
+    {
+      emotionClassification: 'happiness',
+      delta: 0.66,
+      reason: 'Returned positive acoustic and linguistic cues.',
+    },
+  ],
+  probabilities: {
+    before: { happiness: 0.25, sadness: 0.25, anger: 0.25, neutrality: 0.25 },
+    after: { happiness: 0.91, sadness: 0.03, anger: 0.02, neutrality: 0.04 },
+  },
+};
+
+const inconclusiveTechnicalTrace = {
+  cueSpans: [],
+  activatedRules: [],
+  scoreAdjustments: [],
+  probabilities: {
+    before: { happiness: 0.25, sadness: 0.25, anger: 0.25, neutrality: 0.25 },
+    after: { happiness: 0.25, sadness: 0.25, anger: 0.25, neutrality: 0.25 },
+  },
+};
+
 function createPcmWav(): Buffer {
   const sampleRateHz = 16_000;
   const dataByteLength = sampleRateHz * 2 * 1;
@@ -192,8 +238,9 @@ test('records virtual synthetic media, replaces it locally, and submits the conv
                 },
                 transcript: 'Synthetic virtual microphone fixture.',
                 explanation: 'Synthetic fixture.',
-                technicalTrace: [{ cue: 'synthetic-positive-cue', value: 'happiness' }],
+                technicalTrace: definitiveTechnicalTrace,
                 contractVersion: 'taglish-v1',
+                schemaVersion: 'research-response-v1',
                 modelVersion: 'fake-model-1',
                 preprocessingVersion: 'fake-preprocessing-1',
                 ruleSetVersion: 'fake-rules-1',
@@ -413,8 +460,9 @@ test('shows a persisted completed result after reload and has no accessibility v
           confidence: { happiness: 0.91, sadness: 0.03, anger: 0.02, neutrality: 0.04 },
           transcript: 'Masaya ako sa araw na ito.',
           explanation: 'Synthetic fixture.',
-          technicalTrace: [{ cue: 'synthetic-positive-cue', value: 'happiness' }],
+          technicalTrace: definitiveTechnicalTrace,
           contractVersion: 'taglish-v1',
+          schemaVersion: 'research-response-v1',
           modelVersion: 'fake-model-1',
           preprocessingVersion: 'fake-preprocessing-1',
           ruleSetVersion: 'fake-rules-1',
@@ -427,9 +475,76 @@ test('shows a persisted completed result after reload and has no accessibility v
   await expect(page.getByText('verified@example.test')).toBeVisible();
   await expect(page.getByText('Emotion Classification')).toBeVisible();
   await expect(page.getByText('happiness', { exact: true })).toBeVisible();
+  await expect(page.getByText('Confidence breakdown')).toBeVisible();
+  await expect(
+    page.locator('.analysis-confidence').getByText('91%', { exact: true }),
+  ).toBeVisible();
+
+  const technicalTrace = page.locator('summary').filter({ hasText: 'Technical Trace' });
+  await technicalTrace.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByText('Cue spans', { exact: true })).toBeVisible();
+  await expect(page.getByText('Activated rules', { exact: true })).toBeVisible();
+  await expect(page.getByText('Score adjustments', { exact: true })).toBeVisible();
+  await expect(page.getByText('Before-and-after probabilities', { exact: true })).toBeVisible();
+  await expect(page.getByText('Version identifiers', { exact: true })).toBeVisible();
+  await expect(page.getByText('research-response-v1', { exact: true })).toBeVisible();
+  await expect(page.getByText('fake-model-1', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /edit|correct/i })).toHaveCount(0);
   await expect(new AxeBuilder({ page }).analyze()).resolves.toMatchObject({ violations: [] });
   await page.reload();
   await expect(page.getByText('Emotion Classification')).toBeVisible();
   await page.waitForTimeout(2_100);
   expect(reads).toBe(2);
+});
+
+test('presents an Inconclusive Result without a headline class or visible raw probabilities', async ({
+  page,
+}) => {
+  await mockVerifiedSession(page);
+  await page.route(`**/api/v1/analyses/${analysisId}`, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: analysisId,
+        status: 'completed',
+        stage: 'completed',
+        language: 'english',
+        createdAt: '2026-08-02T00:00:00.000Z',
+        result: {
+          outcome: 'inconclusive',
+          confidence: { happiness: 0.25, sadness: 0.25, anger: 0.25, neutrality: 0.25 },
+          transcript: '',
+          explanation:
+            'The returned fixture did not provide sufficient acoustic and linguistic evidence for a definitive classification.',
+          technicalTrace: inconclusiveTechnicalTrace,
+          contractVersion: 'english-v1',
+          schemaVersion: 'research-response-v1',
+          modelVersion: 'fake-model-1',
+          preprocessingVersion: 'fake-preprocessing-1',
+          ruleSetVersion: 'fake-rules-1',
+        },
+      }),
+    });
+  });
+
+  await page.goto(`/analyses/${analysisId}`);
+  await expect(page.getByRole('heading', { name: 'Inconclusive Result' })).toBeVisible();
+  await expect(
+    page.getByText('No definitive classification is shown for this completed Analysis.'),
+  ).toBeVisible();
+  await expect(page.getByText('English', { exact: true })).toBeVisible();
+  await expect(page.getByText('Experimental', { exact: true })).toBeVisible();
+  await expect(page.getByText('Confidence breakdown')).toHaveCount(0);
+  await expect(page.locator('.probability-table')).toBeHidden();
+  await expect(page.getByRole('button', { name: /edit|correct/i })).toHaveCount(0);
+
+  const technicalTrace = page.locator('summary').filter({ hasText: 'Technical Trace' });
+  await technicalTrace.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByText('Before-and-after probabilities', { exact: true })).toBeVisible();
+  await expect(page.getByText('25%', { exact: true }).first()).toBeVisible();
+  await expect(page.getByText('No cue spans were returned.')).toBeVisible();
+  await expect(new AxeBuilder({ page }).analyze()).resolves.toMatchObject({ violations: [] });
 });

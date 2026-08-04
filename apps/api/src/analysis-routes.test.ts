@@ -21,7 +21,48 @@ const analysis: Analysis = {
   failureMessage: null,
 };
 
-function createServices(): AnalysisServices {
+const completedAnalysis: Analysis = {
+  ...analysis,
+  status: 'completed',
+  stage: 'completed',
+  result: {
+    outcome: 'definitive',
+    emotionClassification: 'happiness',
+    confidence: { happiness: 0.91, sadness: 0.03, anger: 0.02, neutrality: 0.04 },
+    transcript: 'Masaya ako sa araw na ito.',
+    explanation: 'The returned acoustic and linguistic cues support this classification.',
+    technicalTrace: {
+      cueSpans: [
+        {
+          source: 'acoustic',
+          startMs: 0,
+          endMs: 800,
+          cue: 'pitch contour',
+          value: 'rising positive contour',
+        },
+      ],
+      activatedRules: [{ id: 'rule-happiness-positive-cue', description: 'Returned cue rule.' }],
+      scoreAdjustments: [
+        {
+          emotionClassification: 'happiness',
+          delta: 0.66,
+          reason: 'Returned positive cues.',
+        },
+      ],
+      probabilities: {
+        before: { happiness: 0.25, sadness: 0.25, anger: 0.25, neutrality: 0.25 },
+        after: { happiness: 0.91, sadness: 0.03, anger: 0.02, neutrality: 0.04 },
+      },
+    },
+    contractVersion: 'taglish-v1',
+    schemaVersion: 'research-response-v1',
+    modelVersion: 'fake-model-1',
+    preprocessingVersion: 'fake-preprocessing-1',
+    ruleSetVersion: 'fake-rules-1',
+  },
+};
+
+function createServices(currentAnalysis: Analysis = analysis): AnalysisServices {
   return {
     createUpload: vi.fn(async () => ({
       upload: {
@@ -39,8 +80,8 @@ function createServices(): AnalysisServices {
       uploadMethod: 'PUT' as const,
       uploadHeaders: { 'content-type': 'audio/wav' as const },
     })),
-    finalizeUpload: vi.fn(async () => analysis),
-    getAnalysis: vi.fn(async () => analysis),
+    finalizeUpload: vi.fn(async () => currentAnalysis),
+    getAnalysis: vi.fn(async () => currentAnalysis),
     processAnalysis: vi.fn(async () => undefined),
   };
 }
@@ -132,6 +173,34 @@ describe('Analysis REST boundary', () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({ id: analysis.id, status: 'queued' });
     expect(analysisServices.getAnalysis).toHaveBeenCalledWith('account-a', analysis.id);
+  });
+
+  it('returns the complete persisted Analysis Record through the resource boundary', async () => {
+    const analysisServices = createServices(completedAnalysis);
+    const application = buildApi({
+      authVerifier: { verify: async () => ({ accountId: 'account-a' }) },
+      analysisServices,
+    });
+    applications.push(application);
+
+    const response = await application.inject({
+      method: 'GET',
+      url: `/api/v1/analyses/${completedAnalysis.id}`,
+      headers: { authorization: 'Bearer verified-token' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      id: completedAnalysis.id,
+      status: 'completed',
+      result: {
+        outcome: 'definitive',
+        emotionClassification: 'happiness',
+        transcript: completedAnalysis.result?.transcript,
+        technicalTrace: completedAnalysis.result?.technicalTrace,
+        schemaVersion: 'research-response-v1',
+      },
+    });
   });
 
   it('normalizes request schema failures into an accessible validation response', async () => {

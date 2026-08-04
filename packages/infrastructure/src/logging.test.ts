@@ -38,7 +38,10 @@ describe('runtime Pino privacy redaction', () => {
           transcript: 'SENTINEL_RESULT_TRANSCRIPT',
           explanation: 'SENTINEL_RESULT_EXPLANATION',
           technicalTrace: 'SENTINEL_RESULT_TRACE',
+          confidence: 'SENTINEL_RESULT_CONFIDENCE',
         },
+        confidence: 'SENTINEL_CONFIDENCE',
+        probabilities: 'SENTINEL_PROBABILITIES',
       },
       'analysis runtime log',
     );
@@ -61,6 +64,9 @@ describe('runtime Pino privacy redaction', () => {
       'SENTINEL_RESULT_TRANSCRIPT',
       'SENTINEL_RESULT_EXPLANATION',
       'SENTINEL_RESULT_TRACE',
+      'SENTINEL_RESULT_CONFIDENCE',
+      'SENTINEL_CONFIDENCE',
+      'SENTINEL_PROBABILITIES',
     ]) {
       expect(output).not.toContain(sentinel);
     }

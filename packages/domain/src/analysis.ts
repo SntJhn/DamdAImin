@@ -27,23 +27,57 @@ export interface ConfidenceBreakdown {
   neutrality: number;
 }
 
-export interface TechnicalTraceEntry {
+export type TechnicalCueSource = 'acoustic' | 'linguistic';
+
+export interface TechnicalCueSpan {
+  source: TechnicalCueSource;
+  startMs: number;
+  endMs: number;
   cue: string;
   value: string;
 }
 
-export interface AnalysisResult {
-  outcome: AnalysisOutcome;
-  emotionClassification?: EmotionClassification;
+export interface ActivatedRule {
+  id: string;
+  description: string;
+}
+
+export interface ScoreAdjustment {
+  emotionClassification: EmotionClassification;
+  delta: number;
+  reason: string;
+}
+
+export interface TechnicalTrace {
+  cueSpans: TechnicalCueSpan[];
+  activatedRules: ActivatedRule[];
+  scoreAdjustments: ScoreAdjustment[];
+  probabilities: {
+    before: ConfidenceBreakdown;
+    after: ConfidenceBreakdown;
+  };
+}
+
+interface AnalysisResultFields {
   confidence: ConfidenceBreakdown;
   transcript: string;
   explanation: string;
-  technicalTrace: TechnicalTraceEntry[];
+  technicalTrace: TechnicalTrace;
   contractVersion: string;
+  schemaVersion: string;
   modelVersion: string;
   preprocessingVersion: string;
   ruleSetVersion: string;
 }
+
+export type AnalysisResult =
+  | (AnalysisResultFields & {
+      outcome: 'definitive';
+      emotionClassification: EmotionClassification;
+    })
+  | (AnalysisResultFields & {
+      outcome: 'inconclusive';
+    });
 
 export interface WavInspection {
   byteLength: number;

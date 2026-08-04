@@ -62,7 +62,7 @@ export function createResearchSystemClient(options: ResearchClientOptions): Rese
         throw new Error('Research System response has a mismatched contract version');
       }
 
-      const hasClassification = body.result.emotionClassification !== undefined;
+      const hasClassification = 'emotionClassification' in body.result;
       if ((body.result.outcome === 'definitive') !== hasClassification) {
         throw new Error('Research System result has an invalid definitive classification');
       }

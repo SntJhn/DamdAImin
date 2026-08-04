@@ -1,5 +1,6 @@
 export { HealthResponseSchema, type HealthResponse } from './health.js';
 export {
+  ActivatedRuleSchema,
   AcceptedAnalysisResponseSchema,
   AnalysisIdParamsSchema,
   AnalysisFailureResponseSchema,
@@ -14,8 +15,12 @@ export {
   EmotionClassificationSchema,
   FinalizeAnalysisRequestSchema,
   NotFoundResponseSchema,
+  ScoreAdjustmentSchema,
+  TechnicalCueSpanSchema,
+  TechnicalTraceSchema,
   ValidationErrorResponseSchema,
   type AcceptedAnalysisResponse,
+  type ActivatedRule,
   type AnalysisIdParams,
   type AnalysisLanguage,
   type AnalysisOutcome,
@@ -26,6 +31,9 @@ export {
   type CreateAnalysisUploadResponse,
   type EmotionClassification,
   type FinalizeAnalysisRequest,
+  type ScoreAdjustment,
+  type TechnicalCueSpan,
+  type TechnicalTrace,
 } from './analysis.js';
 export {
   AnalysisHistoryItemSchema,

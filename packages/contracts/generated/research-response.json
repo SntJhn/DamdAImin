@@ -12,123 +12,557 @@
       "type": "string"
     },
     "result": {
-      "type": "object",
-      "required": [
-        "outcome",
-        "confidence",
-        "transcript",
-        "explanation",
-        "technicalTrace",
-        "contractVersion",
-        "modelVersion",
-        "preprocessingVersion",
-        "ruleSetVersion"
-      ],
-      "properties": {
-        "outcome": {
-          "anyOf": [
-            {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "confidence",
+            "transcript",
+            "explanation",
+            "technicalTrace",
+            "contractVersion",
+            "schemaVersion",
+            "modelVersion",
+            "preprocessingVersion",
+            "ruleSetVersion",
+            "outcome",
+            "emotionClassification"
+          ],
+          "properties": {
+            "confidence": {
+              "type": "object",
+              "required": [
+                "happiness",
+                "sadness",
+                "anger",
+                "neutrality"
+              ],
+              "properties": {
+                "happiness": {
+                  "minimum": 0,
+                  "maximum": 1,
+                  "type": "number"
+                },
+                "sadness": {
+                  "minimum": 0,
+                  "maximum": 1,
+                  "type": "number"
+                },
+                "anger": {
+                  "minimum": 0,
+                  "maximum": 1,
+                  "type": "number"
+                },
+                "neutrality": {
+                  "minimum": 0,
+                  "maximum": 1,
+                  "type": "number"
+                }
+              }
+            },
+            "transcript": {
+              "type": "string"
+            },
+            "explanation": {
+              "type": "string"
+            },
+            "technicalTrace": {
+              "type": "object",
+              "required": [
+                "cueSpans",
+                "activatedRules",
+                "scoreAdjustments",
+                "probabilities"
+              ],
+              "properties": {
+                "cueSpans": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "source",
+                      "startMs",
+                      "endMs",
+                      "cue",
+                      "value"
+                    ],
+                    "properties": {
+                      "source": {
+                        "anyOf": [
+                          {
+                            "const": "acoustic",
+                            "type": "string"
+                          },
+                          {
+                            "const": "linguistic",
+                            "type": "string"
+                          }
+                        ]
+                      },
+                      "startMs": {
+                        "minimum": 0,
+                        "type": "number"
+                      },
+                      "endMs": {
+                        "minimum": 0,
+                        "type": "number"
+                      },
+                      "cue": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "value": {
+                        "minLength": 1,
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                "activatedRules": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "id",
+                      "description"
+                    ],
+                    "properties": {
+                      "id": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "description": {
+                        "minLength": 1,
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                "scoreAdjustments": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "emotionClassification",
+                      "delta",
+                      "reason"
+                    ],
+                    "properties": {
+                      "emotionClassification": {
+                        "anyOf": [
+                          {
+                            "const": "happiness",
+                            "type": "string"
+                          },
+                          {
+                            "const": "sadness",
+                            "type": "string"
+                          },
+                          {
+                            "const": "anger",
+                            "type": "string"
+                          },
+                          {
+                            "const": "neutrality",
+                            "type": "string"
+                          }
+                        ]
+                      },
+                      "delta": {
+                        "type": "number"
+                      },
+                      "reason": {
+                        "minLength": 1,
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                "probabilities": {
+                  "type": "object",
+                  "required": [
+                    "before",
+                    "after"
+                  ],
+                  "properties": {
+                    "before": {
+                      "type": "object",
+                      "required": [
+                        "happiness",
+                        "sadness",
+                        "anger",
+                        "neutrality"
+                      ],
+                      "properties": {
+                        "happiness": {
+                          "minimum": 0,
+                          "maximum": 1,
+                          "type": "number"
+                        },
+                        "sadness": {
+                          "minimum": 0,
+                          "maximum": 1,
+                          "type": "number"
+                        },
+                        "anger": {
+                          "minimum": 0,
+                          "maximum": 1,
+                          "type": "number"
+                        },
+                        "neutrality": {
+                          "minimum": 0,
+                          "maximum": 1,
+                          "type": "number"
+                        }
+                      }
+                    },
+                    "after": {
+                      "type": "object",
+                      "required": [
+                        "happiness",
+                        "sadness",
+                        "anger",
+                        "neutrality"
+                      ],
+                      "properties": {
+                        "happiness": {
+                          "minimum": 0,
+                          "maximum": 1,
+                          "type": "number"
+                        },
+                        "sadness": {
+                          "minimum": 0,
+                          "maximum": 1,
+                          "type": "number"
+                        },
+                        "anger": {
+                          "minimum": 0,
+                          "maximum": 1,
+                          "type": "number"
+                        },
+                        "neutrality": {
+                          "minimum": 0,
+                          "maximum": 1,
+                          "type": "number"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "contractVersion": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "schemaVersion": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "modelVersion": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "preprocessingVersion": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "ruleSetVersion": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "outcome": {
               "const": "definitive",
               "type": "string"
             },
-            {
+            "emotionClassification": {
+              "anyOf": [
+                {
+                  "const": "happiness",
+                  "type": "string"
+                },
+                {
+                  "const": "sadness",
+                  "type": "string"
+                },
+                {
+                  "const": "anger",
+                  "type": "string"
+                },
+                {
+                  "const": "neutrality",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "confidence",
+            "transcript",
+            "explanation",
+            "technicalTrace",
+            "contractVersion",
+            "schemaVersion",
+            "modelVersion",
+            "preprocessingVersion",
+            "ruleSetVersion",
+            "outcome"
+          ],
+          "properties": {
+            "confidence": {
+              "type": "object",
+              "required": [
+                "happiness",
+                "sadness",
+                "anger",
+                "neutrality"
+              ],
+              "properties": {
+                "happiness": {
+                  "minimum": 0,
+                  "maximum": 1,
+                  "type": "number"
+                },
+                "sadness": {
+                  "minimum": 0,
+                  "maximum": 1,
+                  "type": "number"
+                },
+                "anger": {
+                  "minimum": 0,
+                  "maximum": 1,
+                  "type": "number"
+                },
+                "neutrality": {
+                  "minimum": 0,
+                  "maximum": 1,
+                  "type": "number"
+                }
+              }
+            },
+            "transcript": {
+              "type": "string"
+            },
+            "explanation": {
+              "type": "string"
+            },
+            "technicalTrace": {
+              "type": "object",
+              "required": [
+                "cueSpans",
+                "activatedRules",
+                "scoreAdjustments",
+                "probabilities"
+              ],
+              "properties": {
+                "cueSpans": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "source",
+                      "startMs",
+                      "endMs",
+                      "cue",
+                      "value"
+                    ],
+                    "properties": {
+                      "source": {
+                        "anyOf": [
+                          {
+                            "const": "acoustic",
+                            "type": "string"
+                          },
+                          {
+                            "const": "linguistic",
+                            "type": "string"
+                          }
+                        ]
+                      },
+                      "startMs": {
+                        "minimum": 0,
+                        "type": "number"
+                      },
+                      "endMs": {
+                        "minimum": 0,
+                        "type": "number"
+                      },
+                      "cue": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "value": {
+                        "minLength": 1,
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                "activatedRules": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "id",
+                      "description"
+                    ],
+                    "properties": {
+                      "id": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "description": {
+                        "minLength": 1,
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                "scoreAdjustments": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "emotionClassification",
+                      "delta",
+                      "reason"
+                    ],
+                    "properties": {
+                      "emotionClassification": {
+                        "anyOf": [
+                          {
+                            "const": "happiness",
+                            "type": "string"
+                          },
+                          {
+                            "const": "sadness",
+                            "type": "string"
+                          },
+                          {
+                            "const": "anger",
+                            "type": "string"
+                          },
+                          {
+                            "const": "neutrality",
+                            "type": "string"
+                          }
+                        ]
+                      },
+                      "delta": {
+                        "type": "number"
+                      },
+                      "reason": {
+                        "minLength": 1,
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                "probabilities": {
+                  "type": "object",
+                  "required": [
+                    "before",
+                    "after"
+                  ],
+                  "properties": {
+                    "before": {
+                      "type": "object",
+                      "required": [
+                        "happiness",
+                        "sadness",
+                        "anger",
+                        "neutrality"
+                      ],
+                      "properties": {
+                        "happiness": {
+                          "minimum": 0,
+                          "maximum": 1,
+                          "type": "number"
+                        },
+                        "sadness": {
+                          "minimum": 0,
+                          "maximum": 1,
+                          "type": "number"
+                        },
+                        "anger": {
+                          "minimum": 0,
+                          "maximum": 1,
+                          "type": "number"
+                        },
+                        "neutrality": {
+                          "minimum": 0,
+                          "maximum": 1,
+                          "type": "number"
+                        }
+                      }
+                    },
+                    "after": {
+                      "type": "object",
+                      "required": [
+                        "happiness",
+                        "sadness",
+                        "anger",
+                        "neutrality"
+                      ],
+                      "properties": {
+                        "happiness": {
+                          "minimum": 0,
+                          "maximum": 1,
+                          "type": "number"
+                        },
+                        "sadness": {
+                          "minimum": 0,
+                          "maximum": 1,
+                          "type": "number"
+                        },
+                        "anger": {
+                          "minimum": 0,
+                          "maximum": 1,
+                          "type": "number"
+                        },
+                        "neutrality": {
+                          "minimum": 0,
+                          "maximum": 1,
+                          "type": "number"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "contractVersion": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "schemaVersion": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "modelVersion": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "preprocessingVersion": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "ruleSetVersion": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "outcome": {
               "const": "inconclusive",
               "type": "string"
             }
-          ]
-        },
-        "emotionClassification": {
-          "anyOf": [
-            {
-              "const": "happiness",
-              "type": "string"
-            },
-            {
-              "const": "sadness",
-              "type": "string"
-            },
-            {
-              "const": "anger",
-              "type": "string"
-            },
-            {
-              "const": "neutrality",
-              "type": "string"
-            }
-          ]
-        },
-        "confidence": {
-          "type": "object",
-          "required": [
-            "happiness",
-            "sadness",
-            "anger",
-            "neutrality"
-          ],
-          "properties": {
-            "happiness": {
-              "minimum": 0,
-              "maximum": 1,
-              "type": "number"
-            },
-            "sadness": {
-              "minimum": 0,
-              "maximum": 1,
-              "type": "number"
-            },
-            "anger": {
-              "minimum": 0,
-              "maximum": 1,
-              "type": "number"
-            },
-            "neutrality": {
-              "minimum": 0,
-              "maximum": 1,
-              "type": "number"
-            }
           }
-        },
-        "transcript": {
-          "type": "string"
-        },
-        "explanation": {
-          "type": "string"
-        },
-        "technicalTrace": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": [
-              "cue",
-              "value"
-            ],
-            "properties": {
-              "cue": {
-                "type": "string"
-              },
-              "value": {
-                "type": "string"
-              }
-            }
-          }
-        },
-        "contractVersion": {
-          "minLength": 1,
-          "type": "string"
-        },
-        "modelVersion": {
-          "minLength": 1,
-          "type": "string"
-        },
-        "preprocessingVersion": {
-          "minLength": 1,
-          "type": "string"
-        },
-        "ruleSetVersion": {
-          "minLength": 1,
-          "type": "string"
         }
-      }
+      ]
     }
   }
 }
