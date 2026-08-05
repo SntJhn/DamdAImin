@@ -1,0 +1,1 @@
+ALTER TABLE "app"."analyses" ALTER COLUMN "contract_version" SET DEFAULT 'taglish-v2';

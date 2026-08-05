@@ -22,7 +22,7 @@ describe('Analysis telemetry', () => {
       analysisId: '8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01',
       stage: 'completed',
       language: 'taglish',
-      contractVersion: 'taglish-v1',
+      contractVersion: 'taglish-v2',
       requestId: 'req-1',
       jobId: 'job-1',
       audioBase64: 'SENTINEL_AUDIO_MUST_NOT_BE_EMITTED',
@@ -40,7 +40,7 @@ describe('Analysis telemetry', () => {
       'damdai.analysis.id': event.analysisId,
       'damdai.analysis.stage': 'completed',
       'damdai.analysis.language': 'taglish',
-      'damdai.contract.version': 'taglish-v1',
+      'damdai.contract.version': 'taglish-v2',
       'http.request.id': 'req-1',
       'messaging.job.id': 'job-1',
     });
@@ -65,7 +65,7 @@ describe('Analysis telemetry', () => {
       analysisId: '8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01',
       stage,
       language: 'taglish',
-      contractVersion: 'taglish-v1',
+      contractVersion: 'taglish-v2',
       ...(jobId ? { jobId } : {}),
     });
 
@@ -110,7 +110,7 @@ describe('Analysis telemetry', () => {
           analysisId: '8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01',
           stage: 'queued',
           language: 'taglish',
-          contractVersion: 'taglish-v1',
+          contractVersion: 'taglish-v2',
           requestId: 'request-1',
         },
         {
@@ -118,7 +118,7 @@ describe('Analysis telemetry', () => {
           analysisId: '8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01',
           stage: 'processing',
           language: 'taglish',
-          contractVersion: 'taglish-v1',
+          contractVersion: 'taglish-v2',
           jobId: 'job-1',
         },
         ...(['processing', 'completed', 'failed', 'canceled'] as const).map((stage) => ({
@@ -126,7 +126,7 @@ describe('Analysis telemetry', () => {
           analysisId: '8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01',
           stage,
           language: 'taglish' as const,
-          contractVersion: 'taglish-v1',
+          contractVersion: 'taglish-v2',
         })),
       ];
 

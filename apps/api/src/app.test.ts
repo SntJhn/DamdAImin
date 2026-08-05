@@ -59,7 +59,7 @@ describe('API health boundary', () => {
 
     const response = await application.inject({
       method: 'GET',
-      url: '/api/v1/analyses',
+      url: '/api/v2/analyses',
       headers: { authorization: 'Bearer account-a-token' },
     });
 
@@ -85,7 +85,7 @@ describe('API health boundary', () => {
 
     const response = await application.inject({
       method: 'GET',
-      url: '/api/v1/analyses',
+      url: '/api/v2/analyses',
       headers: { authorization: 'Bearer verified-token' },
     });
 
@@ -106,7 +106,7 @@ describe('API health boundary', () => {
 
     const response = await application.inject({
       method: 'GET',
-      url: '/api/v1/analyses',
+      url: '/api/v2/analyses',
       headers: { authorization: 'Bearer verified-token' },
     });
 
@@ -126,10 +126,10 @@ describe('API health boundary', () => {
     });
     applications.push(application);
 
-    const missing = await application.inject({ method: 'GET', url: '/api/v1/analyses' });
+    const missing = await application.inject({ method: 'GET', url: '/api/v2/analyses' });
     const invalid = await application.inject({
       method: 'GET',
-      url: '/api/v1/analyses',
+      url: '/api/v2/analyses',
       headers: { authorization: 'Bearer invalid-token' },
     });
 
@@ -144,7 +144,7 @@ describe('API health boundary', () => {
 
     const allowed = await application.inject({
       method: 'OPTIONS',
-      url: '/api/v1/analyses',
+      url: '/api/v2/analyses',
       headers: {
         origin: 'http://localhost:3000',
         'access-control-request-method': 'GET',
@@ -153,7 +153,7 @@ describe('API health boundary', () => {
     });
     const refused = await application.inject({
       method: 'OPTIONS',
-      url: '/api/v1/analyses',
+      url: '/api/v2/analyses',
       headers: {
         origin: 'http://evil.example',
         'access-control-request-method': 'GET',

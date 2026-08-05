@@ -28,7 +28,7 @@ export const analyses = appSchema.table('analyses', {
   status: analysisStatus('status').notNull(),
   stage: text('stage').notNull().default('queued'),
   language: analysisLanguage('language').notNull().default('taglish'),
-  contractVersion: text('contract_version').notNull().default('taglish-v1'),
+  contractVersion: text('contract_version').notNull().default('taglish-v2'),
   sourceAudioKey: text('source_audio_key'),
   sourceAudioSize: integer('source_audio_size'),
   result: jsonb('result').$type<AnalysisResult | null>(),

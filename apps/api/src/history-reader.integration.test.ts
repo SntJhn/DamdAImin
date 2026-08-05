@@ -372,7 +372,7 @@ beforeAll(async () => {
   const upload = await analysisServices.createUpload({
     accountId: accountA,
     language: 'taglish',
-    contractVersion: 'taglish-v1',
+    contractVersion: 'taglish-v2',
   });
   integrationUploadId = upload.upload.id;
   integrationObjectKey = upload.upload.objectKey;
@@ -423,7 +423,7 @@ async function waitForCompletedAnalysis(analysisId: string): Promise<Record<stri
   for (let attempt = 0; attempt < 60; attempt += 1) {
     const response = await analysisApplication!.inject({
       method: 'GET',
-      url: `/api/v1/analyses/${analysisId}`,
+      url: `/api/v2/analyses/${analysisId}`,
       headers: { authorization: 'Bearer account-a-token' },
     });
 
@@ -444,7 +444,7 @@ describe('real database history ownership boundary', () => {
   it('returns only the authenticated account history through Fastify and the HTTP endpoint', async () => {
     const accountAResponse = await application.inject({
       method: 'GET',
-      url: '/api/v1/analyses',
+      url: '/api/v2/analyses',
       headers: { authorization: 'Bearer account-a-token' },
     });
 
@@ -461,7 +461,7 @@ describe('real database history ownership boundary', () => {
 
     const accountBResponse = await application.inject({
       method: 'GET',
-      url: '/api/v1/analyses',
+      url: '/api/v2/analyses',
       headers: { authorization: 'Bearer account-b-token' },
     });
 
@@ -492,7 +492,7 @@ describe('real database history ownership boundary', () => {
 
     const submitted = await analysisApplication!.inject({
       method: 'POST',
-      url: '/api/v1/analyses',
+      url: '/api/v2/analyses',
       headers: { authorization: 'Bearer account-a-token' },
       payload: { uploadId: integrationUploadId },
     });
@@ -503,7 +503,7 @@ describe('real database history ownership boundary', () => {
     expect(integrationJobs[0]).toEqual({
       analysisId: submittedAnalysisId,
       language: 'taglish',
-      contractVersion: 'taglish-v1',
+      contractVersion: 'taglish-v2',
     });
 
     const completed = await waitForCompletedAnalysis(submittedAnalysisId);
@@ -557,7 +557,7 @@ describe('real database history ownership boundary', () => {
 
     const otherAccount = await analysisApplication!.inject({
       method: 'GET',
-      url: `/api/v1/analyses/${submittedAnalysisId}`,
+      url: `/api/v2/analyses/${submittedAnalysisId}`,
       headers: { authorization: 'Bearer account-b-token' },
     });
     expect(otherAccount.statusCode).toBe(404);

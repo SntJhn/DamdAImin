@@ -10,8 +10,12 @@ export {
   type AnalysisResult,
   type AnalysisStatus,
   type AnalysisSummary,
+  type ActivatedRule,
   type ConfidenceBreakdown,
   type EmotionClassification,
-  type TechnicalTraceEntry,
+  type ScoreAdjustment,
+  type TechnicalCueSource,
+  type TechnicalCueSpan,
+  type TechnicalTrace,
   type WavInspection,
 } from './analysis.js';

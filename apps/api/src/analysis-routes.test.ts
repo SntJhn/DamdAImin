@@ -13,7 +13,7 @@ const analysis: Analysis = {
   status: 'queued',
   stage: 'queued',
   language: 'taglish',
-  contractVersion: 'taglish-v1',
+  contractVersion: 'taglish-v2',
   sourceAudioKey: 'accounts/account-a/source-audio/upload-id.wav',
   sourceAudioSize: 64_044,
   createdAt: new Date('2026-08-02T00:00:00.000Z'),
@@ -21,7 +21,48 @@ const analysis: Analysis = {
   failureMessage: null,
 };
 
-function createServices(): AnalysisServices {
+const completedAnalysis: Analysis = {
+  ...analysis,
+  status: 'completed',
+  stage: 'completed',
+  result: {
+    outcome: 'definitive',
+    emotionClassification: 'happiness',
+    confidence: { happiness: 0.91, sadness: 0.03, anger: 0.02, neutrality: 0.04 },
+    transcript: 'Masaya ako sa araw na ito.',
+    explanation: 'The returned acoustic and linguistic cues support this classification.',
+    technicalTrace: {
+      cueSpans: [
+        {
+          source: 'acoustic',
+          startMs: 0,
+          endMs: 800,
+          cue: 'pitch contour',
+          value: 'rising positive contour',
+        },
+      ],
+      activatedRules: [{ id: 'rule-happiness-positive-cue', description: 'Returned cue rule.' }],
+      scoreAdjustments: [
+        {
+          emotionClassification: 'happiness',
+          delta: 0.66,
+          reason: 'Returned positive cues.',
+        },
+      ],
+      probabilities: {
+        before: { happiness: 0.25, sadness: 0.25, anger: 0.25, neutrality: 0.25 },
+        after: { happiness: 0.91, sadness: 0.03, anger: 0.02, neutrality: 0.04 },
+      },
+    },
+    contractVersion: 'taglish-v2',
+    schemaVersion: 'research-response-v2',
+    modelVersion: 'fake-model-1',
+    preprocessingVersion: 'fake-preprocessing-1',
+    ruleSetVersion: 'fake-rules-1',
+  },
+};
+
+function createServices(currentAnalysis: Analysis = analysis): AnalysisServices {
   return {
     createUpload: vi.fn(async () => ({
       upload: {
@@ -29,7 +70,7 @@ function createServices(): AnalysisServices {
         accountId: 'account-a',
         objectKey: 'accounts/account-a/source-audio/upload.wav',
         language: 'taglish' as const,
-        contractVersion: 'taglish-v1',
+        contractVersion: 'taglish-v2',
         contentType: 'audio/wav' as const,
         status: 'created' as const,
         expiresAt: new Date('2026-08-02T00:15:00.000Z'),
@@ -39,8 +80,8 @@ function createServices(): AnalysisServices {
       uploadMethod: 'PUT' as const,
       uploadHeaders: { 'content-type': 'audio/wav' as const },
     })),
-    finalizeUpload: vi.fn(async () => analysis),
-    getAnalysis: vi.fn(async () => analysis),
+    finalizeUpload: vi.fn(async () => currentAnalysis),
+    getAnalysis: vi.fn(async () => currentAnalysis),
     processAnalysis: vi.fn(async () => undefined),
   };
 }
@@ -62,9 +103,9 @@ describe('Analysis REST boundary', () => {
 
     const response = await application.inject({
       method: 'POST',
-      url: '/api/v1/analysis-uploads',
+      url: '/api/v2/analysis-uploads',
       headers: { authorization: 'Bearer verified-token' },
-      payload: { language: 'taglish', contractVersion: 'taglish-v1' },
+      payload: { language: 'taglish', contractVersion: 'taglish-v2' },
     });
 
     expect(response.statusCode).toBe(201);
@@ -76,7 +117,7 @@ describe('Analysis REST boundary', () => {
     expect(analysisServices.createUpload).toHaveBeenCalledWith({
       accountId: 'account-a',
       language: 'taglish',
-      contractVersion: 'taglish-v1',
+      contractVersion: 'taglish-v2',
     });
   });
 
@@ -92,16 +133,16 @@ describe('Analysis REST boundary', () => {
 
     const response = await application.inject({
       method: 'POST',
-      url: '/api/v1/analyses',
+      url: '/api/v2/analyses',
       headers: { authorization: 'Bearer verified-token' },
       payload: { uploadId: 'a0ad9a3f-26b2-4014-8f51-ec7d67bb4f1a' },
     });
 
     expect(response.statusCode).toBe(202);
-    expect(response.headers.location).toBe('/api/v1/analyses/8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01');
+    expect(response.headers.location).toBe('/api/v2/analyses/8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01');
     expect(response.json()).toMatchObject({
       analysis: { id: analysis.id, status: 'queued', stage: 'queued', language: 'taglish' },
-      location: '/api/v1/analyses/8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01',
+      location: '/api/v2/analyses/8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01',
     });
     expect(telemetryEvents).toEqual([
       {
@@ -110,7 +151,7 @@ describe('Analysis REST boundary', () => {
         analysisId: analysis.id,
         stage: 'queued',
         language: 'taglish',
-        contractVersion: 'taglish-v1',
+        contractVersion: 'taglish-v2',
       },
     ]);
   });
@@ -125,13 +166,41 @@ describe('Analysis REST boundary', () => {
 
     const response = await application.inject({
       method: 'GET',
-      url: `/api/v1/analyses/${analysis.id}`,
+      url: `/api/v2/analyses/${analysis.id}`,
       headers: { authorization: 'Bearer verified-token' },
     });
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({ id: analysis.id, status: 'queued' });
     expect(analysisServices.getAnalysis).toHaveBeenCalledWith('account-a', analysis.id);
+  });
+
+  it('returns the complete persisted Analysis Record through the resource boundary', async () => {
+    const analysisServices = createServices(completedAnalysis);
+    const application = buildApi({
+      authVerifier: { verify: async () => ({ accountId: 'account-a' }) },
+      analysisServices,
+    });
+    applications.push(application);
+
+    const response = await application.inject({
+      method: 'GET',
+      url: `/api/v2/analyses/${completedAnalysis.id}`,
+      headers: { authorization: 'Bearer verified-token' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      id: completedAnalysis.id,
+      status: 'completed',
+      result: {
+        outcome: 'definitive',
+        emotionClassification: 'happiness',
+        transcript: completedAnalysis.result?.transcript,
+        technicalTrace: completedAnalysis.result?.technicalTrace,
+        schemaVersion: 'research-response-v2',
+      },
+    });
   });
 
   it('normalizes request schema failures into an accessible validation response', async () => {
@@ -143,7 +212,7 @@ describe('Analysis REST boundary', () => {
 
     const response = await application.inject({
       method: 'POST',
-      url: '/api/v1/analysis-uploads',
+      url: '/api/v2/analysis-uploads',
       headers: { authorization: 'Bearer verified-token' },
       payload: { language: 'taglish' },
     });
@@ -176,7 +245,7 @@ describe('Analysis REST boundary', () => {
 
     const response = await application.inject({
       method: 'POST',
-      url: '/api/v1/analyses',
+      url: '/api/v2/analyses',
       headers: { authorization: 'Bearer verified-token' },
       payload: { uploadId: 'a0ad9a3f-26b2-4014-8f51-ec7d67bb4f1a' },
     });

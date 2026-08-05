@@ -33,23 +33,64 @@ export const ConfidenceBreakdownSchema = Type.Object({
   neutrality: Type.Number({ minimum: 0, maximum: 1 }),
 });
 
-export const AnalysisResultSchema = Type.Object({
-  outcome: AnalysisOutcomeSchema,
-  emotionClassification: Type.Optional(EmotionClassificationSchema),
+export const TechnicalCueSpanSchema = Type.Object({
+  source: Type.Union([Type.Literal('acoustic'), Type.Literal('linguistic')]),
+  startMs: Type.Number({ minimum: 0 }),
+  endMs: Type.Number({ minimum: 0 }),
+  cue: Type.String({ minLength: 1 }),
+  value: Type.String({ minLength: 1 }),
+});
+
+export const ActivatedRuleSchema = Type.Object({
+  id: Type.String({ minLength: 1 }),
+  description: Type.String({ minLength: 1 }),
+});
+
+export const ScoreAdjustmentSchema = Type.Object({
+  emotionClassification: EmotionClassificationSchema,
+  delta: Type.Number(),
+  reason: Type.String({ minLength: 1 }),
+});
+
+export const TechnicalTraceSchema = Type.Object({
+  cueSpans: Type.Array(TechnicalCueSpanSchema),
+  activatedRules: Type.Array(ActivatedRuleSchema),
+  scoreAdjustments: Type.Array(ScoreAdjustmentSchema),
+  probabilities: Type.Object({
+    before: ConfidenceBreakdownSchema,
+    after: ConfidenceBreakdownSchema,
+  }),
+});
+
+const analysisResultFields = {
   confidence: ConfidenceBreakdownSchema,
   transcript: Type.String(),
   explanation: Type.String(),
-  technicalTrace: Type.Array(
-    Type.Object({
-      cue: Type.String(),
-      value: Type.String(),
-    }),
-  ),
+  technicalTrace: TechnicalTraceSchema,
   contractVersion: Type.String({ minLength: 1 }),
+  schemaVersion: Type.String({ minLength: 1 }),
   modelVersion: Type.String({ minLength: 1 }),
   preprocessingVersion: Type.String({ minLength: 1 }),
   ruleSetVersion: Type.String({ minLength: 1 }),
-});
+};
+
+export const AnalysisResultSchema = Type.Union([
+  Type.Object(
+    {
+      ...analysisResultFields,
+      outcome: Type.Literal('definitive'),
+      emotionClassification: EmotionClassificationSchema,
+    },
+    { additionalProperties: false },
+  ),
+  Type.Object(
+    {
+      ...analysisResultFields,
+      outcome: Type.Literal('inconclusive'),
+    },
+    { additionalProperties: false },
+  ),
+]);
 
 export const CreateAnalysisUploadRequestSchema = Type.Object({
   language: AnalysisLanguageSchema,
@@ -112,6 +153,10 @@ export type AnalysisLanguage = Static<typeof AnalysisLanguageSchema>;
 export type AnalysisStatus = Static<typeof AnalysisStatusSchema>;
 export type AnalysisOutcome = Static<typeof AnalysisOutcomeSchema>;
 export type EmotionClassification = Static<typeof EmotionClassificationSchema>;
+export type ActivatedRule = Static<typeof ActivatedRuleSchema>;
+export type ScoreAdjustment = Static<typeof ScoreAdjustmentSchema>;
+export type TechnicalCueSpan = Static<typeof TechnicalCueSpanSchema>;
+export type TechnicalTrace = Static<typeof TechnicalTraceSchema>;
 export type AnalysisResult = Static<typeof AnalysisResultSchema>;
 export type CreateAnalysisUploadRequest = Static<typeof CreateAnalysisUploadRequestSchema>;
 export type CreateAnalysisUploadResponse = Static<typeof CreateAnalysisUploadResponseSchema>;

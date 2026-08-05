@@ -49,8 +49,31 @@ const result: AnalysisResult = {
   confidence: { happiness: 0.91, sadness: 0.03, anger: 0.02, neutrality: 0.04 },
   transcript: 'masaya ako',
   explanation: 'The synthetic fixture contains the deterministic happy cue.',
-  technicalTrace: [{ cue: 'synthetic-cue', value: 'happy' }],
-  contractVersion: 'taglish-v1',
+  technicalTrace: {
+    cueSpans: [
+      {
+        source: 'linguistic',
+        startMs: 0,
+        endMs: 400,
+        cue: 'positive lexical cue',
+        value: 'masaya',
+      },
+    ],
+    activatedRules: [{ id: 'synthetic-rule', description: 'Synthetic fixture rule.' }],
+    scoreAdjustments: [
+      {
+        emotionClassification: 'happiness',
+        delta: 0.66,
+        reason: 'Synthetic fixture evidence.',
+      },
+    ],
+    probabilities: {
+      before: { happiness: 0.25, sadness: 0.25, anger: 0.25, neutrality: 0.25 },
+      after: { happiness: 0.91, sadness: 0.03, anger: 0.02, neutrality: 0.04 },
+    },
+  },
+  contractVersion: 'taglish-v2',
+  schemaVersion: 'research-response-v2',
   modelVersion: 'fake-model-1',
   preprocessingVersion: 'fake-preprocess-1',
   ruleSetVersion: 'fake-rules-1',
@@ -183,7 +206,7 @@ describe('Analysis application service', () => {
     const created = await services.createUpload({
       accountId: 'account-a',
       language: 'taglish',
-      contractVersion: 'taglish-v1',
+      contractVersion: 'taglish-v2',
     });
     storage.objects.set(created.upload.objectKey, {
       bytes: createPcmWav(2),
@@ -193,7 +216,7 @@ describe('Analysis application service', () => {
     const queued = await services.finalizeUpload('account-a', created.upload.id);
     expect(queued).toMatchObject({ id: 'analysis-id', status: 'queued', language: 'taglish' });
     expect(jobs).toEqual([
-      { analysisId: 'analysis-id', language: 'taglish', contractVersion: 'taglish-v1' },
+      { analysisId: 'analysis-id', language: 'taglish', contractVersion: 'taglish-v2' },
     ]);
 
     await services.processAnalysis(jobs[0] as never);
@@ -209,14 +232,14 @@ describe('Analysis application service', () => {
       analysisId: 'analysis-id',
       stage: 'processing',
       language: 'taglish',
-      contractVersion: 'taglish-v1',
+      contractVersion: 'taglish-v2',
     });
     expect(telemetry.record).toHaveBeenCalledWith({
       name: 'analysis.stage',
       analysisId: 'analysis-id',
       stage: 'completed',
       language: 'taglish',
-      contractVersion: 'taglish-v1',
+      contractVersion: 'taglish-v2',
     });
   });
 
@@ -236,7 +259,7 @@ describe('Analysis application service', () => {
     const created = await services.createUpload({
       accountId: 'account-a',
       language: 'taglish',
-      contractVersion: 'taglish-v1',
+      contractVersion: 'taglish-v2',
     });
     storage.objects.set(created.upload.objectKey, {
       bytes: new TextEncoder().encode('not a wav'),
@@ -271,7 +294,7 @@ describe('Analysis application service', () => {
     const created = await services.createUpload({
       accountId: 'account-a',
       language: 'taglish',
-      contractVersion: 'taglish-v1',
+      contractVersion: 'taglish-v2',
     });
     storage.objects.set(created.upload.objectKey, {
       bytes: createPcmWav(2),
@@ -296,14 +319,14 @@ describe('Analysis application service', () => {
       analysisId: queued.id,
       stage: 'processing',
       language: 'taglish',
-      contractVersion: 'taglish-v1',
+      contractVersion: 'taglish-v2',
     });
     expect(telemetry.record).toHaveBeenCalledWith({
       name: 'analysis.stage',
       analysisId: queued.id,
       stage: 'failed',
       language: 'taglish',
-      contractVersion: 'taglish-v1',
+      contractVersion: 'taglish-v2',
     });
   });
 
@@ -333,7 +356,7 @@ describe('Analysis application service', () => {
     const created = await services.createUpload({
       accountId: 'account-a',
       language: 'taglish',
-      contractVersion: 'taglish-v1',
+      contractVersion: 'taglish-v2',
     });
     storage.objects.set(created.upload.objectKey, {
       bytes: createPcmWav(2),
@@ -347,8 +370,8 @@ describe('Analysis application service', () => {
 
     expect(retried).toMatchObject({ id: 'analysis-id', status: 'queued' });
     expect(jobs).toEqual([
-      { analysisId: 'analysis-id', language: 'taglish', contractVersion: 'taglish-v1' },
-      { analysisId: 'analysis-id', language: 'taglish', contractVersion: 'taglish-v1' },
+      { analysisId: 'analysis-id', language: 'taglish', contractVersion: 'taglish-v2' },
+      { analysisId: 'analysis-id', language: 'taglish', contractVersion: 'taglish-v2' },
     ]);
   });
 });

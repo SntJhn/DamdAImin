@@ -7,8 +7,38 @@ import { createResearchSystemClient } from './research-client.js';
 const analysisInput = {
   analysisId: '8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01',
   language: 'taglish' as const,
-  contractVersion: 'taglish-v1',
+  contractVersion: 'taglish-v2',
   audio: new Uint8Array([1]),
+};
+
+const definitiveTechnicalTrace = {
+  cueSpans: [
+    {
+      source: 'linguistic' as const,
+      startMs: 0,
+      endMs: 400,
+      cue: 'positive lexical cue',
+      value: 'Masaya',
+    },
+  ],
+  activatedRules: [{ id: 'fixture-rule', description: 'Synthetic fixture rule.' }],
+  scoreAdjustments: [
+    { emotionClassification: 'happiness' as const, delta: 0.66, reason: 'Synthetic fixture.' },
+  ],
+  probabilities: {
+    before: { happiness: 0.25, sadness: 0.25, anger: 0.25, neutrality: 0.25 },
+    after: { happiness: 0.91, sadness: 0.03, anger: 0.02, neutrality: 0.04 },
+  },
+};
+
+const inconclusiveTechnicalTrace = {
+  cueSpans: [],
+  activatedRules: [],
+  scoreAdjustments: [],
+  probabilities: {
+    before: { happiness: 0.25, sadness: 0.25, anger: 0.25, neutrality: 0.25 },
+    after: { happiness: 0.25, sadness: 0.25, anger: 0.25, neutrality: 0.25 },
+  },
 };
 
 async function withResearchFake(
@@ -39,8 +69,9 @@ describe('Research System HTTP contract client', () => {
             confidence: { happiness: 0.91, sadness: 0.03, anger: 0.02, neutrality: 0.04 },
             transcript: 'Masaya ako',
             explanation: 'Synthetic fixture',
-            technicalTrace: [{ cue: 'fixture', value: 'happy' }],
-            contractVersion: 'taglish-v1',
+            technicalTrace: definitiveTechnicalTrace,
+            contractVersion: 'taglish-v2',
+            schemaVersion: 'research-response-v2',
             modelVersion: 'fake-model-1',
             preprocessingVersion: 'fake-preprocessing-1',
             ruleSetVersion: 'fake-rules-1',
@@ -55,7 +86,7 @@ describe('Research System HTTP contract client', () => {
       client.analyze({
         analysisId: '8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01',
         language: 'taglish',
-        contractVersion: 'taglish-v1',
+        contractVersion: 'taglish-v2',
         audio: new Uint8Array([1, 2, 3]),
       }),
     ).resolves.toMatchObject({ outcome: 'definitive', emotionClassification: 'happiness' });
@@ -63,6 +94,17 @@ describe('Research System HTTP contract client', () => {
       'http://research.test/v1/analyze',
       expect.objectContaining({ method: 'POST' }),
     );
+  });
+
+  it('accepts an Inconclusive Result without exposing a definitive class', async () => {
+    await withResearchFake({ fixture: 'inconclusive' }, async (baseUrl) => {
+      const client = createResearchSystemClient({ baseUrl });
+
+      await expect(client.analyze(analysisInput)).resolves.toMatchObject({
+        outcome: 'inconclusive',
+        confidence: { happiness: 0.25, sadness: 0.25, anger: 0.25, neutrality: 0.25 },
+      });
+    });
   });
 
   it('rejects a response that does not satisfy the shared contract', async () => {
@@ -73,7 +115,7 @@ describe('Research System HTTP contract client', () => {
       client.analyze({
         analysisId: '8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01',
         language: 'taglish',
-        contractVersion: 'taglish-v1',
+        contractVersion: 'taglish-v2',
         audio: new Uint8Array([1]),
       }),
     ).rejects.toThrow('response does not satisfy');
@@ -91,8 +133,9 @@ describe('Research System HTTP contract client', () => {
               confidence: { happiness: 0.91, sadness: 0.03, anger: 0.02, neutrality: 0.04 },
               transcript: 'Masaya ako',
               explanation: 'Synthetic fixture',
-              technicalTrace: [{ cue: 'fixture', value: 'happy' }],
-              contractVersion: 'taglish-v1',
+              technicalTrace: definitiveTechnicalTrace,
+              contractVersion: 'taglish-v2',
+              schemaVersion: 'research-response-v2',
               modelVersion: 'fake-model-1',
               preprocessingVersion: 'fake-preprocessing-1',
               ruleSetVersion: 'fake-rules-1',
@@ -107,7 +150,7 @@ describe('Research System HTTP contract client', () => {
       client.analyze({
         analysisId: '8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01',
         language: 'taglish',
-        contractVersion: 'taglish-v1',
+        contractVersion: 'taglish-v2',
         audio: new Uint8Array([1]),
       }),
     ).rejects.toThrow('mismatched Analysis identifier');
@@ -124,8 +167,9 @@ describe('Research System HTTP contract client', () => {
               confidence: { happiness: 0.91, sadness: 0.03, anger: 0.02, neutrality: 0.04 },
               transcript: 'Masaya ako',
               explanation: 'Synthetic fixture',
-              technicalTrace: [],
-              contractVersion: 'taglish-v1',
+              technicalTrace: inconclusiveTechnicalTrace,
+              contractVersion: 'taglish-v2',
+              schemaVersion: 'research-response-v2',
               modelVersion: 'fake-model-1',
               preprocessingVersion: 'fake-preprocessing-1',
               ruleSetVersion: 'fake-rules-1',
@@ -140,10 +184,46 @@ describe('Research System HTTP contract client', () => {
       client.analyze({
         analysisId: '8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01',
         language: 'taglish',
-        contractVersion: 'taglish-v1',
+        contractVersion: 'taglish-v2',
         audio: new Uint8Array([1]),
       }),
-    ).rejects.toThrow('invalid definitive classification');
+    ).rejects.toThrow('response does not satisfy');
+  });
+
+  it('rejects an Inconclusive Result that includes a definitive class', async () => {
+    const fetchImpl = vi.fn<typeof fetch>(
+      async () =>
+        new Response(
+          JSON.stringify({
+            analysisId: analysisInput.analysisId,
+            result: {
+              outcome: 'inconclusive',
+              emotionClassification: 'happiness',
+              confidence: { happiness: 0.25, sadness: 0.25, anger: 0.25, neutrality: 0.25 },
+              transcript: '',
+              explanation: 'Synthetic fixture',
+              technicalTrace: {
+                cueSpans: [],
+                activatedRules: [],
+                scoreAdjustments: [],
+                probabilities: {
+                  before: { happiness: 0.25, sadness: 0.25, anger: 0.25, neutrality: 0.25 },
+                  after: { happiness: 0.25, sadness: 0.25, anger: 0.25, neutrality: 0.25 },
+                },
+              },
+              contractVersion: analysisInput.contractVersion,
+              schemaVersion: 'research-response-v2',
+              modelVersion: 'fake-model-1',
+              preprocessingVersion: 'fake-preprocessing-1',
+              ruleSetVersion: 'fake-rules-1',
+            },
+          }),
+          { status: 200 },
+        ),
+    );
+    const client = createResearchSystemClient({ baseUrl: 'http://research.test', fetchImpl });
+
+    await expect(client.analyze(analysisInput)).rejects.toThrow('response does not satisfy');
   });
 
   it.each([
@@ -157,8 +237,9 @@ describe('Research System HTTP contract client', () => {
           confidence: { happiness: 0.91, sadness: 0.03, anger: 0.02, neutrality: 0.04 },
           transcript: 'Masaya ako',
           explanation: 'Synthetic fixture',
-          technicalTrace: [{ cue: 'fixture', value: 'happy' }],
-          contractVersion: 'taglish-v2',
+          technicalTrace: definitiveTechnicalTrace,
+          contractVersion: 'taglish-v3',
+          schemaVersion: 'research-response-v2',
           modelVersion: 'fake-model-1',
           preprocessingVersion: 'fake-preprocessing-1',
           ruleSetVersion: 'fake-rules-1',

@@ -19,7 +19,7 @@ await writeArtifact(
 );
 await writeArtifact(
   'research-response.json',
-  'https://damdai.local/contracts/research-response-v1.json',
+  'https://damdai.local/contracts/research-response-v2.json',
   ResearchAnalysisResponseSchema,
 );
 await writeArtifact(

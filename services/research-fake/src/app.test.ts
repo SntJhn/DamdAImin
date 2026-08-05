@@ -39,6 +39,30 @@ async function analyzeOverHttp(
   }
 }
 
+function createSyntheticPcmWav(dataByteLength = 1024 * 1024): Buffer {
+  const sampleRateHz = 48_000;
+  const channels = 1;
+  const bitsPerSample = 16;
+  const bytesPerSample = bitsPerSample / 8;
+  const wav = Buffer.alloc(44 + dataByteLength);
+
+  wav.write('RIFF', 0, 'ascii');
+  wav.writeUInt32LE(wav.length - 8, 4);
+  wav.write('WAVE', 8, 'ascii');
+  wav.write('fmt ', 12, 'ascii');
+  wav.writeUInt32LE(16, 16);
+  wav.writeUInt16LE(1, 20);
+  wav.writeUInt16LE(channels, 22);
+  wav.writeUInt32LE(sampleRateHz, 24);
+  wav.writeUInt32LE(sampleRateHz * channels * bytesPerSample, 28);
+  wav.writeUInt16LE(channels * bytesPerSample, 32);
+  wav.writeUInt16LE(bitsPerSample, 34);
+  wav.write('data', 36, 'ascii');
+  wav.writeUInt32LE(dataByteLength, 40);
+
+  return wav;
+}
+
 describe('deterministic Research System contract', () => {
   it('returns one definitive classification without application infrastructure access', async () => {
     const application = buildResearchFake();
@@ -50,7 +74,61 @@ describe('deterministic Research System contract', () => {
         payload: {
           analysisId: '8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01',
           language: 'taglish',
-          contractVersion: 'taglish-v1',
+          contractVersion: 'taglish-v2',
+          audioBase64: 'UklGRg==',
+        },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json();
+      expect(body).toMatchObject({
+        analysisId: '8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01',
+        result: {
+          outcome: 'definitive',
+          emotionClassification: 'happiness',
+          contractVersion: 'taglish-v2',
+          technicalTrace: expect.any(Object),
+        },
+      });
+      expect(body.result.technicalTrace.cueSpans).toEqual(
+        expect.arrayContaining([
+          {
+            source: 'acoustic',
+            startMs: 0,
+            endMs: 800,
+            cue: 'pitch contour',
+            value: 'rising positive contour',
+          },
+        ]),
+      );
+      expect(body.result.technicalTrace.activatedRules).toEqual(
+        expect.arrayContaining([expect.objectContaining({ id: 'rule-happiness-positive-cue' })]),
+      );
+      expect(body.result.technicalTrace.scoreAdjustments).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ emotionClassification: 'happiness', delta: 0.66 }),
+        ]),
+      );
+      expect(body.result.technicalTrace.probabilities).toEqual({
+        before: { happiness: 0.25, sadness: 0.25, anger: 0.25, neutrality: 0.25 },
+        after: { happiness: 0.91, sadness: 0.03, anger: 0.02, neutrality: 0.04 },
+      });
+    } finally {
+      await application.close();
+    }
+  });
+
+  it('can return a completed Inconclusive Result fixture without a fifth class', async () => {
+    const application = buildResearchFake({ fixture: 'inconclusive' });
+
+    try {
+      const response = await application.inject({
+        method: 'POST',
+        url: '/v1/analyze',
+        payload: {
+          analysisId: '8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01',
+          language: 'taglish',
+          contractVersion: 'taglish-v2',
           audioBase64: 'UklGRg==',
         },
       });
@@ -59,11 +137,10 @@ describe('deterministic Research System contract', () => {
       expect(response.json()).toMatchObject({
         analysisId: '8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01',
         result: {
-          outcome: 'definitive',
-          emotionClassification: 'happiness',
-          contractVersion: 'taglish-v1',
+          outcome: 'inconclusive',
         },
       });
+      expect(response.json().result).not.toHaveProperty('emotionClassification');
     } finally {
       await application.close();
     }
@@ -89,6 +166,24 @@ describe('deterministic Research System contract', () => {
     }
   });
 
+  it('accepts a WAV request larger than Fastify’s default body limit', async () => {
+    const response = await analyzeOverHttp(
+      {},
+      {
+        analysisId: '8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01',
+        language: 'taglish',
+        contractVersion: 'taglish-v2',
+        audioBase64: createSyntheticPcmWav().toString('base64'),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({
+      analysisId: '8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01',
+      result: { outcome: 'definitive' },
+    });
+  });
+
   it('keeps generated research schemas conformant with the fake HTTP boundary', async () => {
     const application = buildResearchFake();
     const requestSchema = await readGeneratedContract('research-request.json');
@@ -98,19 +193,19 @@ describe('deterministic Research System contract', () => {
       {
         analysisId: '8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01',
         language: 'taglish',
-        contractVersion: 'taglish-v1',
+        contractVersion: 'taglish-v2',
         audioBase64: 'UklGRg==',
       },
       {
         analysisId: '8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01',
         language: 'english',
-        contractVersion: 'english-v1',
+        contractVersion: 'english-v2',
         audioBase64: 'UklGRg==',
       },
       {
         analysisId: '8b9f1d42-4a34-4f1e-9a73-8d1c5d5e1a01',
         language: 'tagalog',
-        contractVersion: 'tagalog-v1',
+        contractVersion: 'tagalog-v2',
         audioBase64: 'UklGRg==',
       },
     ];
@@ -127,8 +222,17 @@ describe('deterministic Research System contract', () => {
         confidence: { happiness: 0.25, sadness: 0.25, anger: 0.25, neutrality: 0.25 },
         transcript: '',
         explanation: 'The deterministic fixture is insufficient for a definitive result.',
-        technicalTrace: [],
-        contractVersion: 'taglish-v1',
+        technicalTrace: {
+          cueSpans: [],
+          activatedRules: [],
+          scoreAdjustments: [],
+          probabilities: {
+            before: { happiness: 0.25, sadness: 0.25, anger: 0.25, neutrality: 0.25 },
+            after: { happiness: 0.25, sadness: 0.25, anger: 0.25, neutrality: 0.25 },
+          },
+        },
+        contractVersion: 'taglish-v2',
+        schemaVersion: 'research-response-v2',
         modelVersion: 'fake-model-1',
         preprocessingVersion: 'fake-preprocessing-1',
         ruleSetVersion: 'fake-rules-1',
@@ -170,16 +274,7 @@ describe('deterministic Research System contract', () => {
       expect(responseConforms(inconclusiveFixture)).toBe(true);
 
       const inconclusiveResponse = await analyzeOverHttp(
-        {
-          responseFor: (_request, defaultResponse) => ({
-            ...defaultResponse,
-            result: {
-              ...defaultResponse.result,
-              outcome: 'inconclusive',
-              emotionClassification: undefined,
-            },
-          }),
-        },
+        { fixture: 'inconclusive' },
         validRequests[0],
       );
       expect(inconclusiveResponse.status).toBe(200);
@@ -192,7 +287,7 @@ describe('deterministic Research System contract', () => {
         {
           responseFor: (_request, defaultResponse) => ({
             ...defaultResponse,
-            result: { ...defaultResponse.result, contractVersion: 'taglish-v2' },
+            result: { ...defaultResponse.result, contractVersion: 'taglish-v3' },
           }),
         },
         validRequests[0],
@@ -200,7 +295,7 @@ describe('deterministic Research System contract', () => {
       expect(wrongVersionResponse.status).toBe(200);
       expect(responseConforms(wrongVersionResponse.body)).toBe(true);
       expect(wrongVersionResponse.body).toMatchObject({
-        result: { contractVersion: 'taglish-v2' },
+        result: { contractVersion: 'taglish-v3' },
       });
 
       const malformedResponse = await analyzeOverHttp(

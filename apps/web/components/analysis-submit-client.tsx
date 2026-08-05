@@ -9,7 +9,7 @@ import type { CreateAnalysisUploadResponse, AcceptedAnalysisResponse } from '@da
 import { authClient, getAuthToken } from '../lib/auth-client';
 import { MicrophoneRecorder } from './microphone-recorder';
 
-const apiBaseUrl = (process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:4000/api/v1').replace(
+const apiBaseUrl = (process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:4000/api/v2').replace(
   /\/$/,
   '',
 );
@@ -80,7 +80,7 @@ export function AnalysisSubmitClient() {
           authorization: `Bearer ${token}`,
           'content-type': 'application/json',
         },
-        body: JSON.stringify({ language, contractVersion: 'taglish-v1' }),
+        body: JSON.stringify({ language, contractVersion: 'taglish-v2' }),
       });
       if (uploadResponse.status === 401) {
         router.replace('/auth/sign-in?next=/analyze');
