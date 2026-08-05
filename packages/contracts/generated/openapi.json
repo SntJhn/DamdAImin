@@ -22,6 +22,151 @@
         "tags": [
           "Analysis History"
         ],
+        "parameters": [
+          {
+            "schema": {
+              "minLength": 1,
+              "maxLength": 200,
+              "type": "string"
+            },
+            "in": "query",
+            "name": "search",
+            "required": false
+          },
+          {
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "queued"
+                  ]
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "processing"
+                  ]
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "completed"
+                  ]
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "failed"
+                  ]
+                }
+              ]
+            },
+            "in": "query",
+            "name": "status",
+            "required": false
+          },
+          {
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "definitive"
+                  ]
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "inconclusive"
+                  ]
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "happiness"
+                  ]
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "sadness"
+                  ]
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "anger"
+                  ]
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "neutrality"
+                  ]
+                }
+              ]
+            },
+            "in": "query",
+            "name": "result",
+            "required": false
+          },
+          {
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "taglish"
+                  ]
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "english"
+                  ]
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "tagalog"
+                  ]
+                }
+              ]
+            },
+            "in": "query",
+            "name": "language",
+            "required": false
+          },
+          {
+            "schema": {
+              "format": "date",
+              "type": "string"
+            },
+            "in": "query",
+            "name": "from",
+            "required": false
+          },
+          {
+            "schema": {
+              "format": "date",
+              "type": "string"
+            },
+            "in": "query",
+            "name": "to",
+            "required": false
+          },
+          {
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "type": "integer"
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false
+          }
+        ],
         "security": [
           {
             "bearerAuth": []
@@ -35,57 +180,227 @@
                 "schema": {
                   "type": "object",
                   "required": [
-                    "analyses"
+                    "analyses",
+                    "hasMore"
                   ],
                   "properties": {
                     "analyses": {
                       "type": "array",
                       "items": {
-                        "type": "object",
-                        "required": [
-                          "id",
-                          "status",
-                          "createdAt"
-                        ],
-                        "properties": {
-                          "id": {
-                            "format": "uuid",
-                            "type": "string"
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "required": [
+                              "id",
+                              "language",
+                              "createdAt",
+                              "status"
+                            ],
+                            "properties": {
+                              "id": {
+                                "format": "uuid",
+                                "type": "string"
+                              },
+                              "language": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "enum": [
+                                      "taglish"
+                                    ]
+                                  },
+                                  {
+                                    "type": "string",
+                                    "enum": [
+                                      "english"
+                                    ]
+                                  },
+                                  {
+                                    "type": "string",
+                                    "enum": [
+                                      "tagalog"
+                                    ]
+                                  }
+                                ]
+                              },
+                              "createdAt": {
+                                "format": "date-time",
+                                "type": "string"
+                              },
+                              "status": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "enum": [
+                                      "queued"
+                                    ]
+                                  },
+                                  {
+                                    "type": "string",
+                                    "enum": [
+                                      "processing"
+                                    ]
+                                  },
+                                  {
+                                    "type": "string",
+                                    "enum": [
+                                      "failed"
+                                    ]
+                                  }
+                                ]
+                              },
+                              "result": {
+                                "not": {}
+                              }
+                            }
                           },
-                          "status": {
-                            "anyOf": [
-                              {
-                                "type": "string",
-                                "enum": [
-                                  "queued"
+                          {
+                            "type": "object",
+                            "required": [
+                              "id",
+                              "language",
+                              "createdAt",
+                              "status",
+                              "result"
+                            ],
+                            "properties": {
+                              "id": {
+                                "format": "uuid",
+                                "type": "string"
+                              },
+                              "language": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "enum": [
+                                      "taglish"
+                                    ]
+                                  },
+                                  {
+                                    "type": "string",
+                                    "enum": [
+                                      "english"
+                                    ]
+                                  },
+                                  {
+                                    "type": "string",
+                                    "enum": [
+                                      "tagalog"
+                                    ]
+                                  }
                                 ]
                               },
-                              {
-                                "type": "string",
-                                "enum": [
-                                  "processing"
-                                ]
+                              "createdAt": {
+                                "format": "date-time",
+                                "type": "string"
                               },
-                              {
+                              "status": {
                                 "type": "string",
                                 "enum": [
                                   "completed"
                                 ]
                               },
-                              {
-                                "type": "string",
-                                "enum": [
-                                  "failed"
+                              "result": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "required": [
+                                      "outcome",
+                                      "emotionClassification",
+                                      "transcript"
+                                    ],
+                                    "properties": {
+                                      "outcome": {
+                                        "type": "string",
+                                        "enum": [
+                                          "definitive"
+                                        ]
+                                      },
+                                      "emotionClassification": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string",
+                                            "enum": [
+                                              "happiness"
+                                            ]
+                                          },
+                                          {
+                                            "type": "string",
+                                            "enum": [
+                                              "sadness"
+                                            ]
+                                          },
+                                          {
+                                            "type": "string",
+                                            "enum": [
+                                              "anger"
+                                            ]
+                                          },
+                                          {
+                                            "type": "string",
+                                            "enum": [
+                                              "neutrality"
+                                            ]
+                                          }
+                                        ]
+                                      },
+                                      "transcript": {
+                                        "type": "string"
+                                      }
+                                    }
+                                  },
+                                  {
+                                    "type": "object",
+                                    "required": [
+                                      "outcome",
+                                      "transcript"
+                                    ],
+                                    "properties": {
+                                      "outcome": {
+                                        "type": "string",
+                                        "enum": [
+                                          "inconclusive"
+                                        ]
+                                      },
+                                      "transcript": {
+                                        "type": "string"
+                                      }
+                                    }
+                                  }
                                 ]
                               }
-                            ]
-                          },
-                          "createdAt": {
-                            "format": "date-time",
-                            "type": "string"
+                            }
                           }
-                        }
+                        ]
                       }
+                    },
+                    "hasMore": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error",
+                    "message"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "enum": [
+                        "validation_error"
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
                     }
                   }
                 }

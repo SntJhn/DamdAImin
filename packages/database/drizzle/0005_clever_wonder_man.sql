@@ -1,0 +1,1 @@
+CREATE INDEX "analyses_account_created_at_idx" ON "app"."analyses" USING btree ("account_id","created_at","id");

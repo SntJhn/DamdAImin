@@ -126,6 +126,116 @@ async function startAndStopVirtualRecording(page: Page) {
   await page.getByRole('button', { name: 'Stop recording' }).click();
 }
 
+test('searches and filters the authenticated Analysis History accessibly', async ({ page }) => {
+  await mockVerifiedSession(page);
+  const requests: string[] = [];
+
+  await page.route('**/api/v2/analyses**', async (route) => {
+    const url = new URL(route.request().url());
+    requests.push(url.search);
+    const inconclusive = url.searchParams.get('result') === 'inconclusive';
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        hasMore: false,
+        analyses: inconclusive
+          ? [
+              {
+                id: 'a0ad9a3f-26b2-4014-8f51-ec7d67bb4f1a',
+                status: 'completed',
+                language: 'english',
+                createdAt: '2026-08-02T00:01:00.000Z',
+                result: {
+                  outcome: 'inconclusive',
+                  transcript: 'Hindi malinaw ang sample.',
+                },
+              },
+            ]
+          : [
+              {
+                id: analysisId,
+                status: 'completed',
+                language: 'taglish',
+                createdAt: '2026-08-02T00:00:00.000Z',
+                result: {
+                  outcome: 'definitive',
+                  emotionClassification: 'happiness',
+                  transcript: 'Masaya ako sa araw na ito.',
+                },
+              },
+              {
+                id: 'c1ad9a3f-26b2-4014-8f51-ec7d67bb4f1a',
+                status: 'queued',
+                language: 'taglish',
+                createdAt: '2026-08-02T00:02:00.000Z',
+              },
+            ],
+      }),
+    });
+  });
+
+  await page.goto('/history');
+  await expect(page.getByRole('heading', { name: 'Your Analysis History.' })).toBeVisible();
+  await expect(page.getByText('Happiness classification', { exact: true })).toBeVisible();
+  await expect(page.locator('.history-item-status', { hasText: 'Queued' })).toBeVisible();
+
+  await page.getByRole('searchbox', { name: 'Search Transcript' }).fill('Hindi');
+  await page.getByRole('combobox', { name: 'Result' }).selectOption('inconclusive');
+  await page.getByRole('button', { name: 'Apply filters' }).click();
+  await expect(
+    page.locator('.history-item-main strong', { hasText: 'Inconclusive Result' }),
+  ).toBeVisible();
+  await expect(
+    page.locator('.history-transcript', { hasText: 'Hindi malinaw ang sample.' }),
+  ).toBeVisible();
+  expect(requests.at(-1)).toContain('search=Hindi');
+  expect(requests.at(-1)).toContain('result=inconclusive');
+  await expect(new AxeBuilder({ page }).analyze()).resolves.toMatchObject({ violations: [] });
+});
+
+test('communicates empty, filtered-empty, and API-error History states', async ({ page }) => {
+  await mockVerifiedSession(page);
+  let failRequests = false;
+
+  await page.route('**/api/v2/analyses**', async (route) => {
+    if (failRequests) {
+      await route.fulfill({
+        status: 503,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: 'service_unavailable' }),
+      });
+      return;
+    }
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        analyses: [],
+        hasMore: false,
+      }),
+    });
+  });
+
+  await page.goto('/history');
+  await expect(
+    page.getByRole('heading', { name: 'Your first reading will live here.' }),
+  ).toBeVisible();
+
+  await page.getByRole('searchbox', { name: 'Search Transcript' }).fill('nothing');
+  await page.getByRole('button', { name: 'Apply filters' }).click();
+  await expect(page.getByRole('heading', { name: 'Try a wider search.' })).toBeVisible();
+
+  failRequests = true;
+  await page.reload();
+  await expect(page.locator('p[role="alert"]')).toHaveText(
+    'History is unavailable right now. Refresh to try again.',
+  );
+  await expect(page.getByRole('button', { name: 'Try again' })).toBeVisible();
+  await expect(new AxeBuilder({ page }).analyze()).resolves.toMatchObject({ violations: [] });
+});
+
 test('submits one WAV utterance and lands on the durable Analysis resource', async ({ page }) => {
   await mockVerifiedSession(page);
   await page.route('**/api/v2/analysis-uploads', async (route) => {

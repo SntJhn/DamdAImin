@@ -1,4 +1,15 @@
-export { listAnalysisHistory, type AnalysisHistoryReader } from './analysis-history.js';
+export {
+  analysisHistoryDefaultLimit,
+  analysisHistoryMaximumLimit,
+  analysisHistoryMaximumSearchLength,
+  AnalysisHistoryInputError,
+  listAnalysisHistory,
+  type AnalysisHistoryFilters,
+  type AnalysisHistoryPage,
+  type AnalysisHistoryReader,
+  type AnalysisHistoryResultFilter,
+  type AnalysisHistoryStatus,
+} from './analysis-history.js';
 export {
   AnalysisConflictError,
   AnalysisInputError,
@@ -24,3 +35,4 @@ export {
   type ResearchSystemClient,
   type SourceAudioStorage,
 } from './analysis.js';
+export type { AnalysisHistoryResult, AnalysisResult, AnalysisSummary } from '@damdai/domain';

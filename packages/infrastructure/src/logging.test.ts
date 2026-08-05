@@ -28,6 +28,8 @@ describe('runtime Pino privacy redaction', () => {
         password: 'SENTINEL_PASSWORD',
         email: 'SENTINEL_EMAIL',
         req: {
+          url: '/api/v2/analyses?search=SENTINEL_SEARCH_TERM',
+          query: { search: 'SENTINEL_QUERY_TERM' },
           headers: {
             authorization: 'SENTINEL_AUTHORIZATION',
             cookie: 'SENTINEL_COOKIE',
@@ -60,6 +62,8 @@ describe('runtime Pino privacy redaction', () => {
       'SENTINEL_EMAIL',
       'SENTINEL_AUTHORIZATION',
       'SENTINEL_COOKIE',
+      'SENTINEL_SEARCH_TERM',
+      'SENTINEL_QUERY_TERM',
       'SENTINEL_ERROR_MESSAGE',
       'SENTINEL_RESULT_TRANSCRIPT',
       'SENTINEL_RESULT_EXPLANATION',

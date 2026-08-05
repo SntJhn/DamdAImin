@@ -2,16 +2,24 @@ import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import swagger from '@fastify/swagger';
-import Fastify, { type FastifyBaseLogger, type FastifyInstance } from 'fastify';
+import Fastify, {
+  LogController,
+  type FastifyBaseLogger,
+  type FastifyInstance,
+  type FastifyReply,
+  type FastifyRequest,
+} from 'fastify';
 import { Redis } from 'ioredis';
 
 import {
   AnalysisConflictError,
+  AnalysisHistoryInputError,
   AnalysisInputError,
   AnalysisNotFoundError,
   listAnalysisHistory,
   type Analysis,
   type AnalysisHistoryReader,
+  type AnalysisSummary,
   type AnalysisServices,
   type AnalysisTelemetry,
 } from '@damdai/application';
@@ -19,6 +27,7 @@ import {
   AcceptedAnalysisResponseSchema,
   AnalysisIdParamsSchema,
   AnalysisResourceSchema,
+  AnalysisHistoryQuerySchema,
   AnalysisHistoryResponseSchema,
   ConflictResponseSchema,
   CreateAnalysisUploadRequestSchema,
@@ -30,6 +39,7 @@ import {
   UnauthorizedResponseSchema,
   ValidationErrorResponseSchema,
   type AnalysisIdParams,
+  type AnalysisHistoryQuery,
   type AnalysisResource,
   type CreateAnalysisUploadRequest,
   type FinalizeAnalysisRequest,
@@ -55,10 +65,55 @@ export interface ApiOptions {
   version?: string;
 }
 
+class PrivacySafeLogController extends LogController {
+  override incomingRequest(request: FastifyRequest): void {
+    if (this.isLogDisabled(request)) return;
+    request.log.info({ request: serializeRequestForLog(request) }, 'incoming request');
+  }
+
+  override defaultErrorLog(error: Error, request: FastifyRequest, reply: FastifyReply): void {
+    if (this.isLogDisabled(request)) return;
+
+    const log = reply.statusCode >= 500 ? reply.log.error : reply.log.info;
+    log({ request: serializeRequestForLog(request), res: reply, err: error }, error.message);
+  }
+
+  override routeNotFound(request: FastifyRequest): void {
+    if (this.isLogDisabled(request)) return;
+    request.log.info(
+      { request: serializeRequestForLog(request) },
+      `Route ${request.method}:${request.routeOptions.url ?? 'unknown'} not found`,
+    );
+  }
+
+  override writeHeadError(error: Error, request: FastifyRequest, reply: FastifyReply): void {
+    if (this.isLogDisabled(request)) return;
+    reply.log.warn(
+      { request: serializeRequestForLog(request), res: reply, err: error },
+      error.message,
+    );
+  }
+}
+
+function serializeRequestForLog(request: FastifyRequest): Record<string, unknown> {
+  return {
+    method: request.method,
+    url: request.routeOptions.url ?? request.raw.url?.split('?')[0],
+    host: request.hostname,
+    remoteAddress: request.ip,
+  };
+}
+
 export function buildApi(options: ApiOptions = {}): FastifyInstance {
   const application = options.loggerInstance
-    ? Fastify({ loggerInstance: options.loggerInstance })
-    : Fastify({ logger: options.logger ?? false });
+    ? Fastify({
+        loggerInstance: options.loggerInstance,
+        logController: new PrivacySafeLogController(),
+      })
+    : Fastify({
+        logger: options.logger ?? false,
+        logController: new PrivacySafeLogController(),
+      });
   const redis = options.redisUrl ? new Redis(options.redisUrl, { lazyConnect: true }) : undefined;
 
   application.register(swagger, {
@@ -120,8 +175,10 @@ export function buildApi(options: ApiOptions = {}): FastifyInstance {
             tags: ['Analysis History'],
             summary: "List the authenticated account's Analysis History",
             security: [{ bearerAuth: [] }],
+            querystring: AnalysisHistoryQuerySchema,
             response: {
               200: AnalysisHistoryResponseSchema,
+              400: ValidationErrorResponseSchema,
               401: UnauthorizedResponseSchema,
               503: ServiceUnavailableResponseSchema,
             },
@@ -132,20 +189,27 @@ export function buildApi(options: ApiOptions = {}): FastifyInstance {
             return reply.code(503).send({ error: 'service_unavailable' as const });
           }
 
-          let analyses;
+          let history;
           try {
-            analyses = await listAnalysisHistory(request.accountId, options.historyReader);
-          } catch {
+            history = await listAnalysisHistory(
+              request.accountId,
+              toAnalysisHistoryFilters(request.query as AnalysisHistoryQuery),
+              options.historyReader,
+            );
+          } catch (error) {
+            if (error instanceof AnalysisHistoryInputError) {
+              return reply
+                .code(400)
+                .send({ error: 'validation_error' as const, message: error.message });
+            }
+
             request.log.error('analysis history unavailable');
             return reply.code(503).send({ error: 'service_unavailable' as const });
           }
 
           return {
-            analyses: analyses.map((analysis) => ({
-              id: analysis.id,
-              status: analysis.status,
-              createdAt: analysis.createdAt.toISOString(),
-            })),
+            analyses: history.analyses.map(serializeAnalysisHistoryItem),
+            hasMore: history.hasMore,
           };
         },
       );
@@ -480,6 +544,28 @@ function serializeAnalysis(analysis: Analysis): AnalysisResource {
         analysis.sourceAudioRetentionUntil.getTime() > Date.now()),
     ...(analysis.retryOfAnalysisId ? { retryOfAnalysisId: analysis.retryOfAnalysisId } : {}),
     ...(analysis.failureMessage ? { failureMessage: analysis.failureMessage } : {}),
+    ...(analysis.result ? { result: analysis.result } : {}),
+  };
+}
+
+function toAnalysisHistoryFilters(query: AnalysisHistoryQuery) {
+  return {
+    search: query.search,
+    status: query.status,
+    result: query.result,
+    language: query.language,
+    from: query.from ? new Date(`${query.from}T00:00:00.000Z`) : undefined,
+    to: query.to ? new Date(`${query.to}T23:59:59.999Z`) : undefined,
+    limit: query.limit,
+  };
+}
+
+function serializeAnalysisHistoryItem(analysis: AnalysisSummary) {
+  return {
+    id: analysis.id,
+    status: analysis.status,
+    language: analysis.language,
+    createdAt: analysis.createdAt.toISOString(),
     ...(analysis.result ? { result: analysis.result } : {}),
   };
 }
