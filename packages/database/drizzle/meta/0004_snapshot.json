@@ -1,0 +1,280 @@
+{
+  "id": "e0b26da1-63cc-4e4a-bdf2-8fff875cb672",
+  "prevId": "efbf320d-02ec-478e-ab43-1b2be9b553ff",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "app.analyses": {
+      "name": "analyses",
+      "schema": "app",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "account_id": {
+          "name": "account_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "analysis_status",
+          "typeSchema": "app",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "stage": {
+          "name": "stage",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'queued'"
+        },
+        "language": {
+          "name": "language",
+          "type": "analysis_language",
+          "typeSchema": "app",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'taglish'"
+        },
+        "contract_version": {
+          "name": "contract_version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'taglish-v2'"
+        },
+        "source_audio_key": {
+          "name": "source_audio_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source_audio_size": {
+          "name": "source_audio_size",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "retain_source_audio": {
+          "name": "retain_source_audio",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "source_audio_retention_until": {
+          "name": "source_audio_retention_until",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source_audio_cleanup_key": {
+          "name": "source_audio_cleanup_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "retry_of_analysis_id": {
+          "name": "retry_of_analysis_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "retry_analysis_id": {
+          "name": "retry_analysis_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "result": {
+          "name": "result",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "failure_message": {
+          "name": "failure_message",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "analyses_retry_of_analysis_id_unique": {
+          "name": "analyses_retry_of_analysis_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "retry_of_analysis_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "app.analysis_uploads": {
+      "name": "analysis_uploads",
+      "schema": "app",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "account_id": {
+          "name": "account_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "object_key": {
+          "name": "object_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "language": {
+          "name": "language",
+          "type": "analysis_language",
+          "typeSchema": "app",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "contract_version": {
+          "name": "contract_version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "content_type": {
+          "name": "content_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "retain_source_audio": {
+          "name": "retain_source_audio",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "source_audio_retention_until": {
+          "name": "source_audio_retention_until",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "analysis_upload_status",
+          "typeSchema": "app",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "analysis_id": {
+          "name": "analysis_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "analysis_uploads_object_key_unique": {
+          "name": "analysis_uploads_object_key_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "object_key"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "app.analysis_language": {
+      "name": "analysis_language",
+      "schema": "app",
+      "values": [
+        "taglish",
+        "english",
+        "tagalog"
+      ]
+    },
+    "app.analysis_status": {
+      "name": "analysis_status",
+      "schema": "app",
+      "values": [
+        "queued",
+        "processing",
+        "completed",
+        "failed",
+        "canceled"
+      ]
+    },
+    "app.analysis_upload_status": {
+      "name": "analysis_upload_status",
+      "schema": "app",
+      "values": [
+        "created",
+        "finalized"
+      ]
+    }
+  },
+  "schemas": {
+    "app": "app"
+  },
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

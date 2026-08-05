@@ -3,6 +3,7 @@ import { createAnalysisServices } from '@damdai/application';
 import { createAnalysisRepository, createDatabase } from '@damdai/database';
 import {
   createGcsSourceAudioStorage,
+  createPrivacySafeLogger,
   createResearchSystemClient,
   startObservability,
 } from '@damdai/infrastructure';
@@ -13,6 +14,7 @@ loadEnvironment();
 
 const database = createDatabase();
 const observability = startObservability({ serviceName: 'damdai-worker' });
+const logger = createPrivacySafeLogger({ name: 'damdai-worker' });
 const services = createAnalysisServices({
   repository: createAnalysisRepository(database.db),
   storage: createGcsSourceAudioStorage({
@@ -23,6 +25,11 @@ const services = createAnalysisServices({
     signingPrivateKey: process.env.GCS_SIGNING_PRIVATE_KEY?.replace(/\\n/g, '\n'),
   }),
   queue: { enqueue: async () => undefined },
+  audit: {
+    record(event) {
+      logger.info(event, `analysis ${event.action}`);
+    },
+  },
   telemetry: observability.telemetry,
   researchClient: createResearchSystemClient({
     baseUrl: process.env.RESEARCH_FAKE_URL ?? 'http://localhost:4100',
@@ -33,6 +40,7 @@ const worker = createAnalysisWorker({
   redisUrl: process.env.REDIS_URL ?? 'redis://localhost:6379',
   processAnalysis: services.processAnalysis,
   telemetry: observability.telemetry,
+  logger,
 });
 
 worker.on('ready', () => {

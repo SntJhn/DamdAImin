@@ -121,7 +121,7 @@ class MemoryRepository implements AnalysisRepository {
 
   async beginProcessing(analysisId: string): Promise<Analysis | null> {
     const analysis = this.analyses.get(analysisId);
-    if (!analysis || ['completed', 'failed', 'canceled'].includes(analysis.status)) return null;
+    if (!analysis || analysis.status !== 'queued') return null;
     const processing = { ...analysis, status: 'processing' as const, stage: 'processing' as const };
     this.analyses.set(analysisId, processing);
     return processing;
@@ -146,9 +146,83 @@ class MemoryRepository implements AnalysisRepository {
       ...analysis,
       status: 'failed',
       stage: 'failed',
+      result: null,
       failureMessage: message,
     });
     return true;
+  }
+
+  async cancelAnalysis(accountId: string, analysisId: string) {
+    const analysis = await this.getAnalysis(accountId, analysisId);
+    if (!analysis) return null;
+    if (analysis.status !== 'queued' && analysis.status !== 'processing') {
+      return { analysis, sourceAudioKey: null, changed: false };
+    }
+
+    const canceled = {
+      ...analysis,
+      status: 'canceled' as const,
+      stage: 'canceled' as const,
+      sourceAudioKey: null,
+      sourceAudioSize: null,
+      retainSourceAudio: false,
+      result: null,
+      failureMessage: null,
+    };
+    this.analyses.set(analysisId, canceled);
+    return { analysis: canceled, sourceAudioKey: analysis.sourceAudioKey, changed: true };
+  }
+
+  async clearSourceAudio(analysisId: string): Promise<boolean> {
+    const analysis = this.analyses.get(analysisId);
+    if (!analysis) return false;
+    this.analyses.set(analysisId, {
+      ...analysis,
+      sourceAudioKey: null,
+      sourceAudioSize: null,
+      retainSourceAudio: false,
+      sourceAudioRetentionUntil: null,
+      sourceAudioCleanupKey: null,
+    });
+    return true;
+  }
+
+  async hasSourceAudioReference(
+    objectKey: string,
+    excludingAnalysisId: string,
+    at = new Date(),
+  ): Promise<boolean> {
+    return [...this.analyses.values()].some(
+      (analysis) =>
+        analysis.id !== excludingAnalysisId &&
+        analysis.sourceAudioKey === objectKey &&
+        analysis.status !== 'canceled' &&
+        (analysis.status === 'queued' ||
+          analysis.status === 'processing' ||
+          (analysis.retainSourceAudio === true &&
+            (!analysis.sourceAudioRetentionUntil ||
+              analysis.sourceAudioRetentionUntil.getTime() > at.getTime()))),
+    );
+  }
+
+  async retryFailedAnalysis(input: {
+    accountId: string;
+    failedAnalysisId: string;
+    analysis: Analysis;
+  }) {
+    const original = this.analyses.get(input.failedAnalysisId);
+    if (
+      !original ||
+      original.accountId !== input.accountId ||
+      original.status !== 'failed' ||
+      original.retryAnalysisId
+    ) {
+      return null;
+    }
+
+    this.analyses.set(original.id, { ...original, retryAnalysisId: input.analysis.id });
+    this.analyses.set(input.analysis.id, input.analysis);
+    return { analysis: input.analysis, created: true };
   }
 }
 

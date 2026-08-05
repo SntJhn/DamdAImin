@@ -1,9 +1,11 @@
-import { and, eq, inArray, isNull } from 'drizzle-orm';
+import { and, eq, gt, inArray, isNull, lt, ne, or } from 'drizzle-orm';
 
 import type { Analysis, AnalysisRepository, AnalysisUpload } from '@damdai/application';
 
 import type { Database } from './client.js';
 import { analyses, analysisUploads } from './schema.js';
+
+const processingLeaseMs = 5 * 60 * 1000;
 
 export function createAnalysisRepository(db: Database): AnalysisRepository {
   return {
@@ -17,6 +19,8 @@ export function createAnalysisRepository(db: Database): AnalysisRepository {
           language: upload.language,
           contractVersion: upload.contractVersion,
           contentType: upload.contentType,
+          retainSourceAudio: upload.retainSourceAudio ?? false,
+          sourceAudioRetentionUntil: upload.sourceAudioRetentionUntil ?? null,
           status: upload.status,
           expiresAt: upload.expiresAt,
           analysisId: upload.analysisId,
@@ -89,6 +93,11 @@ export function createAnalysisRepository(db: Database): AnalysisRepository {
             contractVersion: analysis.contractVersion,
             sourceAudioKey: analysis.sourceAudioKey,
             sourceAudioSize: analysis.sourceAudioSize,
+            retainSourceAudio: analysis.retainSourceAudio ?? false,
+            sourceAudioRetentionUntil: analysis.sourceAudioRetentionUntil ?? null,
+            sourceAudioCleanupKey: analysis.sourceAudioCleanupKey ?? null,
+            retryOfAnalysisId: analysis.retryOfAnalysisId,
+            retryAnalysisId: analysis.retryAnalysisId,
             result: analysis.result,
             failureMessage: analysis.failureMessage,
             createdAt: analysis.createdAt,
@@ -119,11 +128,20 @@ export function createAnalysisRepository(db: Database): AnalysisRepository {
       return row ? mapAnalysis(row) : null;
     },
 
-    async beginProcessing(analysisId) {
+    async beginProcessing(analysisId, at = new Date()) {
+      const staleBefore = new Date(at.getTime() - processingLeaseMs);
       const [row] = await db
         .update(analyses)
-        .set({ status: 'processing', stage: 'processing', updatedAt: new Date() })
-        .where(and(eq(analyses.id, analysisId), inArray(analyses.status, ['queued', 'processing'])))
+        .set({ status: 'processing', stage: 'processing', updatedAt: at })
+        .where(
+          and(
+            eq(analyses.id, analysisId),
+            or(
+              eq(analyses.status, 'queued'),
+              and(eq(analyses.status, 'processing'), lt(analyses.updatedAt, staleBefore)),
+            ),
+          ),
+        )
         .returning();
 
       return row ? mapAnalysis(row) : null;
@@ -157,6 +175,7 @@ export function createAnalysisRepository(db: Database): AnalysisRepository {
         .set({
           status: 'failed',
           stage: 'failed',
+          result: null,
           failureMessage: message,
           updatedAt: new Date(),
         })
@@ -171,6 +190,161 @@ export function createAnalysisRepository(db: Database): AnalysisRepository {
 
       return updated.length === 1;
     },
+
+    async cancelAnalysis(accountId, analysisId) {
+      return db.transaction(async (transaction) => {
+        const [current] = await transaction
+          .select()
+          .from(analyses)
+          .where(and(eq(analyses.id, analysisId), eq(analyses.accountId, accountId)))
+          .for('update');
+
+        if (!current) return null;
+
+        if (current.status !== 'queued' && current.status !== 'processing') {
+          return {
+            analysis: mapAnalysis(current),
+            sourceAudioKey: current.status === 'canceled' ? current.sourceAudioCleanupKey : null,
+            changed: false,
+          };
+        }
+
+        const sourceAudioKey = current.sourceAudioKey;
+        let sourceAudioIsShared = false;
+        if (sourceAudioKey) {
+          const [reference] = await transaction
+            .select({ id: analyses.id })
+            .from(analyses)
+            .where(sourceAudioReferenceCondition(sourceAudioKey, analysisId, new Date()))
+            .limit(1);
+          sourceAudioIsShared = Boolean(reference);
+        }
+
+        const [canceled] = await transaction
+          .update(analyses)
+          .set({
+            status: 'canceled',
+            stage: 'canceled',
+            sourceAudioKey: null,
+            sourceAudioSize: null,
+            retainSourceAudio: false,
+            sourceAudioRetentionUntil: null,
+            sourceAudioCleanupKey: sourceAudioIsShared ? null : sourceAudioKey,
+            result: null,
+            failureMessage: null,
+            updatedAt: new Date(),
+          })
+          .where(eq(analyses.id, analysisId))
+          .returning();
+
+        if (!canceled) return null;
+
+        await transaction.delete(analysisUploads).where(eq(analysisUploads.analysisId, analysisId));
+
+        if (current.retryOfAnalysisId) {
+          await transaction
+            .update(analyses)
+            .set({ retryAnalysisId: null, updatedAt: new Date() })
+            .where(
+              and(
+                eq(analyses.id, current.retryOfAnalysisId),
+                eq(analyses.retryAnalysisId, analysisId),
+              ),
+            );
+        }
+
+        return {
+          analysis: mapAnalysis(canceled),
+          sourceAudioKey: sourceAudioIsShared ? null : sourceAudioKey,
+          changed: true,
+        };
+      });
+    },
+
+    async clearSourceAudio(analysisId) {
+      const updated = await db
+        .update(analyses)
+        .set({
+          sourceAudioKey: null,
+          sourceAudioSize: null,
+          retainSourceAudio: false,
+          sourceAudioRetentionUntil: null,
+          sourceAudioCleanupKey: null,
+          updatedAt: new Date(),
+        })
+        .where(eq(analyses.id, analysisId))
+        .returning({ id: analyses.id });
+
+      return updated.length === 1;
+    },
+
+    async hasSourceAudioReference(objectKey, excludingAnalysisId, at = new Date()) {
+      const [row] = await db
+        .select({ id: analyses.id })
+        .from(analyses)
+        .where(sourceAudioReferenceCondition(objectKey, excludingAnalysisId, at))
+        .limit(1);
+
+      return Boolean(row);
+    },
+
+    async retryFailedAnalysis({ accountId, failedAnalysisId, analysis }) {
+      return db.transaction(async (transaction) => {
+        const [failed] = await transaction
+          .select()
+          .from(analyses)
+          .where(and(eq(analyses.id, failedAnalysisId), eq(analyses.accountId, accountId)))
+          .for('update');
+
+        if (!failed) return null;
+
+        if (failed.retryAnalysisId) {
+          const [existingRetry] = await transaction
+            .select()
+            .from(analyses)
+            .where(eq(analyses.id, failed.retryAnalysisId))
+            .limit(1);
+
+          return existingRetry ? { analysis: mapAnalysis(existingRetry), created: false } : null;
+        }
+
+        if (failed.status !== 'failed' || !failed.retainSourceAudio || !failed.sourceAudioKey) {
+          return null;
+        }
+
+        const [created] = await transaction
+          .insert(analyses)
+          .values({
+            id: analysis.id,
+            accountId: analysis.accountId,
+            status: analysis.status,
+            stage: analysis.stage,
+            language: analysis.language,
+            contractVersion: analysis.contractVersion,
+            sourceAudioKey: analysis.sourceAudioKey,
+            sourceAudioSize: analysis.sourceAudioSize,
+            retainSourceAudio: analysis.retainSourceAudio ?? true,
+            sourceAudioRetentionUntil: analysis.sourceAudioRetentionUntil ?? null,
+            sourceAudioCleanupKey: null,
+            retryOfAnalysisId: failed.id,
+            retryAnalysisId: null,
+            result: null,
+            failureMessage: null,
+            createdAt: analysis.createdAt,
+            updatedAt: analysis.createdAt,
+          })
+          .returning();
+
+        if (!created) return null;
+
+        await transaction
+          .update(analyses)
+          .set({ retryAnalysisId: created.id, updatedAt: new Date() })
+          .where(eq(analyses.id, failed.id));
+
+        return { analysis: mapAnalysis(created), created: true };
+      });
+    },
   } satisfies AnalysisRepository;
 }
 
@@ -182,6 +356,8 @@ function mapUpload(row: typeof analysisUploads.$inferSelect): AnalysisUpload {
     language: row.language,
     contractVersion: row.contractVersion,
     contentType: row.contentType as 'audio/wav',
+    retainSourceAudio: row.retainSourceAudio,
+    sourceAudioRetentionUntil: row.sourceAudioRetentionUntil,
     status: row.status,
     expiresAt: row.expiresAt,
     analysisId: row.analysisId,
@@ -198,8 +374,27 @@ function mapAnalysis(row: typeof analyses.$inferSelect): Analysis {
     contractVersion: row.contractVersion,
     sourceAudioKey: row.sourceAudioKey,
     sourceAudioSize: row.sourceAudioSize,
+    retainSourceAudio: row.retainSourceAudio,
+    sourceAudioRetentionUntil: row.sourceAudioRetentionUntil,
+    sourceAudioCleanupKey: row.sourceAudioCleanupKey,
+    retryOfAnalysisId: row.retryOfAnalysisId,
+    retryAnalysisId: row.retryAnalysisId,
     createdAt: row.createdAt,
     result: row.result,
     failureMessage: row.failureMessage,
   };
+}
+
+function sourceAudioReferenceCondition(objectKey: string, excludingAnalysisId: string, at: Date) {
+  return and(
+    eq(analyses.sourceAudioKey, objectKey),
+    ne(analyses.id, excludingAnalysisId),
+    or(
+      inArray(analyses.status, ['queued', 'processing']),
+      and(
+        eq(analyses.retainSourceAudio, true),
+        or(isNull(analyses.sourceAudioRetentionUntil), gt(analyses.sourceAudioRetentionUntil, at)),
+      ),
+    ),
+  );
 }

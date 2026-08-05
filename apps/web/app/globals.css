@@ -651,6 +651,23 @@ select {
   accent-color: var(--coral);
 }
 
+.checkbox-field {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.checkbox-field input {
+  width: 1.05rem;
+  height: 1.05rem;
+  flex: 0 0 auto;
+  margin-top: 0.15rem;
+  accent-color: var(--coral);
+}
+
 .microphone-recorder {
   display: grid;
   gap: 0.9rem;
@@ -723,6 +740,23 @@ select {
   font-size: clamp(2rem, 5vw, 4rem);
   letter-spacing: -0.06em;
   text-transform: capitalize;
+}
+
+.analysis-lifecycle-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.8rem;
+  margin-top: 1.4rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+}
+
+.analysis-lifecycle-actions p {
+  max-width: 34rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.5;
 }
 
 .analysis-status-copy {

@@ -184,7 +184,8 @@
                         "status",
                         "stage",
                         "language",
-                        "createdAt"
+                        "createdAt",
+                        "retryAvailable"
                       ],
                       "properties": {
                         "id": {
@@ -253,6 +254,13 @@
                         },
                         "createdAt": {
                           "format": "date-time",
+                          "type": "string"
+                        },
+                        "retryAvailable": {
+                          "type": "boolean"
+                        },
+                        "retryOfAnalysisId": {
+                          "format": "uuid",
                           "type": "string"
                         },
                         "failureMessage": {
@@ -992,6 +1000,9 @@
                     "minLength": 1,
                     "maxLength": 64,
                     "type": "string"
+                  },
+                  "retainSourceAudio": {
+                    "type": "boolean"
                   }
                 }
               }
@@ -1135,9 +1146,9 @@
         }
       }
     },
-    "/api/v2/analyses/{id}": {
-      "get": {
-        "summary": "Read one authenticated Analysis resource",
+    "/api/v2/analyses/{id}/cancel": {
+      "post": {
+        "summary": "Cancel a queued or processing Analysis",
         "tags": [
           "Analyses"
         ],
@@ -1169,7 +1180,8 @@
                     "status",
                     "stage",
                     "language",
-                    "createdAt"
+                    "createdAt",
+                    "retryAvailable"
                   ],
                   "properties": {
                     "id": {
@@ -1238,6 +1250,1628 @@
                     },
                     "createdAt": {
                       "format": "date-time",
+                      "type": "string"
+                    },
+                    "retryAvailable": {
+                      "type": "boolean"
+                    },
+                    "retryOfAnalysisId": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "failureMessage": {
+                      "type": "string"
+                    },
+                    "result": {
+                      "anyOf": [
+                        {
+                          "additionalProperties": false,
+                          "type": "object",
+                          "required": [
+                            "confidence",
+                            "transcript",
+                            "explanation",
+                            "technicalTrace",
+                            "contractVersion",
+                            "schemaVersion",
+                            "modelVersion",
+                            "preprocessingVersion",
+                            "ruleSetVersion",
+                            "outcome",
+                            "emotionClassification"
+                          ],
+                          "properties": {
+                            "confidence": {
+                              "type": "object",
+                              "required": [
+                                "happiness",
+                                "sadness",
+                                "anger",
+                                "neutrality"
+                              ],
+                              "properties": {
+                                "happiness": {
+                                  "minimum": 0,
+                                  "maximum": 1,
+                                  "type": "number"
+                                },
+                                "sadness": {
+                                  "minimum": 0,
+                                  "maximum": 1,
+                                  "type": "number"
+                                },
+                                "anger": {
+                                  "minimum": 0,
+                                  "maximum": 1,
+                                  "type": "number"
+                                },
+                                "neutrality": {
+                                  "minimum": 0,
+                                  "maximum": 1,
+                                  "type": "number"
+                                }
+                              }
+                            },
+                            "transcript": {
+                              "type": "string"
+                            },
+                            "explanation": {
+                              "type": "string"
+                            },
+                            "technicalTrace": {
+                              "type": "object",
+                              "required": [
+                                "cueSpans",
+                                "activatedRules",
+                                "scoreAdjustments",
+                                "probabilities"
+                              ],
+                              "properties": {
+                                "cueSpans": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "required": [
+                                      "source",
+                                      "startMs",
+                                      "endMs",
+                                      "cue",
+                                      "value"
+                                    ],
+                                    "properties": {
+                                      "source": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string",
+                                            "enum": [
+                                              "acoustic"
+                                            ]
+                                          },
+                                          {
+                                            "type": "string",
+                                            "enum": [
+                                              "linguistic"
+                                            ]
+                                          }
+                                        ]
+                                      },
+                                      "startMs": {
+                                        "minimum": 0,
+                                        "type": "number"
+                                      },
+                                      "endMs": {
+                                        "minimum": 0,
+                                        "type": "number"
+                                      },
+                                      "cue": {
+                                        "minLength": 1,
+                                        "type": "string"
+                                      },
+                                      "value": {
+                                        "minLength": 1,
+                                        "type": "string"
+                                      }
+                                    }
+                                  }
+                                },
+                                "activatedRules": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "required": [
+                                      "id",
+                                      "description"
+                                    ],
+                                    "properties": {
+                                      "id": {
+                                        "minLength": 1,
+                                        "type": "string"
+                                      },
+                                      "description": {
+                                        "minLength": 1,
+                                        "type": "string"
+                                      }
+                                    }
+                                  }
+                                },
+                                "scoreAdjustments": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "required": [
+                                      "emotionClassification",
+                                      "delta",
+                                      "reason"
+                                    ],
+                                    "properties": {
+                                      "emotionClassification": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string",
+                                            "enum": [
+                                              "happiness"
+                                            ]
+                                          },
+                                          {
+                                            "type": "string",
+                                            "enum": [
+                                              "sadness"
+                                            ]
+                                          },
+                                          {
+                                            "type": "string",
+                                            "enum": [
+                                              "anger"
+                                            ]
+                                          },
+                                          {
+                                            "type": "string",
+                                            "enum": [
+                                              "neutrality"
+                                            ]
+                                          }
+                                        ]
+                                      },
+                                      "delta": {
+                                        "type": "number"
+                                      },
+                                      "reason": {
+                                        "minLength": 1,
+                                        "type": "string"
+                                      }
+                                    }
+                                  }
+                                },
+                                "probabilities": {
+                                  "type": "object",
+                                  "required": [
+                                    "before",
+                                    "after"
+                                  ],
+                                  "properties": {
+                                    "before": {
+                                      "type": "object",
+                                      "required": [
+                                        "happiness",
+                                        "sadness",
+                                        "anger",
+                                        "neutrality"
+                                      ],
+                                      "properties": {
+                                        "happiness": {
+                                          "minimum": 0,
+                                          "maximum": 1,
+                                          "type": "number"
+                                        },
+                                        "sadness": {
+                                          "minimum": 0,
+                                          "maximum": 1,
+                                          "type": "number"
+                                        },
+                                        "anger": {
+                                          "minimum": 0,
+                                          "maximum": 1,
+                                          "type": "number"
+                                        },
+                                        "neutrality": {
+                                          "minimum": 0,
+                                          "maximum": 1,
+                                          "type": "number"
+                                        }
+                                      }
+                                    },
+                                    "after": {
+                                      "type": "object",
+                                      "required": [
+                                        "happiness",
+                                        "sadness",
+                                        "anger",
+                                        "neutrality"
+                                      ],
+                                      "properties": {
+                                        "happiness": {
+                                          "minimum": 0,
+                                          "maximum": 1,
+                                          "type": "number"
+                                        },
+                                        "sadness": {
+                                          "minimum": 0,
+                                          "maximum": 1,
+                                          "type": "number"
+                                        },
+                                        "anger": {
+                                          "minimum": 0,
+                                          "maximum": 1,
+                                          "type": "number"
+                                        },
+                                        "neutrality": {
+                                          "minimum": 0,
+                                          "maximum": 1,
+                                          "type": "number"
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            "contractVersion": {
+                              "minLength": 1,
+                              "type": "string"
+                            },
+                            "schemaVersion": {
+                              "minLength": 1,
+                              "type": "string"
+                            },
+                            "modelVersion": {
+                              "minLength": 1,
+                              "type": "string"
+                            },
+                            "preprocessingVersion": {
+                              "minLength": 1,
+                              "type": "string"
+                            },
+                            "ruleSetVersion": {
+                              "minLength": 1,
+                              "type": "string"
+                            },
+                            "outcome": {
+                              "type": "string",
+                              "enum": [
+                                "definitive"
+                              ]
+                            },
+                            "emotionClassification": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "happiness"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "sadness"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "anger"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "neutrality"
+                                  ]
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        {
+                          "additionalProperties": false,
+                          "type": "object",
+                          "required": [
+                            "confidence",
+                            "transcript",
+                            "explanation",
+                            "technicalTrace",
+                            "contractVersion",
+                            "schemaVersion",
+                            "modelVersion",
+                            "preprocessingVersion",
+                            "ruleSetVersion",
+                            "outcome"
+                          ],
+                          "properties": {
+                            "confidence": {
+                              "type": "object",
+                              "required": [
+                                "happiness",
+                                "sadness",
+                                "anger",
+                                "neutrality"
+                              ],
+                              "properties": {
+                                "happiness": {
+                                  "minimum": 0,
+                                  "maximum": 1,
+                                  "type": "number"
+                                },
+                                "sadness": {
+                                  "minimum": 0,
+                                  "maximum": 1,
+                                  "type": "number"
+                                },
+                                "anger": {
+                                  "minimum": 0,
+                                  "maximum": 1,
+                                  "type": "number"
+                                },
+                                "neutrality": {
+                                  "minimum": 0,
+                                  "maximum": 1,
+                                  "type": "number"
+                                }
+                              }
+                            },
+                            "transcript": {
+                              "type": "string"
+                            },
+                            "explanation": {
+                              "type": "string"
+                            },
+                            "technicalTrace": {
+                              "type": "object",
+                              "required": [
+                                "cueSpans",
+                                "activatedRules",
+                                "scoreAdjustments",
+                                "probabilities"
+                              ],
+                              "properties": {
+                                "cueSpans": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "required": [
+                                      "source",
+                                      "startMs",
+                                      "endMs",
+                                      "cue",
+                                      "value"
+                                    ],
+                                    "properties": {
+                                      "source": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string",
+                                            "enum": [
+                                              "acoustic"
+                                            ]
+                                          },
+                                          {
+                                            "type": "string",
+                                            "enum": [
+                                              "linguistic"
+                                            ]
+                                          }
+                                        ]
+                                      },
+                                      "startMs": {
+                                        "minimum": 0,
+                                        "type": "number"
+                                      },
+                                      "endMs": {
+                                        "minimum": 0,
+                                        "type": "number"
+                                      },
+                                      "cue": {
+                                        "minLength": 1,
+                                        "type": "string"
+                                      },
+                                      "value": {
+                                        "minLength": 1,
+                                        "type": "string"
+                                      }
+                                    }
+                                  }
+                                },
+                                "activatedRules": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "required": [
+                                      "id",
+                                      "description"
+                                    ],
+                                    "properties": {
+                                      "id": {
+                                        "minLength": 1,
+                                        "type": "string"
+                                      },
+                                      "description": {
+                                        "minLength": 1,
+                                        "type": "string"
+                                      }
+                                    }
+                                  }
+                                },
+                                "scoreAdjustments": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "required": [
+                                      "emotionClassification",
+                                      "delta",
+                                      "reason"
+                                    ],
+                                    "properties": {
+                                      "emotionClassification": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string",
+                                            "enum": [
+                                              "happiness"
+                                            ]
+                                          },
+                                          {
+                                            "type": "string",
+                                            "enum": [
+                                              "sadness"
+                                            ]
+                                          },
+                                          {
+                                            "type": "string",
+                                            "enum": [
+                                              "anger"
+                                            ]
+                                          },
+                                          {
+                                            "type": "string",
+                                            "enum": [
+                                              "neutrality"
+                                            ]
+                                          }
+                                        ]
+                                      },
+                                      "delta": {
+                                        "type": "number"
+                                      },
+                                      "reason": {
+                                        "minLength": 1,
+                                        "type": "string"
+                                      }
+                                    }
+                                  }
+                                },
+                                "probabilities": {
+                                  "type": "object",
+                                  "required": [
+                                    "before",
+                                    "after"
+                                  ],
+                                  "properties": {
+                                    "before": {
+                                      "type": "object",
+                                      "required": [
+                                        "happiness",
+                                        "sadness",
+                                        "anger",
+                                        "neutrality"
+                                      ],
+                                      "properties": {
+                                        "happiness": {
+                                          "minimum": 0,
+                                          "maximum": 1,
+                                          "type": "number"
+                                        },
+                                        "sadness": {
+                                          "minimum": 0,
+                                          "maximum": 1,
+                                          "type": "number"
+                                        },
+                                        "anger": {
+                                          "minimum": 0,
+                                          "maximum": 1,
+                                          "type": "number"
+                                        },
+                                        "neutrality": {
+                                          "minimum": 0,
+                                          "maximum": 1,
+                                          "type": "number"
+                                        }
+                                      }
+                                    },
+                                    "after": {
+                                      "type": "object",
+                                      "required": [
+                                        "happiness",
+                                        "sadness",
+                                        "anger",
+                                        "neutrality"
+                                      ],
+                                      "properties": {
+                                        "happiness": {
+                                          "minimum": 0,
+                                          "maximum": 1,
+                                          "type": "number"
+                                        },
+                                        "sadness": {
+                                          "minimum": 0,
+                                          "maximum": 1,
+                                          "type": "number"
+                                        },
+                                        "anger": {
+                                          "minimum": 0,
+                                          "maximum": 1,
+                                          "type": "number"
+                                        },
+                                        "neutrality": {
+                                          "minimum": 0,
+                                          "maximum": 1,
+                                          "type": "number"
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            "contractVersion": {
+                              "minLength": 1,
+                              "type": "string"
+                            },
+                            "schemaVersion": {
+                              "minLength": 1,
+                              "type": "string"
+                            },
+                            "modelVersion": {
+                              "minLength": 1,
+                              "type": "string"
+                            },
+                            "preprocessingVersion": {
+                              "minLength": 1,
+                              "type": "string"
+                            },
+                            "ruleSetVersion": {
+                              "minLength": 1,
+                              "type": "string"
+                            },
+                            "outcome": {
+                              "type": "string",
+                              "enum": [
+                                "inconclusive"
+                              ]
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "enum": [
+                        "unauthorized"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "enum": [
+                        "not_found"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error",
+                    "message"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "enum": [
+                        "conflict"
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "enum": [
+                        "service_unavailable"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/analyses/{id}/retry": {
+      "post": {
+        "summary": "Retry a failed Analysis while retained Source Audio exists",
+        "tags": [
+          "Analyses"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "analysis",
+                    "location"
+                  ],
+                  "properties": {
+                    "analysis": {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "status",
+                        "stage",
+                        "language",
+                        "createdAt",
+                        "retryAvailable"
+                      ],
+                      "properties": {
+                        "id": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "status": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "queued"
+                              ]
+                            },
+                            {
+                              "type": "string",
+                              "enum": [
+                                "processing"
+                              ]
+                            },
+                            {
+                              "type": "string",
+                              "enum": [
+                                "completed"
+                              ]
+                            },
+                            {
+                              "type": "string",
+                              "enum": [
+                                "failed"
+                              ]
+                            },
+                            {
+                              "type": "string",
+                              "enum": [
+                                "canceled"
+                              ]
+                            }
+                          ]
+                        },
+                        "stage": {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "language": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "taglish"
+                              ]
+                            },
+                            {
+                              "type": "string",
+                              "enum": [
+                                "english"
+                              ]
+                            },
+                            {
+                              "type": "string",
+                              "enum": [
+                                "tagalog"
+                              ]
+                            }
+                          ]
+                        },
+                        "createdAt": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "retryAvailable": {
+                          "type": "boolean"
+                        },
+                        "retryOfAnalysisId": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "failureMessage": {
+                          "type": "string"
+                        },
+                        "result": {
+                          "anyOf": [
+                            {
+                              "additionalProperties": false,
+                              "type": "object",
+                              "required": [
+                                "confidence",
+                                "transcript",
+                                "explanation",
+                                "technicalTrace",
+                                "contractVersion",
+                                "schemaVersion",
+                                "modelVersion",
+                                "preprocessingVersion",
+                                "ruleSetVersion",
+                                "outcome",
+                                "emotionClassification"
+                              ],
+                              "properties": {
+                                "confidence": {
+                                  "type": "object",
+                                  "required": [
+                                    "happiness",
+                                    "sadness",
+                                    "anger",
+                                    "neutrality"
+                                  ],
+                                  "properties": {
+                                    "happiness": {
+                                      "minimum": 0,
+                                      "maximum": 1,
+                                      "type": "number"
+                                    },
+                                    "sadness": {
+                                      "minimum": 0,
+                                      "maximum": 1,
+                                      "type": "number"
+                                    },
+                                    "anger": {
+                                      "minimum": 0,
+                                      "maximum": 1,
+                                      "type": "number"
+                                    },
+                                    "neutrality": {
+                                      "minimum": 0,
+                                      "maximum": 1,
+                                      "type": "number"
+                                    }
+                                  }
+                                },
+                                "transcript": {
+                                  "type": "string"
+                                },
+                                "explanation": {
+                                  "type": "string"
+                                },
+                                "technicalTrace": {
+                                  "type": "object",
+                                  "required": [
+                                    "cueSpans",
+                                    "activatedRules",
+                                    "scoreAdjustments",
+                                    "probabilities"
+                                  ],
+                                  "properties": {
+                                    "cueSpans": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "required": [
+                                          "source",
+                                          "startMs",
+                                          "endMs",
+                                          "cue",
+                                          "value"
+                                        ],
+                                        "properties": {
+                                          "source": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string",
+                                                "enum": [
+                                                  "acoustic"
+                                                ]
+                                              },
+                                              {
+                                                "type": "string",
+                                                "enum": [
+                                                  "linguistic"
+                                                ]
+                                              }
+                                            ]
+                                          },
+                                          "startMs": {
+                                            "minimum": 0,
+                                            "type": "number"
+                                          },
+                                          "endMs": {
+                                            "minimum": 0,
+                                            "type": "number"
+                                          },
+                                          "cue": {
+                                            "minLength": 1,
+                                            "type": "string"
+                                          },
+                                          "value": {
+                                            "minLength": 1,
+                                            "type": "string"
+                                          }
+                                        }
+                                      }
+                                    },
+                                    "activatedRules": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "required": [
+                                          "id",
+                                          "description"
+                                        ],
+                                        "properties": {
+                                          "id": {
+                                            "minLength": 1,
+                                            "type": "string"
+                                          },
+                                          "description": {
+                                            "minLength": 1,
+                                            "type": "string"
+                                          }
+                                        }
+                                      }
+                                    },
+                                    "scoreAdjustments": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "required": [
+                                          "emotionClassification",
+                                          "delta",
+                                          "reason"
+                                        ],
+                                        "properties": {
+                                          "emotionClassification": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string",
+                                                "enum": [
+                                                  "happiness"
+                                                ]
+                                              },
+                                              {
+                                                "type": "string",
+                                                "enum": [
+                                                  "sadness"
+                                                ]
+                                              },
+                                              {
+                                                "type": "string",
+                                                "enum": [
+                                                  "anger"
+                                                ]
+                                              },
+                                              {
+                                                "type": "string",
+                                                "enum": [
+                                                  "neutrality"
+                                                ]
+                                              }
+                                            ]
+                                          },
+                                          "delta": {
+                                            "type": "number"
+                                          },
+                                          "reason": {
+                                            "minLength": 1,
+                                            "type": "string"
+                                          }
+                                        }
+                                      }
+                                    },
+                                    "probabilities": {
+                                      "type": "object",
+                                      "required": [
+                                        "before",
+                                        "after"
+                                      ],
+                                      "properties": {
+                                        "before": {
+                                          "type": "object",
+                                          "required": [
+                                            "happiness",
+                                            "sadness",
+                                            "anger",
+                                            "neutrality"
+                                          ],
+                                          "properties": {
+                                            "happiness": {
+                                              "minimum": 0,
+                                              "maximum": 1,
+                                              "type": "number"
+                                            },
+                                            "sadness": {
+                                              "minimum": 0,
+                                              "maximum": 1,
+                                              "type": "number"
+                                            },
+                                            "anger": {
+                                              "minimum": 0,
+                                              "maximum": 1,
+                                              "type": "number"
+                                            },
+                                            "neutrality": {
+                                              "minimum": 0,
+                                              "maximum": 1,
+                                              "type": "number"
+                                            }
+                                          }
+                                        },
+                                        "after": {
+                                          "type": "object",
+                                          "required": [
+                                            "happiness",
+                                            "sadness",
+                                            "anger",
+                                            "neutrality"
+                                          ],
+                                          "properties": {
+                                            "happiness": {
+                                              "minimum": 0,
+                                              "maximum": 1,
+                                              "type": "number"
+                                            },
+                                            "sadness": {
+                                              "minimum": 0,
+                                              "maximum": 1,
+                                              "type": "number"
+                                            },
+                                            "anger": {
+                                              "minimum": 0,
+                                              "maximum": 1,
+                                              "type": "number"
+                                            },
+                                            "neutrality": {
+                                              "minimum": 0,
+                                              "maximum": 1,
+                                              "type": "number"
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                },
+                                "contractVersion": {
+                                  "minLength": 1,
+                                  "type": "string"
+                                },
+                                "schemaVersion": {
+                                  "minLength": 1,
+                                  "type": "string"
+                                },
+                                "modelVersion": {
+                                  "minLength": 1,
+                                  "type": "string"
+                                },
+                                "preprocessingVersion": {
+                                  "minLength": 1,
+                                  "type": "string"
+                                },
+                                "ruleSetVersion": {
+                                  "minLength": 1,
+                                  "type": "string"
+                                },
+                                "outcome": {
+                                  "type": "string",
+                                  "enum": [
+                                    "definitive"
+                                  ]
+                                },
+                                "emotionClassification": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "happiness"
+                                      ]
+                                    },
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "sadness"
+                                      ]
+                                    },
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "anger"
+                                      ]
+                                    },
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "neutrality"
+                                      ]
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "additionalProperties": false,
+                              "type": "object",
+                              "required": [
+                                "confidence",
+                                "transcript",
+                                "explanation",
+                                "technicalTrace",
+                                "contractVersion",
+                                "schemaVersion",
+                                "modelVersion",
+                                "preprocessingVersion",
+                                "ruleSetVersion",
+                                "outcome"
+                              ],
+                              "properties": {
+                                "confidence": {
+                                  "type": "object",
+                                  "required": [
+                                    "happiness",
+                                    "sadness",
+                                    "anger",
+                                    "neutrality"
+                                  ],
+                                  "properties": {
+                                    "happiness": {
+                                      "minimum": 0,
+                                      "maximum": 1,
+                                      "type": "number"
+                                    },
+                                    "sadness": {
+                                      "minimum": 0,
+                                      "maximum": 1,
+                                      "type": "number"
+                                    },
+                                    "anger": {
+                                      "minimum": 0,
+                                      "maximum": 1,
+                                      "type": "number"
+                                    },
+                                    "neutrality": {
+                                      "minimum": 0,
+                                      "maximum": 1,
+                                      "type": "number"
+                                    }
+                                  }
+                                },
+                                "transcript": {
+                                  "type": "string"
+                                },
+                                "explanation": {
+                                  "type": "string"
+                                },
+                                "technicalTrace": {
+                                  "type": "object",
+                                  "required": [
+                                    "cueSpans",
+                                    "activatedRules",
+                                    "scoreAdjustments",
+                                    "probabilities"
+                                  ],
+                                  "properties": {
+                                    "cueSpans": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "required": [
+                                          "source",
+                                          "startMs",
+                                          "endMs",
+                                          "cue",
+                                          "value"
+                                        ],
+                                        "properties": {
+                                          "source": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string",
+                                                "enum": [
+                                                  "acoustic"
+                                                ]
+                                              },
+                                              {
+                                                "type": "string",
+                                                "enum": [
+                                                  "linguistic"
+                                                ]
+                                              }
+                                            ]
+                                          },
+                                          "startMs": {
+                                            "minimum": 0,
+                                            "type": "number"
+                                          },
+                                          "endMs": {
+                                            "minimum": 0,
+                                            "type": "number"
+                                          },
+                                          "cue": {
+                                            "minLength": 1,
+                                            "type": "string"
+                                          },
+                                          "value": {
+                                            "minLength": 1,
+                                            "type": "string"
+                                          }
+                                        }
+                                      }
+                                    },
+                                    "activatedRules": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "required": [
+                                          "id",
+                                          "description"
+                                        ],
+                                        "properties": {
+                                          "id": {
+                                            "minLength": 1,
+                                            "type": "string"
+                                          },
+                                          "description": {
+                                            "minLength": 1,
+                                            "type": "string"
+                                          }
+                                        }
+                                      }
+                                    },
+                                    "scoreAdjustments": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "required": [
+                                          "emotionClassification",
+                                          "delta",
+                                          "reason"
+                                        ],
+                                        "properties": {
+                                          "emotionClassification": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string",
+                                                "enum": [
+                                                  "happiness"
+                                                ]
+                                              },
+                                              {
+                                                "type": "string",
+                                                "enum": [
+                                                  "sadness"
+                                                ]
+                                              },
+                                              {
+                                                "type": "string",
+                                                "enum": [
+                                                  "anger"
+                                                ]
+                                              },
+                                              {
+                                                "type": "string",
+                                                "enum": [
+                                                  "neutrality"
+                                                ]
+                                              }
+                                            ]
+                                          },
+                                          "delta": {
+                                            "type": "number"
+                                          },
+                                          "reason": {
+                                            "minLength": 1,
+                                            "type": "string"
+                                          }
+                                        }
+                                      }
+                                    },
+                                    "probabilities": {
+                                      "type": "object",
+                                      "required": [
+                                        "before",
+                                        "after"
+                                      ],
+                                      "properties": {
+                                        "before": {
+                                          "type": "object",
+                                          "required": [
+                                            "happiness",
+                                            "sadness",
+                                            "anger",
+                                            "neutrality"
+                                          ],
+                                          "properties": {
+                                            "happiness": {
+                                              "minimum": 0,
+                                              "maximum": 1,
+                                              "type": "number"
+                                            },
+                                            "sadness": {
+                                              "minimum": 0,
+                                              "maximum": 1,
+                                              "type": "number"
+                                            },
+                                            "anger": {
+                                              "minimum": 0,
+                                              "maximum": 1,
+                                              "type": "number"
+                                            },
+                                            "neutrality": {
+                                              "minimum": 0,
+                                              "maximum": 1,
+                                              "type": "number"
+                                            }
+                                          }
+                                        },
+                                        "after": {
+                                          "type": "object",
+                                          "required": [
+                                            "happiness",
+                                            "sadness",
+                                            "anger",
+                                            "neutrality"
+                                          ],
+                                          "properties": {
+                                            "happiness": {
+                                              "minimum": 0,
+                                              "maximum": 1,
+                                              "type": "number"
+                                            },
+                                            "sadness": {
+                                              "minimum": 0,
+                                              "maximum": 1,
+                                              "type": "number"
+                                            },
+                                            "anger": {
+                                              "minimum": 0,
+                                              "maximum": 1,
+                                              "type": "number"
+                                            },
+                                            "neutrality": {
+                                              "minimum": 0,
+                                              "maximum": 1,
+                                              "type": "number"
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                },
+                                "contractVersion": {
+                                  "minLength": 1,
+                                  "type": "string"
+                                },
+                                "schemaVersion": {
+                                  "minLength": 1,
+                                  "type": "string"
+                                },
+                                "modelVersion": {
+                                  "minLength": 1,
+                                  "type": "string"
+                                },
+                                "preprocessingVersion": {
+                                  "minLength": 1,
+                                  "type": "string"
+                                },
+                                "ruleSetVersion": {
+                                  "minLength": 1,
+                                  "type": "string"
+                                },
+                                "outcome": {
+                                  "type": "string",
+                                  "enum": [
+                                    "inconclusive"
+                                  ]
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    "location": {
+                      "format": "uri-reference",
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "enum": [
+                        "unauthorized"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "enum": [
+                        "not_found"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error",
+                    "message"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "enum": [
+                        "conflict"
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "enum": [
+                        "service_unavailable"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/analyses/{id}": {
+      "get": {
+        "summary": "Read one authenticated Analysis resource",
+        "tags": [
+          "Analyses"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "status",
+                    "stage",
+                    "language",
+                    "createdAt",
+                    "retryAvailable"
+                  ],
+                  "properties": {
+                    "id": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "status": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "queued"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "processing"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "completed"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "failed"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "canceled"
+                          ]
+                        }
+                      ]
+                    },
+                    "stage": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "language": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "taglish"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "english"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "tagalog"
+                          ]
+                        }
+                      ]
+                    },
+                    "createdAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "retryAvailable": {
+                      "type": "boolean"
+                    },
+                    "retryOfAnalysisId": {
+                      "format": "uuid",
                       "type": "string"
                     },
                     "failureMessage": {

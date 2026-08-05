@@ -19,6 +19,7 @@ export function AnalysisSubmitClient() {
   const [accountEmail, setAccountEmail] = useState('');
   const [language, setLanguage] = useState<'taglish' | 'english' | 'tagalog'>('taglish');
   const [inputMethod, setInputMethod] = useState<'microphone' | 'upload'>('microphone');
+  const [retainSourceAudio, setRetainSourceAudio] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -80,7 +81,11 @@ export function AnalysisSubmitClient() {
           authorization: `Bearer ${token}`,
           'content-type': 'application/json',
         },
-        body: JSON.stringify({ language, contractVersion: 'taglish-v2' }),
+        body: JSON.stringify({
+          language,
+          contractVersion: 'taglish-v2',
+          retainSourceAudio,
+        }),
       });
       if (uploadResponse.status === 401) {
         router.replace('/auth/sign-in?next=/analyze');
@@ -235,6 +240,19 @@ export function AnalysisSubmitClient() {
                 <small className="field-hint">{file?.name ?? 'No file selected'}</small>
               </label>
             )}
+            <label className="checkbox-field" htmlFor="retain-source-audio">
+              <input
+                id="retain-source-audio"
+                name="retainSourceAudio"
+                type="checkbox"
+                checked={retainSourceAudio}
+                onChange={(event) => setRetainSourceAudio(event.target.checked)}
+              />
+              <span>
+                Keep Source Audio after processing so a failed Analysis can be retried. Without this
+                opt-in, it is deleted after a terminal outcome.
+              </span>
+            </label>
             {error ? (
               <p className="form-message" role="alert">
                 {error}
@@ -252,6 +270,7 @@ export function AnalysisSubmitClient() {
               <li>The Research System owns the detectable-speech rule.</li>
               <li>The application imposes no arbitrary minimum duration.</li>
               <li>Long audio is not segmented into multiple Analyses.</li>
+              <li>Source Audio is kept after processing only with your explicit opt-in.</li>
             </ul>
           </aside>
         </div>

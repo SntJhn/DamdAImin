@@ -6,6 +6,7 @@ import Fastify, { type FastifyBaseLogger, type FastifyInstance } from 'fastify';
 import { Redis } from 'ioredis';
 
 import {
+  AnalysisConflictError,
   AnalysisInputError,
   AnalysisNotFoundError,
   listAnalysisHistory,
@@ -19,6 +20,7 @@ import {
   AnalysisIdParamsSchema,
   AnalysisResourceSchema,
   AnalysisHistoryResponseSchema,
+  ConflictResponseSchema,
   CreateAnalysisUploadRequestSchema,
   CreateAnalysisUploadResponseSchema,
   FinalizeAnalysisRequestSchema,
@@ -175,6 +177,7 @@ export function buildApi(options: ApiOptions = {}): FastifyInstance {
               accountId: request.accountId,
               language: body.language,
               contractVersion: body.contractVersion,
+              retainSourceAudio: body.retainSourceAudio,
             });
 
             return reply.code(201).send({
@@ -259,6 +262,119 @@ export function buildApi(options: ApiOptions = {}): FastifyInstance {
             }
 
             request.log.error(error, 'analysis submission unavailable');
+            return reply.code(503).send({ error: 'service_unavailable' as const });
+          }
+        },
+      );
+
+      api.post(
+        '/analyses/:id/cancel',
+        {
+          schema: {
+            tags: ['Analyses'],
+            summary: 'Cancel a queued or processing Analysis',
+            security: [{ bearerAuth: [] }],
+            params: AnalysisIdParamsSchema,
+            response: {
+              200: AnalysisResourceSchema,
+              401: UnauthorizedResponseSchema,
+              404: NotFoundResponseSchema,
+              409: ConflictResponseSchema,
+              503: ServiceUnavailableResponseSchema,
+            },
+          },
+        },
+        async (request, reply) => {
+          if (!options.analysisServices || !request.accountId) {
+            return reply.code(503).send({ error: 'service_unavailable' as const });
+          }
+
+          try {
+            const params = request.params as AnalysisIdParams;
+            const analysis = await options.analysisServices.cancelAnalysis(
+              request.accountId,
+              params.id,
+            );
+            request.log.info(
+              { requestId: request.id, analysisId: analysis.id, stage: analysis.stage },
+              'analysis cancellation requested',
+            );
+            return serializeAnalysis(analysis);
+          } catch (error) {
+            if (error instanceof AnalysisNotFoundError) {
+              return reply.code(404).send({ error: 'not_found' as const });
+            }
+
+            if (error instanceof AnalysisConflictError) {
+              return reply.code(409).send({ error: 'conflict' as const, message: error.message });
+            }
+
+            request.log.error(error, 'analysis cancellation unavailable');
+            return reply.code(503).send({ error: 'service_unavailable' as const });
+          }
+        },
+      );
+
+      api.post(
+        '/analyses/:id/retry',
+        {
+          schema: {
+            tags: ['Analyses'],
+            summary: 'Retry a failed Analysis while retained Source Audio exists',
+            security: [{ bearerAuth: [] }],
+            params: AnalysisIdParamsSchema,
+            response: {
+              202: AcceptedAnalysisResponseSchema,
+              401: UnauthorizedResponseSchema,
+              404: NotFoundResponseSchema,
+              409: ConflictResponseSchema,
+              503: ServiceUnavailableResponseSchema,
+            },
+          },
+        },
+        async (request, reply) => {
+          if (!options.analysisServices || !request.accountId) {
+            return reply.code(503).send({ error: 'service_unavailable' as const });
+          }
+
+          try {
+            const params = request.params as AnalysisIdParams;
+            const analysis = await options.analysisServices.retryAnalysis(
+              request.accountId,
+              params.id,
+            );
+            const location = `/api/v2/analyses/${analysis.id}`;
+            request.log.info(
+              {
+                requestId: request.id,
+                analysisId: analysis.id,
+                retryOfAnalysisId: analysis.retryOfAnalysisId,
+                stage: analysis.stage,
+              },
+              'analysis retry queued',
+            );
+            options.telemetry?.record({
+              name: 'analysis.queued',
+              requestId: request.id,
+              analysisId: analysis.id,
+              stage: analysis.stage,
+              language: analysis.language,
+              contractVersion: analysis.contractVersion,
+            });
+            return reply
+              .code(202)
+              .header('location', location)
+              .send({ analysis: serializeAnalysis(analysis), location });
+          } catch (error) {
+            if (error instanceof AnalysisNotFoundError) {
+              return reply.code(404).send({ error: 'not_found' as const });
+            }
+
+            if (error instanceof AnalysisConflictError) {
+              return reply.code(409).send({ error: 'conflict' as const, message: error.message });
+            }
+
+            request.log.error(error, 'analysis retry unavailable');
             return reply.code(503).send({ error: 'service_unavailable' as const });
           }
         },
@@ -355,6 +471,14 @@ function serializeAnalysis(analysis: Analysis): AnalysisResource {
     stage: analysis.stage,
     language: analysis.language,
     createdAt: analysis.createdAt.toISOString(),
+    retryAvailable:
+      analysis.status === 'failed' &&
+      analysis.retainSourceAudio === true &&
+      Boolean(analysis.sourceAudioKey) &&
+      !analysis.retryAnalysisId &&
+      (!analysis.sourceAudioRetentionUntil ||
+        analysis.sourceAudioRetentionUntil.getTime() > Date.now()),
+    ...(analysis.retryOfAnalysisId ? { retryOfAnalysisId: analysis.retryOfAnalysisId } : {}),
     ...(analysis.failureMessage ? { failureMessage: analysis.failureMessage } : {}),
     ...(analysis.result ? { result: analysis.result } : {}),
   };
