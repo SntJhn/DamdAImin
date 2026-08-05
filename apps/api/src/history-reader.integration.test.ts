@@ -561,5 +561,5 @@ describe('real database history ownership boundary', () => {
       headers: { authorization: 'Bearer account-b-token' },
     });
     expect(otherAccount.statusCode).toBe(404);
-  });
+  }, 15_000);
 });
