@@ -2,7 +2,12 @@ import { Writable } from 'node:stream';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import type { Analysis, AnalysisServices, AnalysisTelemetryEvent } from '@damdai/application';
+import {
+  AnalysisConflictError,
+  type Analysis,
+  type AnalysisServices,
+  type AnalysisTelemetryEvent,
+} from '@damdai/application';
 import { createPrivacySafeLogger } from '@damdai/infrastructure';
 
 import { buildApi } from './app.js';
@@ -82,6 +87,8 @@ function createServices(currentAnalysis: Analysis = analysis): AnalysisServices 
     })),
     finalizeUpload: vi.fn(async () => currentAnalysis),
     getAnalysis: vi.fn(async () => currentAnalysis),
+    cancelAnalysis: vi.fn(async () => currentAnalysis),
+    retryAnalysis: vi.fn(async () => currentAnalysis),
     processAnalysis: vi.fn(async () => undefined),
   };
 }
@@ -156,6 +163,30 @@ describe('Analysis REST boundary', () => {
     ]);
   });
 
+  it('passes the explicit Source Audio retention choice to the application boundary', async () => {
+    const analysisServices = createServices();
+    const application = buildApi({
+      authVerifier: { verify: async () => ({ accountId: 'account-a' }) },
+      analysisServices,
+    });
+    applications.push(application);
+
+    const response = await application.inject({
+      method: 'POST',
+      url: '/api/v2/analysis-uploads',
+      headers: { authorization: 'Bearer verified-token' },
+      payload: { language: 'taglish', contractVersion: 'taglish-v2', retainSourceAudio: true },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(analysisServices.createUpload).toHaveBeenCalledWith({
+      accountId: 'account-a',
+      language: 'taglish',
+      contractVersion: 'taglish-v2',
+      retainSourceAudio: true,
+    });
+  });
+
   it('reads a single Analysis through the authenticated ownership boundary', async () => {
     const analysisServices = createServices();
     const application = buildApi({
@@ -201,6 +232,104 @@ describe('Analysis REST boundary', () => {
         schemaVersion: 'research-response-v2',
       },
     });
+  });
+
+  it('cancels an owned queued Analysis through the lifecycle boundary', async () => {
+    const analysisServices = createServices();
+    analysisServices.cancelAnalysis = vi.fn(async () => ({
+      ...analysis,
+      status: 'canceled' as const,
+      stage: 'canceled' as const,
+      sourceAudioKey: null,
+      sourceAudioSize: null,
+    }));
+    const application = buildApi({
+      authVerifier: { verify: async () => ({ accountId: 'account-a' }) },
+      analysisServices,
+    });
+    applications.push(application);
+
+    const response = await application.inject({
+      method: 'POST',
+      url: `/api/v2/analyses/${analysis.id}/cancel`,
+      headers: { authorization: 'Bearer verified-token' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      id: analysis.id,
+      status: 'canceled',
+      stage: 'canceled',
+      retryAvailable: false,
+    });
+    expect(analysisServices.cancelAnalysis).toHaveBeenCalledWith('account-a', analysis.id);
+  });
+
+  it('returns a conflict when cancellation reaches a terminal non-canceled state', async () => {
+    const analysisServices = createServices();
+    analysisServices.cancelAnalysis = vi.fn(async () => {
+      throw new AnalysisConflictError('Only queued or processing Analyses can be canceled.');
+    });
+    const application = buildApi({
+      authVerifier: { verify: async () => ({ accountId: 'account-a' }) },
+      analysisServices,
+    });
+    applications.push(application);
+
+    const response = await application.inject({
+      method: 'POST',
+      url: `/api/v2/analyses/${analysis.id}/cancel`,
+      headers: { authorization: 'Bearer verified-token' },
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toEqual({
+      error: 'conflict',
+      message: 'Only queued or processing Analyses can be canceled.',
+    });
+  });
+
+  it('queues a retry and exposes the linked failed attempt', async () => {
+    const failed = {
+      ...analysis,
+      status: 'failed' as const,
+      stage: 'failed' as const,
+      retainSourceAudio: true,
+    };
+    const retry = {
+      ...analysis,
+      id: 'a0ad9a3f-26b2-4014-8f51-ec7d67bb4f1a',
+      status: 'queued' as const,
+      stage: 'queued' as const,
+      retryOfAnalysisId: failed.id,
+      retainSourceAudio: true,
+    };
+    const analysisServices = createServices(failed);
+    analysisServices.retryAnalysis = vi.fn(async () => retry);
+    const application = buildApi({
+      authVerifier: { verify: async () => ({ accountId: 'account-a' }) },
+      analysisServices,
+    });
+    applications.push(application);
+
+    const response = await application.inject({
+      method: 'POST',
+      url: `/api/v2/analyses/${failed.id}/retry`,
+      headers: { authorization: 'Bearer verified-token' },
+    });
+
+    expect(response.statusCode).toBe(202);
+    expect(response.headers.location).toBe(`/api/v2/analyses/${retry.id}`);
+    expect(response.json()).toMatchObject({
+      analysis: {
+        id: retry.id,
+        status: 'queued',
+        retryAvailable: false,
+        retryOfAnalysisId: failed.id,
+      },
+      location: `/api/v2/analyses/${retry.id}`,
+    });
+    expect(analysisServices.retryAnalysis).toHaveBeenCalledWith('account-a', failed.id);
   });
 
   it('normalizes request schema failures into an accessible validation response', async () => {

@@ -95,6 +95,7 @@ export const AnalysisResultSchema = Type.Union([
 export const CreateAnalysisUploadRequestSchema = Type.Object({
   language: AnalysisLanguageSchema,
   contractVersion: Type.String({ minLength: 1, maxLength: 64 }),
+  retainSourceAudio: Type.Optional(Type.Boolean()),
 });
 
 export const CreateAnalysisUploadResponseSchema = Type.Object({
@@ -121,6 +122,8 @@ export const AnalysisResourceSchema = Type.Object({
   stage: Type.String({ minLength: 1 }),
   language: AnalysisLanguageSchema,
   createdAt: Type.String({ format: 'date-time' }),
+  retryAvailable: Type.Boolean(),
+  retryOfAnalysisId: Type.Optional(Type.String({ format: 'uuid' })),
   failureMessage: Type.Optional(Type.String()),
   result: Type.Optional(AnalysisResultSchema),
 });

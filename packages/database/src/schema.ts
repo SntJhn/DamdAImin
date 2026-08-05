@@ -1,5 +1,5 @@
 import type { AnalysisResult } from '@damdai/domain';
-import { integer, jsonb, pgSchema, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { boolean, integer, jsonb, pgSchema, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 export const appSchema = pgSchema('app');
 
@@ -31,6 +31,11 @@ export const analyses = appSchema.table('analyses', {
   contractVersion: text('contract_version').notNull().default('taglish-v2'),
   sourceAudioKey: text('source_audio_key'),
   sourceAudioSize: integer('source_audio_size'),
+  retainSourceAudio: boolean('retain_source_audio').notNull().default(false),
+  sourceAudioRetentionUntil: timestamp('source_audio_retention_until', { withTimezone: true }),
+  sourceAudioCleanupKey: text('source_audio_cleanup_key'),
+  retryOfAnalysisId: uuid('retry_of_analysis_id').unique(),
+  retryAnalysisId: uuid('retry_analysis_id'),
   result: jsonb('result').$type<AnalysisResult | null>(),
   failureMessage: text('failure_message'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
@@ -44,6 +49,8 @@ export const analysisUploads = appSchema.table('analysis_uploads', {
   language: analysisLanguage('language').notNull(),
   contractVersion: text('contract_version').notNull(),
   contentType: text('content_type').notNull(),
+  retainSourceAudio: boolean('retain_source_audio').notNull().default(false),
+  sourceAudioRetentionUntil: timestamp('source_audio_retention_until', { withTimezone: true }),
   status: analysisUploadStatus('status').notNull(),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
   analysisId: uuid('analysis_id'),

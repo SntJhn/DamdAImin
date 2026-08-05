@@ -25,6 +25,7 @@ export function AnalysisDetailClient({ analysisId }: { analysisId: string }) {
   const [analysis, setAnalysis] = useState<AnalysisResource | null>(null);
   const [accountEmail, setAccountEmail] = useState('');
   const [error, setError] = useState('');
+  const [actionBusy, setActionBusy] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -122,6 +123,60 @@ export function AnalysisDetailClient({ analysisId }: { analysisId: string }) {
     router.replace('/auth/sign-in');
   }
 
+  async function runLifecycleAction(action: 'cancel' | 'retry') {
+    setError('');
+    setActionBusy(true);
+
+    try {
+      const token = await getAuthToken();
+      if (!token) {
+        router.replace(`/auth/sign-in?next=/analyses/${analysisId}`);
+        return;
+      }
+
+      const response = await fetch(`${apiBaseUrl}/analyses/${analysisId}/${action}`, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${token}` },
+        cache: 'no-store',
+      });
+      if (response.status === 401) {
+        router.replace(`/auth/sign-in?next=/analyses/${analysisId}`);
+        return;
+      }
+
+      const body = (await response.json()) as
+        | AnalysisResource
+        | {
+            analysis?: AnalysisResource;
+            message?: string;
+          };
+      if (!response.ok) {
+        throw new Error(
+          'message' in body && typeof body.message === 'string'
+            ? body.message
+            : `The Analysis could not be ${action === 'cancel' ? 'canceled' : 'retried'}.`,
+        );
+      }
+
+      if (action === 'retry') {
+        const retried = 'analysis' in body ? body.analysis : undefined;
+        if (!retried?.id) throw new Error('The retry did not return a new Analysis.');
+        router.replace(`/analyses/${retried.id}`);
+        return;
+      }
+
+      setAnalysis(body as AnalysisResource);
+    } catch (actionError) {
+      setError(
+        actionError instanceof Error
+          ? actionError.message
+          : `The Analysis could not be ${action === 'cancel' ? 'canceled' : 'retried'}.`,
+      );
+    } finally {
+      setActionBusy(false);
+    }
+  }
+
   return (
     <main className="analysis-page">
       <header className="history-header">
@@ -166,6 +221,35 @@ export function AnalysisDetailClient({ analysisId }: { analysisId: string }) {
                 </p>
               </>
             )}
+            {analysis.status === 'queued' || analysis.status === 'processing' ? (
+              <div className="analysis-lifecycle-actions">
+                <button
+                  className="secondary-button"
+                  type="button"
+                  disabled={actionBusy}
+                  onClick={() => void runLifecycleAction('cancel')}
+                >
+                  {actionBusy ? 'Canceling…' : 'Cancel Analysis'}
+                </button>
+                <p>Canceling removes the submitted Source Audio and any later derived content.</p>
+              </div>
+            ) : null}
+            {analysis.status === 'failed' ? (
+              <div className="analysis-lifecycle-actions">
+                {analysis.retryAvailable ? (
+                  <button
+                    className="primary-button"
+                    type="button"
+                    disabled={actionBusy}
+                    onClick={() => void runLifecycleAction('retry')}
+                  >
+                    {actionBusy ? 'Preparing retry…' : 'Retry Analysis'}
+                  </button>
+                ) : (
+                  <p>Retry is unavailable because retained Source Audio is no longer present.</p>
+                )}
+              </div>
+            ) : null}
             <p className="analysis-id">Analysis ID: {analysis.id}</p>
           </div>
         ) : !error ? (

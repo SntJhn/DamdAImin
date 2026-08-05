@@ -553,3 +553,88 @@ test('presents an Inconclusive Result without a headline class or visible raw pr
   await expect(page.getByText('No cue spans were returned.')).toBeVisible();
   await expect(new AxeBuilder({ page }).analyze()).resolves.toMatchObject({ violations: [] });
 });
+
+test('cancels a queued Analysis and removes it from the active journey', async ({ page }) => {
+  await mockVerifiedSession(page);
+  let canceled = false;
+  await page.route(`**/api/v2/analyses/${analysisId}`, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: analysisId,
+        status: canceled ? 'canceled' : 'queued',
+        stage: canceled ? 'canceled' : 'queued',
+        language: 'taglish',
+        createdAt: '2026-08-02T00:00:00.000Z',
+        retryAvailable: false,
+      }),
+    });
+  });
+  await page.route(`**/api/v2/analyses/${analysisId}/cancel`, async (route) => {
+    canceled = true;
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: analysisId,
+        status: 'canceled',
+        stage: 'canceled',
+        language: 'taglish',
+        createdAt: '2026-08-02T00:00:00.000Z',
+        retryAvailable: false,
+      }),
+    });
+  });
+
+  await page.goto(`/analyses/${analysisId}`);
+  await expect(page.getByRole('button', { name: 'Cancel Analysis' })).toBeVisible();
+  await page.getByRole('button', { name: 'Cancel Analysis' }).click();
+  await expect(page.getByText('This Analysis was canceled.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Cancel Analysis' })).toHaveCount(0);
+});
+
+test('retries a failed Analysis only when retained Source Audio is available', async ({ page }) => {
+  await mockVerifiedSession(page);
+  const retriedAnalysisId = 'a0ad9a3f-26b2-4014-8f51-ec7d67bb4f1a';
+  await page.route(`**/api/v2/analyses/${analysisId}`, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: analysisId,
+        status: 'failed',
+        stage: 'failed',
+        language: 'taglish',
+        createdAt: '2026-08-02T00:00:00.000Z',
+        failureMessage:
+          'The Research System could not complete this Analysis. Retry while retained Source Audio is available.',
+        retryAvailable: true,
+      }),
+    });
+  });
+  await page.route(`**/api/v2/analyses/${analysisId}/retry`, async (route) => {
+    await route.fulfill({
+      status: 202,
+      contentType: 'application/json',
+      headers: { location: `/api/v2/analyses/${retriedAnalysisId}` },
+      body: JSON.stringify({
+        analysis: {
+          id: retriedAnalysisId,
+          status: 'queued',
+          stage: 'queued',
+          language: 'taglish',
+          createdAt: '2026-08-02T00:00:00.000Z',
+          retryAvailable: false,
+          retryOfAnalysisId: analysisId,
+        },
+        location: `/api/v2/analyses/${retriedAnalysisId}`,
+      }),
+    });
+  });
+
+  await page.goto(`/analyses/${analysisId}`);
+  await expect(page.getByRole('button', { name: 'Retry Analysis' })).toBeVisible();
+  await page.getByRole('button', { name: 'Retry Analysis' }).click();
+  await expect(page).toHaveURL(`/analyses/${retriedAnalysisId}`);
+});

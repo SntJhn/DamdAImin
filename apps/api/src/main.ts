@@ -44,6 +44,11 @@ const analysisServices = createAnalysisServices({
     signingPrivateKey: process.env.GCS_SIGNING_PRIVATE_KEY?.replace(/\\n/g, '\n'),
   }),
   queue: analysisQueue,
+  audit: {
+    record(event) {
+      logger.info(event, `analysis ${event.action}`);
+    },
+  },
   researchClient: createResearchSystemClient({
     baseUrl: process.env.RESEARCH_FAKE_URL ?? 'http://localhost:4100',
   }),
