@@ -1,8 +1,8 @@
 .git
 .code-review-graph
 node_modules
-dist
-.next
+**/dist
+**/.next
 coverage
 .env
 .env.*
