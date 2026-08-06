@@ -10,6 +10,7 @@ import {
   type AnalysisTelemetryEvent,
   type AnalysisServices,
 } from '@damdai/application';
+import type { AnalysisResult } from '@damdai/application';
 import {
   analyses,
   createAnalysisRepository,
@@ -59,6 +60,12 @@ const accountB = randomUUID();
 const accountAActive = randomUUID();
 const accountACanceled = randomUUID();
 const accountBActive = randomUUID();
+const accountACompleted = randomUUID();
+const accountAInconclusive = randomUUID();
+const accountAFailed = randomUUID();
+const accountAProcessing = randomUUID();
+const accountATieFirst = randomUUID();
+const accountATieSecond = randomUUID();
 const migrationsFolder = resolve(
   dirname(fileURLToPath(import.meta.url)),
   '../../../packages/database/drizzle',
@@ -91,6 +98,49 @@ const integrationTelemetry = {
   record(event: AnalysisTelemetryEvent) {
     integrationTelemetryEvents.push(event);
   },
+};
+
+const historyDefinitiveResult: AnalysisResult = {
+  outcome: 'definitive',
+  emotionClassification: 'happiness',
+  confidence: { happiness: 0.91, sadness: 0.03, anger: 0.02, neutrality: 0.04 },
+  transcript: 'Masaya ako sa araw na ito.',
+  explanation: 'History fixture explanation.',
+  technicalTrace: {
+    cueSpans: [],
+    activatedRules: [],
+    scoreAdjustments: [],
+    probabilities: {
+      before: { happiness: 0.25, sadness: 0.25, anger: 0.25, neutrality: 0.25 },
+      after: { happiness: 0.91, sadness: 0.03, anger: 0.02, neutrality: 0.04 },
+    },
+  },
+  contractVersion: 'taglish-v2',
+  schemaVersion: 'research-response-v2',
+  modelVersion: 'history-fixture-model',
+  preprocessingVersion: 'history-fixture-preprocessing',
+  ruleSetVersion: 'history-fixture-rules',
+};
+
+const historyInconclusiveResult: AnalysisResult = {
+  outcome: 'inconclusive',
+  confidence: { happiness: 0.25, sadness: 0.25, anger: 0.25, neutrality: 0.25 },
+  transcript: 'Hindi malinaw ang sample.',
+  explanation: 'History fixture explanation.',
+  technicalTrace: {
+    cueSpans: [],
+    activatedRules: [],
+    scoreAdjustments: [],
+    probabilities: {
+      before: { happiness: 0.25, sadness: 0.25, anger: 0.25, neutrality: 0.25 },
+      after: { happiness: 0.25, sadness: 0.25, anger: 0.25, neutrality: 0.25 },
+    },
+  },
+  contractVersion: 'english-v2',
+  schemaVersion: 'research-response-v2',
+  modelVersion: 'history-fixture-model',
+  preprocessingVersion: 'history-fixture-preprocessing',
+  ruleSetVersion: 'history-fixture-rules',
 };
 
 function createPcmWav(durationSeconds: number): Uint8Array {
@@ -343,7 +393,52 @@ beforeAll(async () => {
       id: accountBActive,
       accountId: accountB,
       status: 'completed',
+      result: historyDefinitiveResult,
       createdAt: new Date('2026-08-01T00:04:00.000Z'),
+    },
+    {
+      id: accountACompleted,
+      accountId: accountA,
+      status: 'completed',
+      language: 'taglish',
+      result: historyDefinitiveResult,
+      createdAt: new Date('2026-08-01T00:05:00.000Z'),
+    },
+    {
+      id: accountAInconclusive,
+      accountId: accountA,
+      status: 'completed',
+      language: 'english',
+      result: historyInconclusiveResult,
+      createdAt: new Date('2026-08-01T00:06:00.000Z'),
+    },
+    {
+      id: accountAFailed,
+      accountId: accountA,
+      status: 'failed',
+      language: 'tagalog',
+      createdAt: new Date('2026-08-01T00:07:00.000Z'),
+    },
+    {
+      id: accountAProcessing,
+      accountId: accountA,
+      status: 'processing',
+      language: 'taglish',
+      createdAt: new Date('2026-08-01T00:08:00.000Z'),
+    },
+    {
+      id: accountATieFirst,
+      accountId: accountA,
+      status: 'queued',
+      language: 'taglish',
+      createdAt: new Date('2026-08-02T00:00:00.000Z'),
+    },
+    {
+      id: accountATieSecond,
+      accountId: accountA,
+      status: 'queued',
+      language: 'taglish',
+      createdAt: new Date('2026-08-02T00:00:00.000Z'),
     },
   ]);
 
@@ -417,27 +512,17 @@ afterAll(async () => {
   await database.pool.end();
 });
 
-async function waitForCompletedAnalysis(analysisId: string): Promise<Record<string, unknown>> {
-  let lastStatus = 'unknown';
-
-  for (let attempt = 0; attempt < 60; attempt += 1) {
-    const response = await analysisApplication!.inject({
-      method: 'GET',
-      url: `/api/v2/analyses/${analysisId}`,
-      headers: { authorization: 'Bearer account-a-token' },
-    });
-
-    if (response.statusCode === 200) {
-      const body = response.json() as Record<string, unknown>;
-      lastStatus = String(body.status);
-      if (body.status === 'completed') return body;
-      if (body.status === 'failed') throw new Error('Integration Analysis failed');
-    }
-
-    await new Promise((resolve) => setTimeout(resolve, 100));
+function waitForNextWorkerCompletion(): Promise<AnalysisJob> {
+  const worker = integrationWorker;
+  if (!worker) {
+    return Promise.reject(new Error('Integration worker is unavailable'));
   }
 
-  throw new Error(`Analysis did not complete; last status was ${lastStatus}`);
+  return new Promise((resolve) => {
+    worker.once('completed', (job) => {
+      resolve(job.data);
+    });
+  });
 }
 
 describe('real database history ownership boundary', () => {
@@ -452,11 +537,64 @@ describe('real database history ownership boundary', () => {
     expect(accountAResponse.json()).toEqual({
       analyses: [
         {
+          id:
+            accountATieFirst.localeCompare(accountATieSecond) > 0
+              ? accountATieFirst
+              : accountATieSecond,
+          status: 'queued',
+          language: 'taglish',
+          createdAt: '2026-08-02T00:00:00.000Z',
+        },
+        {
+          id:
+            accountATieFirst.localeCompare(accountATieSecond) > 0
+              ? accountATieSecond
+              : accountATieFirst,
+          status: 'queued',
+          language: 'taglish',
+          createdAt: '2026-08-02T00:00:00.000Z',
+        },
+        {
+          id: accountAProcessing,
+          status: 'processing',
+          language: 'taglish',
+          createdAt: '2026-08-01T00:08:00.000Z',
+        },
+        {
+          id: accountAFailed,
+          status: 'failed',
+          language: 'tagalog',
+          createdAt: '2026-08-01T00:07:00.000Z',
+        },
+        {
+          id: accountAInconclusive,
+          status: 'completed',
+          language: 'english',
+          createdAt: '2026-08-01T00:06:00.000Z',
+          result: {
+            outcome: 'inconclusive',
+            transcript: historyInconclusiveResult.transcript,
+          },
+        },
+        {
+          id: accountACompleted,
+          status: 'completed',
+          language: 'taglish',
+          createdAt: '2026-08-01T00:05:00.000Z',
+          result: {
+            outcome: 'definitive',
+            emotionClassification: 'happiness',
+            transcript: historyDefinitiveResult.transcript,
+          },
+        },
+        {
           id: accountAActive,
           status: 'queued',
+          language: 'taglish',
           createdAt: '2026-08-01T00:02:00.000Z',
         },
       ],
+      hasMore: false,
     });
 
     const accountBResponse = await application.inject({
@@ -471,9 +609,70 @@ describe('real database history ownership boundary', () => {
         {
           id: accountBActive,
           status: 'completed',
+          language: 'taglish',
           createdAt: '2026-08-01T00:04:00.000Z',
+          result: {
+            outcome: 'definitive',
+            emotionClassification: 'happiness',
+            transcript: historyDefinitiveResult.transcript,
+          },
         },
       ],
+      hasMore: false,
+    });
+  });
+
+  it('applies every History filter through the real repository and keeps ordering bounded', async () => {
+    const cases = [
+      { query: 'search=Masaya', expectedIds: [accountACompleted] },
+      { query: 'status=failed', expectedIds: [accountAFailed] },
+      { query: 'result=inconclusive', expectedIds: [accountAInconclusive] },
+      { query: 'result=happiness', expectedIds: [accountACompleted] },
+      { query: 'language=english', expectedIds: [accountAInconclusive] },
+      {
+        query: 'from=2026-08-01&to=2026-08-01&status=completed',
+        expectedIds: [accountAInconclusive, accountACompleted],
+      },
+      {
+        query:
+          'search=Masaya&status=completed&result=happiness&language=taglish&from=2026-08-01&to=2026-08-01&limit=1',
+        expectedIds: [accountACompleted],
+      },
+    ];
+
+    for (const testCase of cases) {
+      const response = await application.inject({
+        method: 'GET',
+        url: `/api/v2/analyses?${testCase.query}`,
+        headers: { authorization: 'Bearer account-a-token' },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json().analyses.map((analysis: { id: string }) => analysis.id)).toEqual(
+        testCase.expectedIds,
+      );
+    }
+
+    const tieIds = [accountATieFirst, accountATieSecond].sort((left, right) =>
+      right.localeCompare(left),
+    );
+    const bounded = await application.inject({
+      method: 'GET',
+      url: '/api/v2/analyses?from=2026-08-02&to=2026-08-02&limit=1',
+      headers: { authorization: 'Bearer account-a-token' },
+    });
+
+    expect(bounded.statusCode).toBe(200);
+    expect(bounded.json()).toEqual({
+      analyses: [
+        {
+          id: tieIds[0],
+          status: 'queued',
+          language: 'taglish',
+          createdAt: '2026-08-02T00:00:00.000Z',
+        },
+      ],
+      hasMore: true,
     });
   });
 
@@ -490,6 +689,7 @@ describe('real database history ownership boundary', () => {
     expect(analysisApplication).toBeDefined();
     expect(analysisServices).toBeDefined();
 
+    const workerCompletion = waitForNextWorkerCompletion();
     const submitted = await analysisApplication!.inject({
       method: 'POST',
       url: '/api/v2/analyses',
@@ -506,7 +706,14 @@ describe('real database history ownership boundary', () => {
       contractVersion: 'taglish-v2',
     });
 
-    const completed = await waitForCompletedAnalysis(submittedAnalysisId);
+    await expect(workerCompletion).resolves.toEqual(integrationJobs[0]);
+    const completedResponse = await analysisApplication!.inject({
+      method: 'GET',
+      url: `/api/v2/analyses/${submittedAnalysisId}`,
+      headers: { authorization: 'Bearer account-a-token' },
+    });
+    expect(completedResponse.statusCode).toBe(200);
+    const completed = completedResponse.json() as Record<string, unknown>;
     expect(completed).toMatchObject({
       id: submittedAnalysisId,
       status: 'completed',

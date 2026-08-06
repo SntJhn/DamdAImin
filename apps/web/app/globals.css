@@ -452,9 +452,70 @@ select {
   line-height: 1.6;
 }
 
+.history-filters {
+  display: grid;
+  gap: 1rem;
+  margin-top: 3.5rem;
+  padding: clamp(1.1rem, 3vw, 1.8rem);
+  border: 1px solid var(--line);
+  border-top: 2px solid var(--ink);
+  background: rgba(255, 253, 247, 0.62);
+}
+
+.history-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.history-filter-search {
+  grid-column: span 2;
+}
+
+.history-filters input,
+.history-filters select {
+  width: 100%;
+  min-height: 2.9rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 0.65rem;
+  background: #fff;
+  color: var(--ink);
+  font-size: 0.95rem;
+}
+
+.history-filters input:focus,
+.history-filters select:focus {
+  border-color: var(--ink);
+  outline: 3px solid rgba(136, 222, 213, 0.6);
+  outline-offset: 0;
+}
+
+.history-filter-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
+
+.history-filter-actions button,
+.filtered-empty button {
+  cursor: pointer;
+}
+
 .loading-state {
   margin-top: 4rem;
   color: var(--muted);
+}
+
+.history-error {
+  display: grid;
+  justify-items: start;
+  gap: 0.8rem;
+  margin-top: 3rem;
+}
+
+.history-error .secondary-button {
+  cursor: pointer;
 }
 
 .empty-history {
@@ -472,6 +533,15 @@ select {
   max-width: 32rem;
   color: var(--muted);
   line-height: 1.6;
+}
+
+.filtered-empty {
+  gap: 0.7rem;
+}
+
+.filtered-empty .secondary-button {
+  width: fit-content;
+  margin-top: 0.4rem;
 }
 
 .empty-orbit {
@@ -545,9 +615,64 @@ select {
   background: rgba(136, 222, 213, 0.18);
 }
 
-.history-list time {
+.history-item-main,
+.history-item-meta {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.history-item-main {
+  min-width: 0;
+}
+
+.history-item-main strong {
+  font-family: Georgia, serif;
+  font-size: 1.15rem;
+  font-weight: 400;
+  letter-spacing: -0.03em;
+}
+
+.history-item-status,
+.history-item-meta {
   color: var(--muted);
   font-size: 0.8rem;
+}
+
+.history-item-status {
+  color: var(--coral);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.history-item-meta {
+  flex: 0 0 12rem;
+  justify-items: end;
+  text-align: right;
+}
+
+.history-list time {
+  color: var(--muted);
+  font-size: 0.76rem;
+  white-space: nowrap;
+}
+
+.history-transcript {
+  max-width: 40rem;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-bounded-note {
+  margin-top: 2rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.5;
 }
 
 .analysis-page {
@@ -1146,6 +1271,22 @@ select {
 
   .analysis-layout {
     grid-template-columns: 1fr;
+  }
+
+  .history-filter-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .history-filter-search {
+    grid-column: auto;
+  }
+
+  .history-item-link {
+    align-items: flex-start;
+  }
+
+  .history-item-meta {
+    flex-basis: 8rem;
   }
 
   .analysis-record-header,

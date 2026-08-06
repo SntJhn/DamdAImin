@@ -36,10 +36,15 @@ export {
   type TechnicalTrace,
 } from './analysis.js';
 export {
+  AnalysisHistoryQuerySchema,
+  AnalysisHistoryResultFilterSchema,
   AnalysisHistoryItemSchema,
+  AnalysisHistoryResultSchema,
+  AnalysisHistoryStatusSchema,
   AnalysisHistoryResponseSchema,
   ServiceUnavailableResponseSchema,
   UnauthorizedResponseSchema,
+  type AnalysisHistoryQuery,
   type AnalysisHistoryItem,
   type AnalysisHistoryResponse,
 } from './analysis-history.js';

@@ -17,8 +17,6 @@ export const privacyRedactionPaths = [
   'analysis.result',
   'confidence',
   'probabilities',
-  'req.headers.authorization',
-  'req.headers.cookie',
   'err.message',
   'err.stack',
   'error.message',
@@ -35,6 +33,10 @@ export function createPrivacySafeLogger(
   return pino(
     {
       ...options,
+      serializers: {
+        ...options.serializers,
+        req: serializeSafeRequest,
+      },
       redact: {
         paths: [...privacyRedactionPaths],
         censor: '[REDACTED]',
@@ -42,4 +44,15 @@ export function createPrivacySafeLogger(
     },
     destination,
   );
+}
+
+function serializeSafeRequest(request: unknown): Record<string, unknown> {
+  if (!request || typeof request !== 'object') return {};
+
+  const candidate = request as Record<string, unknown>;
+  return {
+    method: candidate.method,
+    host: candidate.hostname ?? candidate.host,
+    remoteAddress: candidate.ip ?? candidate.remoteAddress,
+  };
 }

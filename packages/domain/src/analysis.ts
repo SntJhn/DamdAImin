@@ -191,5 +191,31 @@ export interface AnalysisSummary {
   id: string;
   accountId: string;
   status: AnalysisStatus;
+  language: AnalysisLanguage;
   createdAt: Date;
+  result: AnalysisHistoryResult | null;
+}
+
+export type AnalysisHistoryResult =
+  | {
+      outcome: 'definitive';
+      emotionClassification: EmotionClassification;
+      transcript: string;
+    }
+  | {
+      outcome: 'inconclusive';
+      transcript: string;
+    };
+
+export function toAnalysisHistoryResult(result: AnalysisResult): AnalysisHistoryResult {
+  return result.outcome === 'definitive'
+    ? {
+        outcome: 'definitive',
+        emotionClassification: result.emotionClassification,
+        transcript: result.transcript,
+      }
+    : {
+        outcome: 'inconclusive',
+        transcript: result.transcript,
+      };
 }

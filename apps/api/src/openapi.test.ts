@@ -10,6 +10,7 @@ interface OpenApiDocument {
       get?: {
         summary?: string;
         security?: unknown;
+        parameters?: Array<{ name?: string; in?: string }>;
         responses?: Record<string, unknown>;
       };
     }
@@ -32,7 +33,17 @@ describe('OpenAPI document', () => {
       expect(document.openapi).toBe('3.0.3');
       expect(analysesRoute?.summary).toBe("List the authenticated account's Analysis History");
       expect(analysesRoute?.security).toEqual([{ bearerAuth: [] }]);
+      expect(analysesRoute?.parameters?.map((parameter) => parameter.name)).toEqual([
+        'search',
+        'status',
+        'result',
+        'language',
+        'from',
+        'to',
+        'limit',
+      ]);
       expect(analysesRoute?.responses).toHaveProperty('200');
+      expect(analysesRoute?.responses).toHaveProperty('400');
       expect(healthRoute?.summary).toBe('Check API readiness');
       expect(document.components?.securitySchemes).toHaveProperty('bearerAuth');
     } finally {
