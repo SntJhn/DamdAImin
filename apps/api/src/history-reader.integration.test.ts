@@ -99,6 +99,8 @@ const integrationTelemetry = {
     integrationTelemetryEvents.push(event);
   },
 };
+const analysisCompletionPollIntervalMs = 100;
+const analysisCompletionTimeoutMs = 12_000;
 
 const historyDefinitiveResult: AnalysisResult = {
   outcome: 'definitive',
@@ -514,8 +516,9 @@ afterAll(async () => {
 
 async function waitForCompletedAnalysis(analysisId: string): Promise<Record<string, unknown>> {
   let lastStatus = 'unknown';
+  const deadline = Date.now() + analysisCompletionTimeoutMs;
 
-  for (let attempt = 0; attempt < 60; attempt += 1) {
+  while (Date.now() < deadline) {
     const response = await analysisApplication!.inject({
       method: 'GET',
       url: `/api/v2/analyses/${analysisId}`,
@@ -529,7 +532,7 @@ async function waitForCompletedAnalysis(analysisId: string): Promise<Record<stri
       if (body.status === 'failed') throw new Error('Integration Analysis failed');
     }
 
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, analysisCompletionPollIntervalMs));
   }
 
   throw new Error(`Analysis did not complete; last status was ${lastStatus}`);
