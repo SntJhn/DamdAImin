@@ -99,8 +99,6 @@ const integrationTelemetry = {
     integrationTelemetryEvents.push(event);
   },
 };
-const analysisCompletionPollIntervalMs = 100;
-const analysisCompletionTimeoutMs = 12_000;
 
 const historyDefinitiveResult: AnalysisResult = {
   outcome: 'definitive',
@@ -514,28 +512,17 @@ afterAll(async () => {
   await database.pool.end();
 });
 
-async function waitForCompletedAnalysis(analysisId: string): Promise<Record<string, unknown>> {
-  let lastStatus = 'unknown';
-  const deadline = Date.now() + analysisCompletionTimeoutMs;
-
-  while (Date.now() < deadline) {
-    const response = await analysisApplication!.inject({
-      method: 'GET',
-      url: `/api/v2/analyses/${analysisId}`,
-      headers: { authorization: 'Bearer account-a-token' },
-    });
-
-    if (response.statusCode === 200) {
-      const body = response.json() as Record<string, unknown>;
-      lastStatus = String(body.status);
-      if (body.status === 'completed') return body;
-      if (body.status === 'failed') throw new Error('Integration Analysis failed');
-    }
-
-    await new Promise((resolve) => setTimeout(resolve, analysisCompletionPollIntervalMs));
+function waitForNextWorkerCompletion(): Promise<AnalysisJob> {
+  const worker = integrationWorker;
+  if (!worker) {
+    return Promise.reject(new Error('Integration worker is unavailable'));
   }
 
-  throw new Error(`Analysis did not complete; last status was ${lastStatus}`);
+  return new Promise((resolve) => {
+    worker.once('completed', (job) => {
+      resolve(job.data);
+    });
+  });
 }
 
 describe('real database history ownership boundary', () => {
@@ -702,6 +689,7 @@ describe('real database history ownership boundary', () => {
     expect(analysisApplication).toBeDefined();
     expect(analysisServices).toBeDefined();
 
+    const workerCompletion = waitForNextWorkerCompletion();
     const submitted = await analysisApplication!.inject({
       method: 'POST',
       url: '/api/v2/analyses',
@@ -718,7 +706,14 @@ describe('real database history ownership boundary', () => {
       contractVersion: 'taglish-v2',
     });
 
-    const completed = await waitForCompletedAnalysis(submittedAnalysisId);
+    await expect(workerCompletion).resolves.toEqual(integrationJobs[0]);
+    const completedResponse = await analysisApplication!.inject({
+      method: 'GET',
+      url: `/api/v2/analyses/${submittedAnalysisId}`,
+      headers: { authorization: 'Bearer account-a-token' },
+    });
+    expect(completedResponse.statusCode).toBe(200);
+    const completed = completedResponse.json() as Record<string, unknown>;
     expect(completed).toMatchObject({
       id: submittedAnalysisId,
       status: 'completed',
