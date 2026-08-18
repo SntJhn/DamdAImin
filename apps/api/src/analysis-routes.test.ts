@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   AnalysisConflictError,
+  AnalysisNotFoundError,
   type Analysis,
   type AnalysisServices,
   type AnalysisTelemetryEvent,
@@ -87,6 +88,7 @@ function createServices(currentAnalysis: Analysis = analysis): AnalysisServices 
     })),
     finalizeUpload: vi.fn(async () => currentAnalysis),
     getAnalysis: vi.fn(async () => currentAnalysis),
+    deleteAnalysis: vi.fn(async () => undefined),
     cancelAnalysis: vi.fn(async () => currentAnalysis),
     retryAnalysis: vi.fn(async () => currentAnalysis),
     processAnalysis: vi.fn(async () => undefined),
@@ -204,6 +206,47 @@ describe('Analysis REST boundary', () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({ id: analysis.id, status: 'queued' });
     expect(analysisServices.getAnalysis).toHaveBeenCalledWith('account-a', analysis.id);
+  });
+
+  it('deletes an owned Analysis through the authenticated ownership boundary', async () => {
+    const analysisServices = createServices();
+    analysisServices.deleteAnalysis = vi.fn(async () => undefined);
+    const application = buildApi({
+      authVerifier: { verify: async () => ({ accountId: 'account-a' }) },
+      analysisServices,
+    });
+    applications.push(application);
+
+    const response = await application.inject({
+      method: 'DELETE',
+      url: `/api/v2/analyses/${analysis.id}`,
+      headers: { authorization: 'Bearer verified-token' },
+    });
+
+    expect(response.statusCode).toBe(204);
+    expect(response.body).toBe('');
+    expect(analysisServices.deleteAnalysis).toHaveBeenCalledWith('account-a', analysis.id);
+  });
+
+  it('returns 404 when the Analysis cannot be deleted for the authenticated account', async () => {
+    const analysisServices = createServices();
+    analysisServices.deleteAnalysis = vi.fn(async () => {
+      throw new AnalysisNotFoundError();
+    });
+    const application = buildApi({
+      authVerifier: { verify: async () => ({ accountId: 'account-a' }) },
+      analysisServices,
+    });
+    applications.push(application);
+
+    const response = await application.inject({
+      method: 'DELETE',
+      url: `/api/v2/analyses/${analysis.id}`,
+      headers: { authorization: 'Bearer verified-token' },
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toEqual({ error: 'not_found' });
   });
 
   it('returns the complete persisted Analysis Record through the resource boundary', async () => {

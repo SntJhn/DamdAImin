@@ -483,6 +483,42 @@ export function buildApi(options: ApiOptions = {}): FastifyInstance {
           }
         },
       );
+
+      api.delete(
+        '/analyses/:id',
+        {
+          schema: {
+            tags: ['Analyses'],
+            summary: 'Delete one owned Analysis and its associated content',
+            security: [{ bearerAuth: [] }],
+            params: AnalysisIdParamsSchema,
+            response: {
+              204: { type: 'null' },
+              401: UnauthorizedResponseSchema,
+              404: NotFoundResponseSchema,
+              503: ServiceUnavailableResponseSchema,
+            },
+          },
+        },
+        async (request, reply) => {
+          if (!options.analysisServices || !request.accountId) {
+            return reply.code(503).send({ error: 'service_unavailable' as const });
+          }
+
+          try {
+            const params = request.params as AnalysisIdParams;
+            await options.analysisServices.deleteAnalysis(request.accountId, params.id);
+            return reply.code(204).send();
+          } catch (error) {
+            if (error instanceof AnalysisNotFoundError) {
+              return reply.code(404).send({ error: 'not_found' as const });
+            }
+
+            request.log.error(error, 'analysis deletion unavailable');
+            return reply.code(503).send({ error: 'service_unavailable' as const });
+          }
+        },
+      );
     },
     { prefix: '/api/v2' },
   );

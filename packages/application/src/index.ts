@@ -21,6 +21,7 @@ export {
   type AnalysisAudit,
   type AnalysisAuditEvent,
   type AnalysisCancellation,
+  type AnalysisDeletion,
   type AnalysisJob,
   type AnalysisQueue,
   type AnalysisRepository,

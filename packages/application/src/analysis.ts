@@ -89,6 +89,11 @@ export interface AnalysisRetryResult {
   created: boolean;
 }
 
+export interface AnalysisDeletion {
+  analysis: Analysis;
+  sourceAudioKey: string | null;
+}
+
 export interface AnalysisRepository {
   createUpload(upload: AnalysisUpload): Promise<AnalysisUpload>;
   getUpload(accountId: string, uploadId: string): Promise<AnalysisUpload | null>;
@@ -99,6 +104,7 @@ export interface AnalysisRepository {
   }): Promise<Analysis>;
   getAnalysis(accountId: string, analysisId: string): Promise<Analysis | null>;
   getAnalysisForWorker(analysisId: string): Promise<Analysis | null>;
+  deleteAnalysis(accountId: string, analysisId: string): Promise<AnalysisDeletion | null>;
   beginProcessing(analysisId: string, at?: Date): Promise<Analysis | null>;
   completeAnalysis(analysisId: string, result: AnalysisResult): Promise<boolean>;
   failAnalysis(analysisId: string, message: string): Promise<boolean>;
@@ -168,6 +174,7 @@ export interface AnalysisServices {
   }): Promise<CreatedAnalysisUpload>;
   finalizeUpload(accountId: string, uploadId: string): Promise<Analysis>;
   getAnalysis(accountId: string, analysisId: string): Promise<Analysis>;
+  deleteAnalysis(accountId: string, analysisId: string): Promise<void>;
   cancelAnalysis(accountId: string, analysisId: string): Promise<Analysis>;
   retryAnalysis(accountId: string, analysisId: string): Promise<Analysis>;
   processAnalysis(job: AnalysisJob): Promise<void>;
@@ -344,6 +351,17 @@ export function createAnalysisServices(options: AnalysisServiceOptions): Analysi
       }
 
       return analysis;
+    },
+
+    async deleteAnalysis(accountId: string, analysisId: string): Promise<void> {
+      const deletion = await options.repository.deleteAnalysis(accountId, analysisId);
+      if (!deletion) {
+        throw new AnalysisNotFoundError();
+      }
+
+      if (deletion.sourceAudioKey) {
+        await deleteBestEffort(options.storage, deletion.sourceAudioKey);
+      }
     },
 
     async cancelAnalysis(accountId: string, analysisId: string): Promise<Analysis> {

@@ -119,6 +119,17 @@ class MemoryRepository implements AnalysisRepository {
     return this.analyses.get(analysisId) ?? null;
   }
 
+  async deleteAnalysis(accountId: string, analysisId: string) {
+    const analysis = await this.getAnalysis(accountId, analysisId);
+    if (!analysis) return null;
+
+    this.analyses.delete(analysisId);
+    for (const [uploadId, upload] of this.uploads) {
+      if (upload.analysisId === analysisId) this.uploads.delete(uploadId);
+    }
+    return { analysis, sourceAudioKey: analysis.sourceAudioKey };
+  }
+
   async beginProcessing(analysisId: string): Promise<Analysis | null> {
     const analysis = this.analyses.get(analysisId);
     if (!analysis || analysis.status !== 'queued') return null;
@@ -255,6 +266,56 @@ class MemoryStorage implements SourceAudioStorage {
 }
 
 describe('Analysis application service', () => {
+  it('deletes an owned Analysis and Source Audio, while a late worker cannot recreate it', async () => {
+    const repository = new MemoryRepository();
+    const storage = new MemoryStorage();
+    let resolveResearch: ((value: AnalysisResult) => void) | undefined;
+    const researchFinished = new Promise<AnalysisResult>((resolve) => {
+      resolveResearch = resolve;
+    });
+    const services = createAnalysisServices({
+      repository,
+      storage,
+      queue: { enqueue: async () => undefined },
+      createId: (() => {
+        const ids = ['upload-id', 'analysis-id'];
+        return () => ids.shift()!;
+      })(),
+      researchClient: { analyze: async () => researchFinished },
+    });
+
+    const upload = await services.createUpload({
+      accountId: 'account-a',
+      language: 'taglish',
+      contractVersion: 'taglish-v2',
+    });
+    storage.objects.set(upload.upload.objectKey, {
+      bytes: createPcmWav(1),
+      contentType: 'audio/wav',
+    });
+    const queued = await services.finalizeUpload('account-a', upload.upload.id);
+
+    await expect(services.deleteAnalysis('account-b', queued.id)).rejects.toThrow(
+      'Analysis was not found',
+    );
+    const processing = services.processAnalysis({
+      analysisId: queued.id,
+      language: queued.language,
+      contractVersion: queued.contractVersion,
+    });
+    await vi.waitFor(async () => {
+      expect((await repository.getAnalysis('account-a', queued.id))?.status).toBe('processing');
+    });
+
+    await services.deleteAnalysis('account-a', queued.id);
+    resolveResearch?.(result);
+    await processing;
+
+    expect(repository.analyses.has(queued.id)).toBe(false);
+    expect(repository.uploads.has(upload.upload.id)).toBe(false);
+    expect(storage.objects.has(upload.upload.objectKey)).toBe(false);
+  });
+
   it('validates the uploaded WAV, queues only the durable analysis metadata, and completes it', async () => {
     const repository = new MemoryRepository();
     const storage = new MemoryStorage();

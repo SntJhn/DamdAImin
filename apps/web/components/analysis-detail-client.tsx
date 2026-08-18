@@ -130,6 +130,7 @@ export function AnalysisDetailClient({ analysisId }: { analysisId: string }) {
     try {
       const token = await getAuthToken();
       if (!token) {
+        setActionBusy(false);
         router.replace(`/auth/sign-in?next=/analyses/${analysisId}`);
         return;
       }
@@ -140,6 +141,7 @@ export function AnalysisDetailClient({ analysisId }: { analysisId: string }) {
         cache: 'no-store',
       });
       if (response.status === 401) {
+        setActionBusy(false);
         router.replace(`/auth/sign-in?next=/analyses/${analysisId}`);
         return;
       }
@@ -173,6 +175,48 @@ export function AnalysisDetailClient({ analysisId }: { analysisId: string }) {
           : `The Analysis could not be ${action === 'cancel' ? 'canceled' : 'retried'}.`,
       );
     } finally {
+      setActionBusy(false);
+    }
+  }
+
+  async function deleteAnalysis() {
+    if (!window.confirm('Delete this Analysis Record and its associated content?')) return;
+
+    setError('');
+    setActionBusy(true);
+    try {
+      const token = await getAuthToken();
+      if (!token) {
+        setActionBusy(false);
+        router.replace(`/auth/sign-in?next=/analyses/${analysisId}`);
+        return;
+      }
+
+      const response = await fetch(`${apiBaseUrl}/analyses/${analysisId}`, {
+        method: 'DELETE',
+        headers: { authorization: `Bearer ${token}` },
+        cache: 'no-store',
+      });
+      if (response.status === 401) {
+        setActionBusy(false);
+        router.replace(`/auth/sign-in?next=/analyses/${analysisId}`);
+        return;
+      }
+      if (!response.ok) {
+        throw new Error(
+          response.status === 404
+            ? 'That Analysis could not be found.'
+            : 'The Analysis could not be deleted. Try again.',
+        );
+      }
+
+      router.replace('/history');
+    } catch (deleteError) {
+      setError(
+        deleteError instanceof Error
+          ? deleteError.message
+          : 'The Analysis could not be deleted. Try again.',
+      );
       setActionBusy(false);
     }
   }
@@ -250,6 +294,17 @@ export function AnalysisDetailClient({ analysisId }: { analysisId: string }) {
                 )}
               </div>
             ) : null}
+            <div className="analysis-lifecycle-actions">
+              <button
+                className="secondary-button"
+                type="button"
+                disabled={actionBusy}
+                onClick={() => void deleteAnalysis()}
+              >
+                {actionBusy ? 'Deleting…' : 'Delete Analysis'}
+              </button>
+              <p>Deletes this Analysis Record and its associated Source Audio.</p>
+            </div>
             <p className="analysis-id">Analysis ID: {analysis.id}</p>
           </div>
         ) : !error ? (

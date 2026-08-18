@@ -769,4 +769,66 @@ describe('real database history ownership boundary', () => {
     });
     expect(otherAccount.statusCode).toBe(404);
   }, 15_000);
+
+  it('deletes one owned Analysis and its Source Audio through the real repository', async () => {
+    expect(analysisApplication).toBeDefined();
+    expect(analysisServices).toBeDefined();
+    expect(integrationStorage).toBeDefined();
+
+    const upload = await analysisServices!.createUpload({
+      accountId: accountA,
+      language: 'taglish',
+      contractVersion: 'taglish-v2',
+      retainSourceAudio: true,
+    });
+    const sourceUpload = await fetch(upload.uploadUrl, {
+      method: upload.uploadMethod,
+      headers: upload.uploadHeaders,
+      body: createPcmWav(1).buffer as ArrayBuffer,
+    });
+    expect(sourceUpload.ok).toBe(true);
+
+    const workerCompletion = waitForNextWorkerCompletion();
+    const submitted = await analysisApplication!.inject({
+      method: 'POST',
+      url: '/api/v2/analyses',
+      headers: { authorization: 'Bearer account-a-token' },
+      payload: { uploadId: upload.upload.id },
+    });
+    expect(submitted.statusCode).toBe(202);
+    const analysisId = submitted.json().analysis.id as string;
+    await expect(workerCompletion).resolves.toMatchObject({ analysisId });
+    await expect(integrationStorage!.stat(upload.upload.objectKey)).resolves.toMatchObject({
+      contentType: 'audio/wav',
+    });
+
+    const otherAccount = await analysisApplication!.inject({
+      method: 'DELETE',
+      url: `/api/v2/analyses/${analysisId}`,
+      headers: { authorization: 'Bearer account-b-token' },
+    });
+    expect(otherAccount.statusCode).toBe(404);
+
+    const deleted = await analysisApplication!.inject({
+      method: 'DELETE',
+      url: `/api/v2/analyses/${analysisId}`,
+      headers: { authorization: 'Bearer account-a-token' },
+    });
+    expect(deleted.statusCode).toBe(204);
+    await expect(integrationStorage!.stat(upload.upload.objectKey)).resolves.toBeNull();
+
+    const repeatedDelete = await analysisApplication!.inject({
+      method: 'DELETE',
+      url: `/api/v2/analyses/${analysisId}`,
+      headers: { authorization: 'Bearer account-a-token' },
+    });
+    expect(repeatedDelete.statusCode).toBe(404);
+
+    const missing = await analysisApplication!.inject({
+      method: 'GET',
+      url: `/api/v2/analyses/${analysisId}`,
+      headers: { authorization: 'Bearer account-a-token' },
+    });
+    expect(missing.statusCode).toBe(404);
+  }, 15_000);
 });

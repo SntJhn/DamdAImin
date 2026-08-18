@@ -77,6 +77,14 @@ class MemoryRepository implements AnalysisRepository {
     return this.analyses.get(analysisId) ?? null;
   }
 
+  async deleteAnalysis(accountId: string, analysisId: string) {
+    const analysis = await this.getAnalysis(accountId, analysisId);
+    if (!analysis) return null;
+
+    this.analyses.delete(analysisId);
+    return { analysis, sourceAudioKey: analysis.sourceAudioKey };
+  }
+
   async beginProcessing(analysisId: string): Promise<Analysis | null> {
     const analysis = this.analyses.get(analysisId);
     if (!analysis || analysis.status !== 'queued') return null;

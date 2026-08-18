@@ -128,6 +128,55 @@ export function createAnalysisRepository(db: Database): AnalysisRepository {
       return row ? mapAnalysis(row) : null;
     },
 
+    async deleteAnalysis(accountId, analysisId) {
+      return db.transaction(async (transaction) => {
+        const [current] = await transaction
+          .select()
+          .from(analyses)
+          .where(and(eq(analyses.id, analysisId), eq(analyses.accountId, accountId)))
+          .for('update');
+
+        if (!current) return null;
+
+        const sourceAudioKey = current.sourceAudioKey ?? current.sourceAudioCleanupKey;
+        let sourceAudioIsShared = false;
+        if (sourceAudioKey) {
+          const [reference] = await transaction
+            .select({ id: analyses.id })
+            .from(analyses)
+            .where(sourceAudioReferenceCondition(sourceAudioKey, analysisId, new Date()))
+            .limit(1);
+          sourceAudioIsShared = Boolean(reference);
+        }
+
+        await transaction.delete(analysisUploads).where(eq(analysisUploads.analysisId, analysisId));
+
+        if (current.retryOfAnalysisId) {
+          await transaction
+            .update(analyses)
+            .set({ retryAnalysisId: null, updatedAt: new Date() })
+            .where(
+              and(
+                eq(analyses.id, current.retryOfAnalysisId),
+                eq(analyses.retryAnalysisId, analysisId),
+              ),
+            );
+        }
+
+        await transaction
+          .update(analyses)
+          .set({ retryOfAnalysisId: null, updatedAt: new Date() })
+          .where(eq(analyses.retryOfAnalysisId, analysisId));
+
+        await transaction.delete(analyses).where(eq(analyses.id, analysisId));
+
+        return {
+          analysis: mapAnalysis(current),
+          sourceAudioKey: sourceAudioIsShared ? null : sourceAudioKey,
+        };
+      });
+    },
+
     async beginProcessing(analysisId, at = new Date()) {
       const staleBefore = new Date(at.getTime() - processingLeaseMs);
       const [row] = await db
