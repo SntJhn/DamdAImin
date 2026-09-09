@@ -11,8 +11,11 @@ export function AuthShell({ children, description, eyebrow, title }: AuthShellPr
   return (
     <main className="auth-layout">
       <section className="auth-intro" aria-labelledby="auth-title">
-        <Link className="brand" href="/">
-          DamdAImin
+        <Link className="brand auth-brand" href="/" aria-label="DamdAImin home">
+          <span>
+            Damd<span className="auth-brand-accent">AI</span>min
+          </span>
+          <img src="/landing/brand-mark.svg" alt="" aria-hidden="true" />
         </Link>
         <div className="auth-intro-copy">
           <p className="eyebrow">{eyebrow}</p>
