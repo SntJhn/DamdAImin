@@ -32,7 +32,8 @@ const services = createAnalysisServices({
   },
   telemetry: observability.telemetry,
   researchClient: createResearchSystemClient({
-    baseUrl: process.env.RESEARCH_FAKE_URL ?? 'http://localhost:4100',
+    baseUrl:
+      process.env.RESEARCH_SYSTEM_URL ?? process.env.RESEARCH_FAKE_URL ?? 'http://localhost:4100',
   }),
 });
 

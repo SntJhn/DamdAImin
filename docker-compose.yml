@@ -63,7 +63,7 @@ services:
       RESEARCH_FAKE_HOST: 0.0.0.0
       RESEARCH_FAKE_PORT: 4100
     ports:
-      - '4100:4100'
+      - '4101:4100'
     healthcheck:
       test:
         [
@@ -75,6 +75,39 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+  research-engine:
+    build:
+      context: ./services/research-engine
+      dockerfile: Dockerfile
+    environment:
+      RESEARCH_ENGINE_HOST: 0.0.0.0
+      RESEARCH_ENGINE_PORT: 4100
+      TSERA_SOURCE_DIR: /tsera/src
+      TSERA_MODEL_PATH: /tsera/src/models/best_finetuned_baseline.pt
+      SYMBOLIC_KEYWORD_DIR: /tsera/data/raw/keywords
+      ASR_MODEL: ${ASR_MODEL:-large-v3-turbo}
+      ASR_LANGUAGE: ${ASR_LANGUAGE:-auto}
+      ASR_DEVICE: ${ASR_DEVICE:-cpu}
+      ASR_COMPUTE_TYPE: ${ASR_COMPUTE_TYPE:-int8}
+      HF_TOKEN: ${HF_TOKEN:-}
+      NEURAL_FUSION_WEIGHT: ${NEURAL_FUSION_WEIGHT:-0.80}
+      SYMBOLIC_FUSION_WEIGHT: ${SYMBOLIC_FUSION_WEIGHT:-0.20}
+    volumes:
+      - ${TSERA_ROOT:-/Users/jagdv/Coding/TSERA}:/tsera:ro
+    ports:
+      - '4100:4100'
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'python',
+          '-c',
+          "import urllib.request; urllib.request.urlopen('http://localhost:4100/healthz', timeout=3)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 30
 
   api:
     build:
@@ -91,7 +124,7 @@ services:
       NEON_AUTH_ISSUER: ${NEON_AUTH_ISSUER:?NEON_AUTH_ISSUER is required}
       NEON_AUTH_AUDIENCE: ${NEON_AUTH_AUDIENCE:?NEON_AUTH_AUDIENCE is required}
       REDIS_URL: redis://redis:6379
-      RESEARCH_FAKE_URL: http://research-fake:4100
+      RESEARCH_SYSTEM_URL: http://research-engine:4100
       GCS_ENDPOINT: http://fake-gcs:4443
       GCS_PUBLIC_ENDPOINT: http://localhost:4443
       GCS_PROJECT_ID: damdai-local
@@ -102,7 +135,7 @@ services:
         condition: service_healthy
       fake-gcs:
         condition: service_healthy
-      research-fake:
+      research-engine:
         condition: service_healthy
       otel-collector:
         condition: service_healthy
@@ -128,7 +161,7 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       REDIS_URL: redis://redis:6379
-      RESEARCH_FAKE_URL: http://research-fake:4100
+      RESEARCH_SYSTEM_URL: http://research-engine:4100
       GCS_ENDPOINT: http://fake-gcs:4443
       GCS_PROJECT_ID: damdai-local
       GCS_SOURCE_BUCKET: damdai-source-audio
@@ -138,7 +171,7 @@ services:
         condition: service_healthy
       fake-gcs:
         condition: service_healthy
-      research-fake:
+      research-engine:
         condition: service_healthy
 
   web:

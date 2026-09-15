@@ -4,7 +4,7 @@ DamdAImin is the application shell for the completed explainable speech-emotion 
 
 ## Status
 
-The product requirements, local-first implementation route, and architecture are specified. The authenticated foundation and first complete Analysis tracer bullet are implemented locally: a verified user can upload one Taglish WAV, observe durable processing, and receive a deterministic completed classification through the API, queue, worker, storage, and Research System fake boundaries.
+The product requirements, local-first implementation route, and architecture are specified. The authenticated foundation and first complete Analysis tracer bullet are implemented locally: a verified user can upload one Taglish WAV, observe durable processing, and receive a model-backed completed classification through the API, queue, worker, storage, and Research System boundaries.
 
 - Product scope: [PRD: DamdAImin MVP](https://github.com/SntJhn/DamdAImin/issues/1)
 - Implementation plan: [MVP implementation plan](docs/plans/mvp-implementation-plan.md)
@@ -33,7 +33,12 @@ To start locally:
 1. Activate Node 24 (`nvm use`), then run `pnpm install`.
 2. Copy `.env.example` to `.env` and add the local Neon development-branch connection string.
 3. Run `pnpm db:migrate` to create only the application-owned `app` schema.
-4. Run `docker compose up --build`.
+4. Start the local dependencies with `docker compose up -d redis fake-gcs otel-collector`.
+5. Run `pnpm dev`. This starts the web app, API, worker, and model-backed Research System; the
+   research engine is run in Docker because its Python dependencies and mounted TSERA checkout
+   are containerized.
+
+For an all-in-Docker runtime, `docker compose up --build` remains supported.
 
 The supplied Neon credential is intentionally not stored in this repository. Keep it in the ignored `.env` file and rotate it if it has been exposed outside the intended development team.
 
@@ -47,7 +52,12 @@ Run `pnpm quality` for the complete local gate, including formatting, linting, t
 
 ## Research integration boundary
 
-Development will use a deterministic fake Research System that implements the same versioned contract as the completed neuro-symbolic service. The neural-only Baseline Model cannot serve as the DamdAImin analysis implementation.
+Development uses a model-backed Research System that implements the same
+versioned contract as the completed neuro-symbolic service. The service reads
+the mounted TSERA fine-tuned checkpoint, transcribes with Whisper, applies the
+preliminary symbolic layer, and returns the transcript, classification,
+explanation, and technical trace. The deterministic fake remains available at
+port 4101 for contract-only testing.
 
 ## Reference inputs
 

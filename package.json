@@ -7,7 +7,7 @@
   },
   "scripts": {
     "build": "pnpm runtime:check && pnpm --recursive --if-present build",
-    "dev": "pnpm --parallel --filter @damdai/web --filter @damdai/api --filter @damdai/worker --filter @damdai/research-fake run dev",
+    "dev": "pnpm --parallel --filter @damdai/web --filter @damdai/api --filter @damdai/worker --filter @damdai/research-engine run dev",
     "format": "pnpm runtime:check && prettier --check .",
     "format:write": "pnpm runtime:check && prettier --write .",
     "lint": "pnpm runtime:check && eslint .",

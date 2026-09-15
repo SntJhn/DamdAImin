@@ -1,0 +1,8 @@
+{
+  "name": "@damdai/research-engine",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "docker compose --env-file ../../.env --project-directory ../.. -f ../../docker-compose.yml up --build research-engine"
+  }
+}

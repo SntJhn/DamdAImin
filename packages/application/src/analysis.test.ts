@@ -378,6 +378,63 @@ describe('Analysis application service', () => {
     });
   });
 
+  it('keeps non-retained Source Audio available while status polling sees an in-flight Analysis', async () => {
+    const repository = new MemoryRepository();
+    const storage = new MemoryStorage();
+    let resolveResearch: ((value: AnalysisResult) => void) | undefined;
+    const researchFinished = new Promise<AnalysisResult>((resolve) => {
+      resolveResearch = resolve;
+    });
+    const analyze = vi.fn(async () => researchFinished);
+    const services = createAnalysisServices({
+      repository,
+      storage,
+      queue: { enqueue: async () => undefined },
+      createId: (() => {
+        const ids = ['upload-id', 'analysis-id'];
+        return () => ids.shift()!;
+      })(),
+      researchClient: { analyze },
+    });
+
+    const upload = await services.createUpload({
+      accountId: 'account-a',
+      language: 'taglish',
+      contractVersion: 'taglish-v2',
+    });
+    storage.objects.set(upload.upload.objectKey, {
+      bytes: createPcmWav(1),
+      contentType: 'audio/wav',
+    });
+    const queued = await services.finalizeUpload('account-a', upload.upload.id);
+    const processing = services.processAnalysis({
+      analysisId: queued.id,
+      language: queued.language,
+      contractVersion: queued.contractVersion,
+    });
+
+    await vi.waitFor(() => {
+      expect(repository.analyses.get(queued.id)?.status).toBe('processing');
+    });
+
+    const observed = await services.getAnalysis('account-a', queued.id);
+    expect(observed).toMatchObject({
+      status: 'processing',
+      sourceAudioKey: upload.upload.objectKey,
+    });
+    expect(storage.objects.has(upload.upload.objectKey)).toBe(true);
+
+    resolveResearch?.(result);
+    await processing;
+
+    expect(analyze).toHaveBeenCalledOnce();
+    expect(repository.analyses.get(queued.id)).toMatchObject({
+      status: 'completed',
+      result,
+    });
+    expect(storage.objects.has(upload.upload.objectKey)).toBe(false);
+  });
+
   it('rejects invalid WAV data before queueing an Analysis', async () => {
     const repository = new MemoryRepository();
     const storage = new MemoryStorage();

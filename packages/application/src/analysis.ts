@@ -345,7 +345,8 @@ export function createAnalysisServices(options: AnalysisServiceOptions): Analysi
         throw new AnalysisNotFoundError();
       }
 
-      if (shouldForgetSourceAudio(analysis, now())) {
+      const isInFlight = analysis.status === 'queued' || analysis.status === 'processing';
+      if (!isInFlight && shouldForgetSourceAudio(analysis, now())) {
         await deleteAndForgetSourceAudioIfPresent(options, analysis, now);
         analysis = (await options.repository.getAnalysis(accountId, analysisId)) ?? analysis;
       }

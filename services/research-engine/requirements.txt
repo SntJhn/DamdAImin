@@ -1,0 +1,6 @@
+faster-whisper>=1.1,<2
+librosa>=0.10,<1
+numpy>=1.26,<3
+soundfile>=0.12,<1
+torch>=2.6,<3
+torchaudio>=2.6,<3
