@@ -3,6 +3,21 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import {
+  Activity,
+  ArrowLeft,
+  ArrowUpRight,
+  AudioLines,
+  BarChart3,
+  CircleCheck,
+  FileText,
+  History,
+  LayoutDashboard,
+  Lightbulb,
+  ListChecks,
+  LogOut,
+  Mic2,
+} from 'lucide-react';
 
 import type { AnalysisResource, AnalysisResult, EmotionClassification } from '@damdai/contracts';
 
@@ -19,6 +34,18 @@ const apiBaseUrl = (process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:40
   /\/$/,
   '',
 );
+
+const classificationKeys = ['happiness', 'sadness', 'anger', 'neutrality'] as const;
+const emotionArtwork: Record<EmotionClassification, string> = {
+  happiness: 'happy.svg',
+  sadness: 'sad.svg',
+  anger: 'angry.svg',
+  neutrality: 'neutral.svg',
+};
+
+type EmotionScores = Record<EmotionClassification, number>;
+type CueSpan = AnalysisResult['technicalTrace']['cueSpans'][number];
+type SourceAudioStatus = 'available' | 'unavailable';
 
 export function AnalysisDetailClient({ analysisId }: { analysisId: string }) {
   const router = useRouter();
@@ -80,10 +107,14 @@ export function AnalysisDetailClient({ analysisId }: { analysisId: string }) {
           return;
         }
         if (response.status === 404) {
-          throw new Error('That Analysis could not be found.');
+          throw new Error(
+            'We couldn’t find this result. It may have been deleted, so check your history.',
+          );
         }
         if (!response.ok) {
-          throw new Error('Analysis status is unavailable right now.');
+          throw new Error(
+            'We couldn’t load this result. Check your connection and refresh the page.',
+          );
         }
 
         const body = (await response.json()) as AnalysisResource;
@@ -95,7 +126,9 @@ export function AnalysisDetailClient({ analysisId }: { analysisId: string }) {
       } catch (loadError) {
         if (!cancelled) {
           setError(
-            loadError instanceof Error ? loadError.message : 'Analysis status is unavailable.',
+            loadError instanceof Error
+              ? loadError.message
+              : 'We couldn’t load this result. Check your connection and refresh the page.',
           );
         }
       }
@@ -156,13 +189,13 @@ export function AnalysisDetailClient({ analysisId }: { analysisId: string }) {
         throw new Error(
           'message' in body && typeof body.message === 'string'
             ? body.message
-            : `The Analysis could not be ${action === 'cancel' ? 'canceled' : 'retried'}.`,
+            : `We couldn’t ${action} this analysis. Try again.`,
         );
       }
 
       if (action === 'retry') {
         const retried = 'analysis' in body ? body.analysis : undefined;
-        if (!retried?.id) throw new Error('The retry did not return a new Analysis.');
+        if (!retried?.id) throw new Error('We couldn’t start a new attempt. Try again.');
         router.replace(`/analyses/${retried.id}`);
         return;
       }
@@ -172,7 +205,7 @@ export function AnalysisDetailClient({ analysisId }: { analysisId: string }) {
       setError(
         actionError instanceof Error
           ? actionError.message
-          : `The Analysis could not be ${action === 'cancel' ? 'canceled' : 'retried'}.`,
+          : `We couldn’t ${action} this analysis. Try again.`,
       );
     } finally {
       setActionBusy(false);
@@ -180,7 +213,7 @@ export function AnalysisDetailClient({ analysisId }: { analysisId: string }) {
   }
 
   async function deleteAnalysis() {
-    if (!window.confirm('Delete this Analysis Record and its associated content?')) return;
+    if (!window.confirm('Delete this result and its recording? This can’t be undone.')) return;
 
     setError('');
     setActionBusy(true);
@@ -205,8 +238,8 @@ export function AnalysisDetailClient({ analysisId }: { analysisId: string }) {
       if (!response.ok) {
         throw new Error(
           response.status === 404
-            ? 'That Analysis could not be found.'
-            : 'The Analysis could not be deleted. Try again.',
+            ? 'We couldn’t find this result. It may already be deleted.'
+            : 'We couldn’t delete this analysis. Try again.',
         );
       }
 
@@ -215,7 +248,7 @@ export function AnalysisDetailClient({ analysisId }: { analysisId: string }) {
       setError(
         deleteError instanceof Error
           ? deleteError.message
-          : 'The Analysis could not be deleted. Try again.',
+          : 'We couldn’t delete this analysis. Try again.',
       );
       setActionBusy(false);
     }
@@ -247,25 +280,25 @@ export function AnalysisDetailClient({ analysisId }: { analysisId: string }) {
           <div className="dashboard-nav-group">
             <p>General</p>
             <Link className="dashboard-nav-item" href="/history">
-              <span className="dashboard-nav-icon dashboard-nav-icon-grid" aria-hidden="true" />
+              <LayoutDashboard className="dashboard-nav-icon" aria-hidden="true" />
               Dashboard
             </Link>
             <Link className="dashboard-nav-item" href="/analyze">
-              <span className="dashboard-nav-icon dashboard-nav-icon-mic" aria-hidden="true" />
+              <Mic2 className="dashboard-nav-icon" aria-hidden="true" />
               New Analysis
             </Link>
             <Link
               className="dashboard-nav-item dashboard-nav-item-active"
               href="/history#recent-analyses"
             >
-              <span className="dashboard-nav-icon dashboard-nav-icon-bars" aria-hidden="true" />
+              <History className="dashboard-nav-icon" aria-hidden="true" />
               Analysis History
             </Link>
           </div>
           <div className="dashboard-nav-group dashboard-nav-tools">
             <p>Workspace</p>
             <button className="dashboard-nav-item" type="button" onClick={signOut}>
-              <span className="dashboard-nav-icon dashboard-nav-icon-exit" aria-hidden="true" />
+              <LogOut className="dashboard-nav-icon" aria-hidden="true" />
               Sign out
             </button>
           </div>
@@ -290,12 +323,12 @@ export function AnalysisDetailClient({ analysisId }: { analysisId: string }) {
           >
             <span className="dashboard-search-field">
               <span className="dashboard-search-icon" aria-hidden="true">
-                ←
+                <ArrowLeft size={18} />
               </span>
               <span>Back to Analysis History</span>
             </span>
             <span className="dashboard-search-submit" aria-hidden="true">
-              ↗
+              <ArrowUpRight size={18} />
             </span>
           </Link>
           <span className="dashboard-toolbar-account">{accountEmail || 'Private account'}</span>
@@ -304,11 +337,11 @@ export function AnalysisDetailClient({ analysisId }: { analysisId: string }) {
         <div className="analysis-result-content">
           <div className="analysis-result-heading">
             <Link className="analysis-result-breadcrumb" href="/history">
-              Analysis History <span aria-hidden="true">/</span> Record
+              <History size={14} aria-hidden="true" />
+              Analysis History <span aria-hidden="true">/</span> Result
             </Link>
-            <p className="eyebrow">Private speech research</p>
-            <h1 id="analysis-result-title">Analysis Record</h1>
-            <p>Read the returned signal, then follow the evidence behind the prediction.</p>
+            <h1 id="analysis-result-title">Analysis Result</h1>
+            <p>Here’s what your voice and words showed, and why.</p>
           </div>
           {error ? (
             <p className="form-message analysis-result-error" role="alert">
@@ -323,7 +356,6 @@ export function AnalysisDetailClient({ analysisId }: { analysisId: string }) {
                   result={analysis.result}
                   language={analysis.language}
                   createdAt={analysis.createdAt}
-                  analysisId={analysis.id}
                 />
               ) : (
                 <AnalysisLifecycleState
@@ -336,17 +368,49 @@ export function AnalysisDetailClient({ analysisId }: { analysisId: string }) {
               )}
             </div>
           ) : !error ? (
-            <p className="analysis-result-state" role="status">
-              Checking the persisted Analysis stage…
-            </p>
+            <AnalysisResultSkeleton />
           ) : null}
-
-          <Link className="analysis-result-history-link" href="/history">
-            Return to History <span aria-hidden="true">↗</span>
-          </Link>
         </div>
       </section>
     </main>
+  );
+}
+
+function AnalysisResultSkeleton() {
+  return (
+    <div
+      className="analysis-result-skeleton"
+      role="status"
+      aria-label="Loading analysis result"
+      aria-live="polite"
+    >
+      <span className="sr-only">Loading analysis result</span>
+      <div aria-hidden="true">
+        <div className="analysis-result-skeleton-hero">
+          <i />
+          <i />
+          <i />
+          <span>
+            <i />
+            <i />
+            <i />
+          </span>
+        </div>
+        <div className="analysis-result-skeleton-panel">
+          <i />
+          <i />
+          <i />
+        </div>
+        <div className="analysis-result-skeleton-panel analysis-result-skeleton-breakdown">
+          <i />
+          <span>
+            <i />
+            <i />
+            <i />
+          </span>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -371,8 +435,8 @@ function AnalysisLifecycleState({
       ? 'DamdAImin is reading your signal.'
       : 'Your signal is safely in line.';
     const message = isProcessing
-      ? 'Whisper and the research model are analyzing the speech signal. CPU processing can take a few minutes.'
-      : 'Your recording is secured and waiting for the DamdAImin to begin.';
+      ? 'We’re turning your recording into text and analyzing it. This can take a few minutes.'
+      : 'Your recording is saved and waiting for its turn. Analysis will start shortly.';
 
     return (
       <section
@@ -422,7 +486,7 @@ function AnalysisLifecycleState({
             </span>
             <span>
               <strong>Recording received</strong>
-              <small>Private source secured</small>
+              <small>Saved privately</small>
             </span>
           </li>
           <li className="analysis-stage-step analysis-stage-step--current" aria-current="step">
@@ -430,8 +494,8 @@ function AnalysisLifecycleState({
               2
             </span>
             <span>
-              <strong>Research analysis</strong>
-              <small>{isProcessing ? 'ASR + model active' : 'Waiting for engine'}</small>
+              <strong>Analyzing your speech</strong>
+              <small>{isProcessing ? 'In progress now' : 'Waiting to start'}</small>
             </span>
           </li>
           <li className="analysis-stage-step analysis-stage-step--upcoming">
@@ -447,8 +511,10 @@ function AnalysisLifecycleState({
 
         <div className="analysis-waiting-footer">
           <div className="analysis-waiting-assurance">
-            <strong>No action is needed.</strong>
-            <span>You can leave this page; processing continues in the background.</span>
+            <strong>You don’t need to do anything.</strong>
+            <span>
+              You can leave this page. Your result will be in your history when it’s ready.
+            </span>
           </div>
           <div className="analysis-waiting-actions">
             <button
@@ -471,10 +537,10 @@ function AnalysisLifecycleState({
             </button>
           </div>
           <p id="analysis-cancel-description" className="analysis-visually-hidden">
-            Canceling removes the submitted Source Audio and later derived content.
+            Canceling removes your recording and anything created from it.
           </p>
           <p id="analysis-delete-description" className="analysis-visually-hidden">
-            Deletes this Analysis Record and its associated Source Audio.
+            Deletes this result and your recording.
           </p>
           <p className="analysis-result-id">Analysis ID: {analysis.id}</p>
         </div>
@@ -482,39 +548,48 @@ function AnalysisLifecycleState({
     );
   }
 
-  const message =
-    analysis.status === 'failed'
-      ? (analysis.failureMessage ?? 'The Research System could not complete this Analysis.')
-      : analysis.status === 'canceled'
-        ? 'This Analysis was canceled.'
-        : 'The completed Analysis did not include a complete Analysis Record.';
+  const isFailed = analysis.status === 'failed';
+  const isCanceled = analysis.status === 'canceled';
+
+  const title = isFailed
+    ? 'We couldn’t analyze this recording'
+    : isCanceled
+      ? 'Analysis canceled'
+      : 'This result is incomplete';
+
+  const message = isFailed
+    ? (analysis.failureMessage ??
+      'We couldn’t analyze this recording. Check that the audio is clear and try again.')
+    : isCanceled
+      ? 'This Analysis was canceled.'
+      : 'We couldn’t load the full result. Record again to get a new one.';
 
   return (
     <section className="analysis-result-state-card" aria-labelledby="analysis-stage-title">
       <div className="analysis-result-state-icon" aria-hidden="true">
-        {analysis.status === 'failed' ? '!' : analysis.status === 'canceled' ? '×' : '…'}
+        {isFailed ? '!' : isCanceled ? '×' : '…'}
       </div>
       <div className="analysis-result-state-copy">
-        <p className="dashboard-card-kicker">Persisted stage</p>
-        <h2 id="analysis-stage-title">{analysis.stage}</h2>
+        <p className="dashboard-card-kicker">Status</p>
+        <h2 id="analysis-stage-title">{title}</h2>
         <p>{message}</p>
       </div>
 
       <div className="analysis-result-actions">
-        {analysis.status === 'failed' ? (
-          analysis.retryAvailable ? (
-            <button
-              className="analysis-result-button analysis-result-button-primary"
-              type="button"
-              disabled={actionBusy}
-              onClick={onRetry}
-            >
-              {actionBusy ? 'Preparing retry…' : 'Retry Analysis'}
-            </button>
-          ) : (
-            <p>Retry is unavailable because retained Source Audio is no longer present.</p>
-          )
-        ) : null}
+        {isFailed && analysis.retryAvailable ? (
+          <button
+            className="analysis-result-button analysis-result-button-primary"
+            type="button"
+            disabled={actionBusy}
+            onClick={onRetry}
+          >
+            {actionBusy ? 'Preparing retry…' : 'Retry Analysis'}
+          </button>
+        ) : (
+          <Link className="analysis-result-button analysis-result-button-primary" href="/analyze">
+            Start recording
+          </Link>
+        )}
         <button
           className="analysis-result-button analysis-result-button-secondary"
           type="button"
@@ -523,7 +598,11 @@ function AnalysisLifecycleState({
         >
           {actionBusy ? 'Deleting…' : 'Delete Analysis'}
         </button>
-        <p>Deletes this Analysis Record and its associated Source Audio.</p>
+        {isFailed && !analysis.retryAvailable ? (
+          <p>You can’t retry because the recording wasn’t kept. Record again to get a result.</p>
+        ) : (
+          <p>Deleting removes this result and your recording.</p>
+        )}
       </div>
       <p className="analysis-result-id">Analysis ID: {analysis.id}</p>
     </section>
@@ -534,123 +613,118 @@ function AnalysisRecord({
   result,
   language,
   createdAt,
-  analysisId,
 }: {
   result: AnalysisResult;
   language: AnalysisResource['language'];
   createdAt: string;
-  analysisId: string;
 }) {
   const languagePresentation = getAnalysisLanguagePresentation(language);
   const outcomePresentation = getAnalysisOutcomePresentation(result.outcome);
   const classification = result.outcome === 'definitive' ? result.emotionClassification : undefined;
+  const classificationProbability = classification ? result.confidence[classification] : undefined;
+  const classificationLabel = classification ? formatClassification(classification) : undefined;
 
   return (
     <article className="analysis-record" aria-labelledby="analysis-outcome-title">
-      <section className="analysis-result-hero" aria-label="Analysis outcome">
+      <section
+        className={`analysis-result-hero analysis-result-hero--${classification ?? 'inconclusive'}`}
+        aria-label="Analysis outcome"
+      >
         <div className="analysis-result-hero-copy">
-          <p className="analysis-result-hero-kicker">Completed Analysis</p>
-          <h2 id="analysis-outcome-title">
-            {classification ? formatClassification(classification) : outcomePresentation.label}
-          </h2>
-          <p>{outcomePresentation.description}</p>
-          {/* {classificationProbability !== undefined ? (
+          <p className="analysis-result-hero-kicker">
+            {classification ? 'Detected emotion' : 'Result'}
+          </p>
+          <h2 id="analysis-outcome-title">{classificationLabel ?? outcomePresentation.label}</h2>
+          <p>
+            {classification
+              ? 'This is the emotion that best matches your voice and words.'
+              : outcomePresentation.description}
+          </p>
+          {classificationProbability !== undefined ? (
             <div className="analysis-result-hero-confidence">
               <div>
-                <span>Model confidence</span>
+                <span>Confidence</span>
                 <strong>{formatProbability(classificationProbability)}</strong>
               </div>
               <meter
                 min="0"
                 max="1"
                 value={classificationProbability}
-                aria-label={`${classification ? formatClassification(classification) : 'Result'} confidence`}
+                aria-label={`${classificationLabel} confidence`}
               />
             </div>
-          ) : null} */}
+          ) : null}
+          <div className="analysis-result-hero-tags">
+            <span>{languagePresentation.label}</span>
+            <span title={languagePresentation.qualificationDescription}>
+              {languagePresentation.qualification}
+            </span>
+            <span>{formatAnalysisDate(createdAt)}</span>
+          </div>
         </div>
         <div className="analysis-result-hero-mark" aria-hidden="true">
-          <span>{classification ? classification.charAt(0).toUpperCase() : '?'}</span>
+          {classification ? (
+            <img src={`/emotions/${emotionArtwork[classification]}`} alt="" />
+          ) : (
+            <span>?</span>
+          )}
         </div>
       </section>
 
-      <section className="analysis-result-meta" aria-label="Analysis metadata">
-        <div>
-          <span className="analysis-result-meta-label">Language</span>
-          <strong>{languagePresentation.label}</strong>
-          <small>{languagePresentation.qualification}</small>
+      <section className="analysis-result-panel" aria-labelledby="transcript-heading">
+        <div className="analysis-result-panel-heading">
+          <div>
+            <p className="dashboard-card-kicker">
+              <FileText size={14} aria-hidden="true" />
+              Transcript
+            </p>
+            <h3 id="transcript-heading">What You Said</h3>
+          </div>
         </div>
-        <div>
-          <span className="analysis-result-meta-label">Recorded</span>
-          <strong>{formatAnalysisDate(createdAt)}</strong>
-          <small>Record {analysisId.slice(0, 8)}</small>
-        </div>
-        <div>
-          <span className="analysis-result-meta-label">Research status</span>
-          <strong>Returned</strong>
-          <small>{languagePresentation.qualificationDescription}</small>
-        </div>
+        <blockquote
+          className={`analysis-transcript analysis-transcript-highlight${classification ? ` analysis-transcript-highlight--${classification}` : ''}`}
+          aria-label="Transcript"
+        >
+          {result.transcript || (
+            <span className="analysis-empty-value">No transcript was used for this analysis.</span>
+          )}
+        </blockquote>
       </section>
-
-      <p className="analysis-result-scope">
-        {classification
-          ? 'This is a classification of expressed speech from this Analysis Record, based on the evidence returned by the Research System.'
-          : 'This completed Analysis concerns expressed speech from this Analysis Record. It does not provide a definitive classification because the returned evidence was insufficient.'}
-      </p>
-
-      <div className="analysis-result-content-grid">
-        <section className="analysis-result-panel" aria-labelledby="transcript-heading">
-          <div className="analysis-result-panel-heading">
-            <div>
-              <p className="dashboard-card-kicker">Source signal</p>
-              <h3 id="transcript-heading">Transcript used in analysis</h3>
-            </div>
-            <span className="analysis-result-panel-number" aria-hidden="true">
-              01
-            </span>
-          </div>
-          <blockquote className="analysis-transcript" aria-label="Transcript used in analysis">
-            {result.transcript || (
-              <span className="analysis-empty-value">No transcript was returned.</span>
-            )}
-          </blockquote>
-        </section>
-
-        <section className="analysis-result-panel" aria-labelledby="explanation-heading">
-          <div className="analysis-result-panel-heading">
-            <div>
-              <p className="dashboard-card-kicker">Research explanation</p>
-              <h3 id="explanation-heading">Why this result</h3>
-            </div>
-            <span className="analysis-result-panel-number" aria-hidden="true">
-              02
-            </span>
-          </div>
-          <p className="analysis-explanation">{result.explanation}</p>
-        </section>
-      </div>
 
       {classification ? (
-        <ConfidenceBreakdown
+        <LayerComparison
           neural={result.technicalTrace.probabilities.before}
           symbolic={result.technicalTrace.probabilities.symbolic}
+          combined={result.confidence}
         />
       ) : null}
 
-      <section className="analysis-result-trace" aria-labelledby="traceability-heading">
+      <WhyThisResult
+        cueSpans={result.technicalTrace.cueSpans}
+        classification={classification}
+        neural={result.technicalTrace.probabilities.before}
+        symbolic={result.technicalTrace.probabilities.symbolic}
+        combined={result.confidence}
+      />
+
+      <section
+        className={`analysis-result-trace analysis-result-trace--${classification ?? 'inconclusive'}`}
+        aria-labelledby="traceability-heading"
+      >
         <div className="analysis-result-section-heading">
           <div>
-            <p className="dashboard-card-kicker">In plain language</p>
+            <p className="dashboard-card-kicker">
+              <Activity size={14} aria-hidden="true" />
+              Evidence
+            </p>
             <h2 id="traceability-heading">How DamdAImin reached this result</h2>
           </div>
         </div>
-        <p className="analysis-result-trace-intro">
-          The system looked for clues in the speech, checked for matching research rules, and
-          calculated the final emotion scores.
-        </p>
+
         <TechnicalTraceView
           trace={result.technicalTrace}
           classification={classification}
+          explanation={result.explanation}
           versions={{
             contractVersion: result.contractVersion,
             schemaVersion: result.schemaVersion,
@@ -664,82 +738,347 @@ function AnalysisRecord({
   );
 }
 
-const classificationKeys = ['happiness', 'sadness', 'anger', 'neutrality'] as const;
+/* ---------- Layer comparison: Neural (audio), Symbolic (text), Combined ---------- */
 
-function ConfidenceBreakdown({
+function LayerComparison({
   neural,
   symbolic,
+  combined,
 }: {
-  neural: AnalysisResult['confidence'];
-  symbolic?: AnalysisResult['confidence'];
+  neural: EmotionScores;
+  symbolic?: EmotionScores;
+  combined: EmotionScores;
 }) {
+  // Every column uses the combined ranking so rows line up and the order is never hardcoded.
+  const order = rankEmotions(combined).map((row) => row.classification);
+
   return (
-    <section className="analysis-result-confidence" aria-labelledby="confidence-heading">
+    <section className="analysis-result-confidence" aria-labelledby="layers-heading">
       <div className="analysis-result-section-heading">
         <div>
-          <p className="dashboard-card-kicker">Layer comparison</p>
-          <h2 id="confidence-heading">Neural and symbolic probabilities</h2>
+          <p className="dashboard-card-kicker">
+            <BarChart3 size={14} aria-hidden="true" />
+            How each layer score
+          </p>
+          <h2 id="layers-heading">Score Breakdown</h2>
         </div>
-        <p>
-          When a rule supports the neural model’s top emotion, that class receives an agreement
-          boost. If adjusted rule scores cancel out, the symbolic distribution falls back to an
-          even split.
-        </p>
       </div>
-      <div className="analysis-result-confidence-grid">
-        <ConfidenceColumn title="Neural" confidence={neural} />
-        <ConfidenceColumn title="Symbolic + agreement" confidence={symbolic} />
+      <div className="analysis-result-confidence-grid analysis-result-confidence-grid--three">
+        <LayerColumn
+          title="Neural Layer"
+          tag="Audio"
+          description="Listens to how you sound."
+          scores={neural}
+          order={order}
+        />
+        <LayerColumn
+          title="Symbolic Layer"
+          tag="Text"
+          description="Reads your words using research rules."
+          scores={symbolic}
+          order={order}
+        />
+        <LayerColumn
+          title="Combined Result"
+          tag="Final"
+          description="Both layers together."
+          scores={combined}
+          order={order}
+          highlighted
+        />
       </div>
     </section>
   );
 }
 
-function ConfidenceColumn({
+function LayerColumn({
   title,
-  confidence,
+  tag,
+  description,
+  scores,
+  order,
+  highlighted = false,
 }: {
   title: string;
-  confidence?: AnalysisResult['confidence'];
+  tag: string;
+  description: string;
+  scores?: EmotionScores;
+  order: EmotionClassification[];
+  highlighted?: boolean;
 }) {
   return (
-    <section className="analysis-result-confidence-model" aria-label={title + ' probabilities'}>
-      <h3>{title}</h3>
-      {confidence ? (
+    <section
+      className={`analysis-result-confidence-model${highlighted ? ` analysis-result-confidence-model--final analysis-result-confidence-model--${order[0]}` : ''}`}
+      aria-label={title}
+    >
+      <div className="analysis-layer-heading">
+        <h3>{title}</h3>
+        <span className="analysis-layer-tag">{tag}</span>
+      </div>
+      <p className="analysis-layer-description">{description}</p>
+      {scores ? (
         <ul className="analysis-result-confidence-list">
-          {classificationKeys.map((classification) => {
-            const probability = confidence[classification];
-            return (
-              <li key={classification}>
-                <div className="analysis-result-confidence-label">
-                  <span>{formatClassification(classification)}</span>
-                  <strong>{formatProbability(probability)}</strong>
-                </div>
-                <meter
-                  min="0"
-                  max="1"
-                  value={probability}
-                  aria-label={title + ' ' + formatClassification(classification) + ' probability'}
-                />
-              </li>
-            );
-          })}
+          {order.map((classification) => (
+            <li
+              className={`analysis-result-confidence-row analysis-result-confidence-row--${classification}`}
+              key={classification}
+            >
+              <div className="analysis-result-confidence-label">
+                <span>{formatClassification(classification)}</span>
+                <strong>{formatProbability(scores[classification])}</strong>
+              </div>
+              <meter
+                min="0"
+                max="1"
+                value={scores[classification]}
+                aria-label={`${title} ${formatClassification(classification)} probability`}
+              />
+            </li>
+          ))}
         </ul>
       ) : (
         <p className="analysis-result-confidence-unavailable">
-          Symbolic probabilities were not recorded for this analysis.
+          Scores for this layer weren’t recorded for this analysis.
         </p>
       )}
     </section>
   );
 }
 
+/* ---------- Why this result? ---------- */
+
+function WhyThisResult({
+  cueSpans,
+  classification,
+  neural,
+  symbolic,
+  combined,
+}: {
+  cueSpans: CueSpan[];
+  classification?: EmotionClassification;
+  neural: EmotionScores;
+  symbolic?: EmotionScores;
+  combined: EmotionScores;
+}) {
+  const voiceCues = cueSpans.filter((span) => span.source === 'acoustic');
+  const transcriptCues = new Set(['asr_transcript', 'user_reviewed_transcript']);
+  const wordCues = cueSpans
+    .filter((span) => span.source === 'linguistic' && !transcriptCues.has(span.cue.toLowerCase()))
+    .filter(
+      (span, index, spans) =>
+        spans.findIndex((candidate) => candidate.value === span.value) === index,
+    );
+  const audioTop = rankEmotions(neural)[0];
+  const textTop = symbolic ? rankEmotions(symbolic)[0] : undefined;
+
+  let suggestion: string;
+  if (!classification) {
+    suggestion = 'We couldn’t find clear voice or word patterns pointing to one emotion.';
+  } else {
+    suggestion = `The combined result leans ${formatClassification(classification)} (${formatProbability(combined[classification])}).`;
+  }
+  const scoreContext = classification
+    ? [
+        `The audio model leaned ${formatClassification(audioTop.classification)} (${formatProbability(audioTop.probability)}).`,
+        ...(textTop
+          ? [
+              `The text-and-rule layer leaned ${formatClassification(textTop.classification)} (${formatProbability(textTop.probability)}).`,
+            ]
+          : []),
+        'These scores are combined to produce the result for this recording.',
+        ...(textTop && audioTop.classification !== textTop.classification
+          ? [
+              'The layers leaned toward different emotions, so read the combined result with some care.',
+            ]
+          : []),
+      ].join(' ')
+    : undefined;
+
+  return (
+    <section
+      className={`analysis-result-panel analysis-why${classification ? ` analysis-why--${classification}` : ''}`}
+      aria-labelledby="why-heading"
+    >
+      <div className="analysis-result-panel-heading">
+        <div>
+          <p className="dashboard-card-kicker">
+            <Lightbulb size={14} aria-hidden="true" />
+            WHY THIS RESULT?
+          </p>
+          <h3 id="why-heading">Explanation Overview </h3>
+        </div>
+      </div>
+
+      <div className="analysis-why-group">
+        <h4>What this suggests</h4>
+        <p className="analysis-why-summary">{suggestion}</p>
+        {scoreContext ? <p className="analysis-why-summary">{scoreContext}</p> : null}
+      </div>
+
+      {voiceCues.length ? (
+        <div className="analysis-why-group">
+          <h4>Audio clues in this recording</h4>
+          <ul className="analysis-why-list">
+            {voiceCues.map((span, index) => (
+              <li key={`${span.startMs}-${span.cue}-${index}`}>{describeVoiceCue(span)}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {wordCues.length ? (
+        <div className="analysis-why-group">
+          <h4>Words flagged by the text layer</h4>
+          <ul className="analysis-why-cue-list">
+            {wordCues.map((span, index) => (
+              <li key={`${span.cue}-${span.value}-${index}`}>
+                <strong>“{span.value}”</strong>
+                <span>{humanizeCue(span.cue)} cue</span>
+              </li>
+            ))}
+          </ul>
+          <p className="analysis-why-note">
+            These are clues the system returned, not proof of how the speaker felt.
+          </p>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+/* ---------- Source audio playback ---------- */
+
+type PlaybackState = 'loading' | 'ready' | 'missing' | 'error';
+
+function RecordingPlayback({
+  analysisId,
+  status,
+}: {
+  analysisId: string;
+  status?: SourceAudioStatus;
+}) {
+  const [state, setState] = useState<PlaybackState>('loading');
+  const [src, setSrc] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
+
+  useEffect(() => {
+    if (status !== 'available') return;
+
+    const controller = new AbortController();
+    let objectUrl: string | undefined;
+    setState('loading');
+    setSrc(null);
+
+    async function loadAudio() {
+      try {
+        // A native <audio src> can't send an Authorization header, so fetch the
+        // recording with the bearer token and play it from a local object URL.
+        const token = await getAuthToken();
+        if (!token) {
+          setState('error');
+          return;
+        }
+
+        const response = await fetch(`${apiBaseUrl}/analyses/${analysisId}/source-audio`, {
+          headers: { authorization: `Bearer ${token}` },
+          cache: 'no-store',
+          signal: controller.signal,
+        });
+        if (response.status === 404) {
+          setState('missing');
+          return;
+        }
+        if (!response.ok) throw new Error('Source audio unavailable');
+
+        const blob = await response.blob();
+        if (controller.signal.aborted) return;
+        objectUrl = URL.createObjectURL(blob);
+        setSrc(objectUrl);
+        setState('ready');
+      } catch {
+        if (!controller.signal.aborted) setState('error');
+      }
+    }
+
+    void loadAudio();
+    return () => {
+      controller.abort();
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [analysisId, status, attempt]);
+
+  let content: React.ReactNode;
+  if (status !== 'available' && status !== 'unavailable') {
+    content = (
+      <p className="analysis-recording-note">
+        This recording wasn’t saved. Turn on “Keep source audio” on your next analysis to listen
+        again here.
+      </p>
+    );
+  } else if (status === 'unavailable' || state === 'missing') {
+    content = (
+      <p className="analysis-recording-note">
+        This recording is no longer available. Saved recordings are removed after the retention
+        period.
+      </p>
+    );
+  } else if (state === 'error') {
+    content = (
+      <div className="analysis-recording-note" role="alert">
+        <p>We couldn’t load your recording. Check your connection and try again.</p>
+        <button
+          className="analysis-result-button analysis-result-button-secondary"
+          type="button"
+          onClick={() => setAttempt((current) => current + 1)}
+        >
+          Try again
+        </button>
+      </div>
+    );
+  } else if (state === 'ready' && src) {
+    content = (
+      <>
+        <audio controls preload="metadata" src={src} aria-label="Play your recording">
+          Your browser can’t play this recording.
+        </audio>
+        <p className="analysis-recording-hint">Only you can listen to this recording.</p>
+      </>
+    );
+  } else {
+    content = (
+      <p className="analysis-recording-note" role="status">
+        Loading your recording…
+      </p>
+    );
+  }
+
+  return (
+    <section
+      className="analysis-result-panel analysis-recording"
+      aria-labelledby="recording-heading"
+    >
+      <div className="analysis-result-panel-heading">
+        <div>
+          <p className="dashboard-card-kicker">Playback</p>
+          <h3 id="recording-heading">Your recording</h3>
+        </div>
+      </div>
+      {content}
+    </section>
+  );
+}
+
+/* ---------- Evidence: overview, clue table, technical details ---------- */
+
 function TechnicalTraceView({
   trace,
   classification,
+  explanation,
   versions,
 }: {
   trace: AnalysisResult['technicalTrace'];
   classification?: EmotionClassification;
+  explanation: string;
   versions: Pick<
     AnalysisResult,
     'contractVersion' | 'schemaVersion' | 'modelVersion' | 'preprocessingVersion' | 'ruleSetVersion'
@@ -747,67 +1086,73 @@ function TechnicalTraceView({
 }) {
   const cueCount = trace.cueSpans.length;
   const ruleCount = trace.activatedRules.length;
-  const resultBefore = classification ? trace.probabilities.before[classification] : undefined;
-  const resultAfter = classification ? trace.probabilities.after[classification] : undefined;
-  const resultChangeCopy =
-    resultBefore === undefined || resultAfter === undefined || classification === undefined
+  const audioScore = classification ? trace.probabilities.before[classification] : undefined;
+  const finalScore = classification ? trace.probabilities.after[classification] : undefined;
+  const resultCopy =
+    audioScore === undefined || finalScore === undefined || classification === undefined
       ? 'The evidence did not favor one emotion clearly enough.'
-      : 'For ' +
-        formatClassification(classification) +
-        ', the neural model assigned ' +
-        formatProbability(resultBefore) +
-        '; the final blend assigned ' +
-        formatProbability(resultAfter) +
-        '.';
+      : `Audio layer: ${formatProbability(audioScore)}. Combined: ${formatProbability(finalScore)}.`;
 
   return (
     <div className="analysis-trace-body">
       <ol className="analysis-trace-overview" aria-label="How the system reached the result">
         <li>
-          <span className="analysis-trace-overview-step">Speech</span>
-          <strong>{cueCount}</strong>
+          <span className="analysis-trace-overview-step">
+            <AudioLines size={15} aria-hidden="true" />
+            Clues
+          </span>
+          <strong className="analysis-trace-overview-count">{cueCount}</strong>
           <div>
             <b>{cueCount === 1 ? 'clue found' : 'clues found'}</b>
             <p>
               {cueCount
-                ? 'The system marked moments in the voice or words.'
-                : 'No specific speech clues were returned.'}
+                ? 'Words and sounds in your recording that shaped the result.'
+                : 'No specific words or sounds were flagged.'}
             </p>
           </div>
         </li>
         <li>
-          <span className="analysis-trace-overview-step">Rules</span>
-          <strong>{ruleCount}</strong>
+          <span className="analysis-trace-overview-step">
+            <ListChecks size={15} aria-hidden="true" />
+            Rules
+          </span>
+          <strong className="analysis-trace-overview-count">{ruleCount}</strong>
           <div>
-            <b>{ruleCount === 1 ? 'rule activated' : 'rules activated'}</b>
+            <b>{ruleCount === 1 ? 'rule applied' : 'rules applied'}</b>
             <p>
               {ruleCount
-                ? 'Research rules changed the emotion scores.'
-                : 'No activated research rules were returned.'}
+                ? 'Research rules that adjusted the emotion scores.'
+                : 'No research rules adjusted the scores.'}
             </p>
           </div>
         </li>
-        <li className="analysis-trace-overview-result">
-          <span className="analysis-trace-overview-step">Result</span>
+        <li
+          className={`analysis-trace-overview-result${classification ? ` analysis-trace-overview-result--${classification}` : ''}`}
+        >
+          <span className="analysis-trace-overview-step">
+            <CircleCheck size={15} aria-hidden="true" />
+            Result
+          </span>
           <strong>
             {classification ? formatClassification(classification) : 'No clear result'}
           </strong>
           <div>
             <b>
-              {resultAfter !== undefined
-                ? `${formatProbability(resultAfter)} final score`
+              {finalScore !== undefined
+                ? `${formatProbability(finalScore)} final score`
                 : 'Inconclusive'}
             </b>
-            <p>{resultChangeCopy}</p>
+            <p>{resultCopy}</p>
           </div>
         </li>
       </ol>
 
+      <CueTable cueSpans={trace.cueSpans} />
+
       <details className="analysis-trace-technical">
         <summary>
           <span>
-            <strong>View technical evidence</strong>
-            <small>Cue timing, rule IDs, score changes, and system versions</small>
+            <strong>SEE MORE</strong>
           </span>
           <span className="analysis-trace-technical-toggle" aria-hidden="true">
             +
@@ -815,60 +1160,47 @@ function TechnicalTraceView({
         </summary>
 
         <div className="analysis-trace-technical-body">
-          <p className="analysis-trace-note">
-            This evidence is shown as returned by the Research System. It does not connect an
-            individual speech clue to an individual rule because that mapping was not returned.
-          </p>
+          <section className="analysis-trace-card" aria-labelledby="original-explanation-heading">
+            <div className="analysis-trace-card-heading">
+              <p className="dashboard-card-kicker">From the analysis system</p>
+              <h3 id="original-explanation-heading">What the system reported</h3>
+            </div>
+            <details className="analysis-trace-raw-output">
+              <summary>Show the original explanation</summary>
+              <p>{explanation}</p>
+            </details>
+          </section>
 
-          <div className="analysis-trace-columns">
-            <section className="analysis-trace-card" aria-labelledby="cue-spans-heading">
-              <div className="analysis-trace-card-heading">
-                <p className="dashboard-card-kicker">Signal input</p>
-                <h3 id="cue-spans-heading">Detected speech clues</h3>
-              </div>
-              {trace.cueSpans.length ? (
-                <ul className="analysis-trace-list">
-                  {trace.cueSpans.map((span, cueIndex) => (
-                    <li key={`${span.source}-${span.startMs}-${span.endMs}-${span.cue}-${cueIndex}`}>
-                      <div className="analysis-trace-item-heading">
-                        <strong>{span.cue}</strong>
-                        <span>{span.source}</span>
-                      </div>
-                      <p>{span.value}</p>
-                      <small>
-                        {span.startMs}–{span.endMs} ms
-                      </small>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="analysis-empty-value">No speech clues were returned.</p>
-              )}
-            </section>
-
+          <div className="analysis-trace-columns analysis-trace-columns--two">
             <section className="analysis-trace-card" aria-labelledby="activated-rules-heading">
               <div className="analysis-trace-card-heading">
-                <p className="dashboard-card-kicker">Symbolic layer</p>
-                <h3 id="activated-rules-heading">Rules the system activated</h3>
+                <p className="dashboard-card-kicker">Text analysis</p>
+                <h3 id="activated-rules-heading">Scoring rules used</h3>
               </div>
               {trace.activatedRules.length ? (
                 <ul className="analysis-trace-list">
-                  {trace.activatedRules.map((rule) => (
-                    <li key={rule.id}>
-                      <strong>{rule.id}</strong>
-                      <p>{rule.description}</p>
-                    </li>
-                  ))}
+                  {trace.activatedRules.map((rule) => {
+                    const description = describeResearchRule(rule.id, rule.description);
+                    return (
+                      <li key={rule.id}>
+                        <strong>{description.title}</strong>
+                        <p>{description.detail}</p>
+                        <small>Rule ID: {rule.id}</small>
+                      </li>
+                    );
+                  })}
                 </ul>
               ) : (
-                <p className="analysis-empty-value">No rules were activated.</p>
+                <p className="analysis-empty-value">
+                  No scoring rules changed the result for this recording.
+                </p>
               )}
             </section>
 
             <section className="analysis-trace-card" aria-labelledby="score-adjustments-heading">
               <div className="analysis-trace-card-heading">
-                <p className="dashboard-card-kicker">Rule evidence</p>
-                <h3 id="score-adjustments-heading">Raw symbolic score signals</h3>
+                <p className="dashboard-card-kicker">Score changes</p>
+                <h3 id="score-adjustments-heading">How clues shifted the scores</h3>
               </div>
               {trace.scoreAdjustments.length ? (
                 <ul className="analysis-trace-list">
@@ -876,14 +1208,20 @@ function TechnicalTraceView({
                     <li key={`${adjustment.emotionClassification}-${index}`}>
                       <div className="analysis-trace-item-heading">
                         <strong>{formatClassification(adjustment.emotionClassification)}</strong>
-                        <span>{`${adjustment.delta >= 0 ? "+" : ""}${adjustment.delta.toFixed(2)} score`}</span>
+                        <span>{`${adjustment.delta >= 0 ? '+' : ''}${adjustment.delta.toFixed(2)} score`}</span>
                       </div>
-                      <p>{adjustment.reason}</p>
+                      <p>
+                        {describeScoreAdjustment(
+                          adjustment.reason,
+                          adjustment.emotionClassification,
+                          adjustment.delta,
+                        )}
+                      </p>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="analysis-empty-value">No rule score signals were returned.</p>
+                <p className="analysis-empty-value">No clues changed the emotion scores.</p>
               )}
             </section>
           </div>
@@ -893,8 +1231,8 @@ function TechnicalTraceView({
             aria-labelledby="probability-changes-heading"
           >
             <div className="analysis-trace-card-heading">
-              <p className="dashboard-card-kicker">Prediction output</p>
-              <h3 id="probability-changes-heading">Before-and-after probabilities</h3>
+              <p className="dashboard-card-kicker">Emotion scores</p>
+              <h3 id="probability-changes-heading">Scores before and after clue adjustments</h3>
             </div>
             <div
               className="probability-table-wrap"
@@ -903,11 +1241,11 @@ function TechnicalTraceView({
             >
               <table className="probability-table">
                 <caption className="sr-only">
-                  Returned probabilities before and after rule processing
+                  Emotion scores before and after clue adjustments
                 </caption>
                 <thead>
                   <tr>
-                    <th scope="col">Classification</th>
+                    <th scope="col">Emotion</th>
                     <th scope="col">Before</th>
                     <th scope="col">After</th>
                     <th scope="col">Change</th>
@@ -933,7 +1271,7 @@ function TechnicalTraceView({
 
           <details className="analysis-trace-versions">
             <summary>
-              Version identifiers <span>Returned pipeline versions</span>
+              Model and system versions <span>Technical reference</span>
             </summary>
             <dl>
               <div>
@@ -962,6 +1300,197 @@ function TechnicalTraceView({
       </details>
     </div>
   );
+}
+
+/** Lists each clue returned by the analysis system without inferring its emotion. */
+function CueTable({ cueSpans }: { cueSpans: CueSpan[] }) {
+  const sorted = [...cueSpans].sort((a, b) => a.startMs - b.startMs);
+
+  return (
+    <section className="analysis-cue-section" aria-labelledby="cue-table-heading">
+      <h3 id="cue-table-heading">Words and sounds that stood out</h3>
+      {sorted.length ? (
+        <div className="cue-table-wrap" tabIndex={0} aria-label="Flagged words and sounds">
+          <table className="cue-table">
+            <caption className="sr-only">Words and sounds that stood out</caption>
+            <thead>
+              <tr>
+                <th scope="col">Word or sound</th>
+                <th scope="col">From</th>
+                <th scope="col">Why it was flagged</th>
+                <th scope="col">At</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.map((span, index) => (
+                <tr key={`${span.source}-${span.startMs}-${span.endMs}-${index}`}>
+                  <th scope="row">{span.value}</th>
+                  <td>
+                    <span className={`cue-source cue-source-${span.source}`}>
+                      {span.source === 'acoustic' ? 'Voice' : 'Words'}
+                    </span>
+                  </td>
+                  <td>{humanizeCue(span.cue)}</td>
+                  <td className="cue-time">
+                    {formatSeconds(span.startMs)}–{formatSeconds(span.endMs)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p className="analysis-empty-value">No specific words or sounds were flagged.</p>
+      )}
+    </section>
+  );
+}
+
+/* ---------- Helpers ---------- */
+
+/** Sorts by the real returned scores, highest first. Ties keep a stable order. */
+function rankEmotions(scores: EmotionScores) {
+  return classificationKeys
+    .map((classification) => ({ classification, probability: scores[classification] }))
+    .sort(
+      (a, b) =>
+        b.probability - a.probability ||
+        classificationKeys.indexOf(a.classification) - classificationKeys.indexOf(b.classification),
+    );
+}
+
+/**
+ * Only describes cues the backend actually returned. Unknown cues fall back to
+ * the raw value, so nothing is invented.
+ */
+function describeVoiceCue(span: CueSpan): string {
+  const cue = span.cue.toLowerCase();
+  const value = span.value.toLowerCase();
+
+  if (cue.includes('pitch')) {
+    if (value.includes('rising')) {
+      return 'Your pitch rose during the recording. Pitch movement is an acoustic clue, not proof of excitement.';
+    }
+    if (value.includes('falling')) {
+      return 'Your pitch dropped during the recording. This describes the sound pattern, not your overall mood.';
+    }
+    if (value.includes('flat')) {
+      return 'Your pitch stayed steady with little change during the recording.';
+    }
+    return `Pitch pattern: ${span.value}.`;
+  }
+
+  return `${humanizeCue(span.cue)}: ${span.value}.`;
+}
+
+function humanizeCue(cue: string): string {
+  const knownCues: Record<string, string> = {
+    asr_transcript: 'Auto-generated transcript',
+    user_reviewed_transcript: 'Reviewed transcript',
+    lexical_emotion: 'Emotion-related word',
+    lexical_profanity: 'Profanity',
+    prosodic_energy_rate: 'Speaking energy and rate',
+  };
+  const knownCue = knownCues[cue.toLowerCase()];
+  if (knownCue) return knownCue;
+
+  const text = cue.replace(/[_-]+/g, ' ').trim().toLowerCase();
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+function describeResearchRule(id: string, fallback: string): { title: string; detail: string } {
+  const ruleId = id.toUpperCase();
+  if (ruleId.includes('LEXICAL_NEGATION')) {
+    return {
+      title: 'Negation near an emotion-related phrase',
+      detail:
+        'Checks for a negation phrase (such as “not” or “hindi naman”) within three words before an emotion-related phrase. If found, it reduces that phrase’s contribution to its emotion score.',
+    };
+  }
+  if (ruleId.includes('LEXICAL_MODIFIER')) {
+    return {
+      title: 'Intensity word near an emotion-related phrase',
+      detail:
+        'Checks for an intensifier (such as “very” or “sobrang”) shortly before an emotion-related phrase and increases that phrase’s contribution.',
+    };
+  }
+  if (ruleId.includes('LEXICAL_PROFANITY')) {
+    return {
+      title: 'Profanity cue',
+      detail:
+        'Checks for profanity in the transcript and adds a small signal to the anger score. Profanity alone does not prove anger.',
+    };
+  }
+  if (ruleId.includes('LEXICAL_POLITENESS')) {
+    return {
+      title: 'Polite-language cue',
+      detail: 'Checks for recognized politeness words and slightly reduces the anger score.',
+    };
+  }
+  if (ruleId.includes('LEXICAL_EMOTION')) {
+    return {
+      title: 'Emotion-related word or phrase',
+      detail:
+        'Checks transcript words and phrases against the emotion lexicon, then adds or reduces support for the associated emotion.',
+    };
+  }
+  if (ruleId.includes('CODE_SWITCH_TOKEN_LID')) {
+    return {
+      title: 'Filipino-English code-switching',
+      detail:
+        'Checks whether neighboring words switch between Filipino and English. This can add a small amount of support to an emotion already indicated by word clues.',
+    };
+  }
+  if (ruleId.includes('PROSODIC_ENERGY_RATE')) {
+    return {
+      title: 'Voice energy and speaking rate',
+      detail:
+        'Checks the recording’s loudness and number of words spoken per second. These are broad voice cues and do not identify a specific feeling on their own.',
+    };
+  }
+  if (ruleId.includes('CONTRAST_POST_CLAUSE')) {
+    return {
+      title: 'Emotion after a contrast word',
+      detail:
+        'When a contrast marker appears, gives more attention to emotion-related words that follow it.',
+    };
+  }
+  if (ruleId.includes('CONTRADICTION_RECALIBRATION')) {
+    return {
+      title: 'Audio and text results disagree',
+      detail:
+        'When the audio model and text rules choose different leading emotions, slightly reduces support for the text layer’s leading emotion.',
+    };
+  }
+  if (ruleId.includes('NEURAL_RULE_AGREEMENT')) {
+    return {
+      title: 'Audio and text clues agree',
+      detail:
+        'Adds support when the audio model’s leading emotion also has positive support from a text or voice rule.',
+    };
+  }
+  return { title: fallback, detail: 'This description was returned by the analysis system.' };
+}
+
+function describeScoreAdjustment(
+  reason: string,
+  emotion: EmotionClassification,
+  delta: number,
+): string {
+  const detectedCue = reason.match(
+    /detected ['"](.+?)['"] and reported a[n]? (increase|decrease)/i,
+  );
+  if (detectedCue) {
+    return `The word or phrase “${detectedCue[1]}” ${detectedCue[2] === 'increase' ? 'raised' : 'lowered'} the ${formatClassification(emotion)} score.`;
+  }
+  if (/agreement adjustment was added/i.test(reason)) {
+    return `The audio and text clues agreed, which ${delta >= 0 ? 'raised' : 'lowered'} the ${formatClassification(emotion)} score.`;
+  }
+  return reason;
+}
+
+function formatSeconds(milliseconds: number): string {
+  return `${(milliseconds / 1000).toFixed(1)}s`;
 }
 
 function formatAnalysisAccountName(email: string): string {

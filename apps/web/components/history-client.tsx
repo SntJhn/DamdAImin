@@ -3,6 +3,19 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import {
+  Activity,
+  ArrowUpRight,
+  ChevronDown,
+  FileAudio,
+  History,
+  LayoutDashboard,
+  LogOut,
+  Mic2,
+  Play,
+  Plus,
+  Search,
+} from 'lucide-react';
 
 import type {
   AnalysisHistoryItem,
@@ -171,22 +184,22 @@ export function HistoryClient() {
           <div className="dashboard-nav-group">
             <p>General</p>
             <Link className="dashboard-nav-item dashboard-nav-item-active" href="/history">
-              <span className="dashboard-nav-icon dashboard-nav-icon-grid" aria-hidden="true" />
+              <LayoutDashboard className="dashboard-nav-icon" aria-hidden="true" />
               Dashboard
             </Link>
             <Link className="dashboard-nav-item" href="/analyze">
-              <span className="dashboard-nav-icon dashboard-nav-icon-mic" aria-hidden="true" />
+              <Mic2 className="dashboard-nav-icon" aria-hidden="true" />
               New Analysis
             </Link>
             <a className="dashboard-nav-item" href="#recent-analyses">
-              <span className="dashboard-nav-icon dashboard-nav-icon-bars" aria-hidden="true" />
+              <History className="dashboard-nav-icon" aria-hidden="true" />
               Analysis History
             </a>
           </div>
           <div className="dashboard-nav-group dashboard-nav-tools">
             <p>Workspace</p>
             <button className="dashboard-nav-item" type="button" onClick={signOut}>
-              <span className="dashboard-nav-icon dashboard-nav-icon-exit" aria-hidden="true" />
+              <LogOut className="dashboard-nav-icon" aria-hidden="true" />
               Sign out
             </button>
           </div>
@@ -200,26 +213,7 @@ export function HistoryClient() {
 
       <section className="dashboard-main" aria-busy={loading} aria-labelledby="history-title">
         <header className="dashboard-toolbar">
-          <form className="dashboard-search" onSubmit={applyFilters}>
-            <label className="dashboard-search-field" htmlFor="dashboard-search-input">
-              <span className="dashboard-search-icon" aria-hidden="true">
-                ⌕
-              </span>
-              <span className="sr-only">Search transcripts</span>
-              <input
-                id="dashboard-search-input"
-                type="search"
-                value={draftFilters.search}
-                maxLength={200}
-                placeholder="Search recordings, transcripts, emotions…"
-                aria-describedby="history-search-help"
-                onChange={(event) => updateFilter('search', event.target.value)}
-              />
-            </label>
-            <button className="dashboard-search-submit" type="submit" aria-label="Apply search">
-              ↗
-            </button>
-          </form>
+          <div className="dashboard-toolbar-spacer" aria-hidden="true" />
           <span className="dashboard-toolbar-account">{accountEmail || 'Private account'}</span>
         </header>
 
@@ -241,22 +235,27 @@ export function HistoryClient() {
                 className="dashboard-card-corner dashboard-card-corner-bottom"
                 aria-hidden="true"
               />
-              <div>
-                <p className="dashboard-card-kicker">YOUR NEXT SIGNAL</p>
-                <h2 id="welcome-card-title">What’s up?</h2>
-                <p>
-                  How are you feeling today?
-                  <br />
-                  Take a moment to express yourself.
-                </p>
-                <Link className="dashboard-card-link" href="/analyze">
-                  Start with your voice <span aria-hidden="true">↗</span>
-                </Link>
+
+              <div className="dashboard-welcome-copy">
+                <h2 id="welcome-card-title">What’s on your mind?</h2>
+
+                <p>Share a short recording and see what your voice and words reveal.</p>
               </div>
-              <span className="dashboard-microphone" aria-hidden="true">
-                <span className="dashboard-microphone-dot" />
-                <span className="dashboard-microphone-ring" />
-              </span>
+
+              <Link
+                href="/analyze"
+                className="dashboard-microphone-button"
+                aria-label="Start recording"
+              >
+                <span className="dashboard-microphone" aria-hidden="true">
+                  <Mic2 size={42} strokeWidth={1.7} />
+                </span>
+
+                <span className="dashboard-microphone-label">
+                  <strong>Tap to record</strong>
+                  <small>Up to 20 seconds</small>
+                </span>
+              </Link>
             </section>
 
             <section className="dashboard-tools-card" aria-labelledby="quick-actions-title">
@@ -268,13 +267,13 @@ export function HistoryClient() {
                 href="/analyze"
               >
                 <span className="dashboard-quick-icon" aria-hidden="true">
-                  +
+                  <Plus size={18} strokeWidth={2} />
                 </span>
                 New Analysis
               </Link>
               <a className="dashboard-quick-action" href="#recent-analyses">
                 <span className="dashboard-quick-icon dashboard-quick-icon-file" aria-hidden="true">
-                  ▤
+                  <FileAudio size={18} strokeWidth={1.8} />
                 </span>
                 Analysis History
               </a>
@@ -286,19 +285,42 @@ export function HistoryClient() {
             id="recent-analyses"
             aria-labelledby="recent-title"
           >
+            <form
+              className="dashboard-search"
+              role="search"
+              aria-label="Search your analyses"
+              onSubmit={applyFilters}
+            >
+              <label className="dashboard-search-field" htmlFor="recent-search-input">
+                <span className="dashboard-search-icon" aria-hidden="true">
+                  <Search size={19} strokeWidth={2} />
+                </span>
+                <span className="sr-only">Search your analyses</span>
+                <input
+                  id="recent-search-input"
+                  type="search"
+                  value={draftFilters.search}
+                  maxLength={200}
+                  placeholder="Search your analyses..."
+                  aria-describedby="history-search-help"
+                  onChange={(event) => updateFilter('search', event.target.value)}
+                />
+              </label>
+              <button className="dashboard-search-submit" type="submit" aria-label="Search">
+                <ArrowUpRight size={18} aria-hidden="true" />
+              </button>
+            </form>
+
             <div className="dashboard-recordings-heading">
               <div className="dashboard-recordings-title">
                 <span className="dashboard-recordings-icon" aria-hidden="true">
-                  ◒
+                  <Activity size={22} strokeWidth={1.8} />
                 </span>
                 <div>
                   <h2 id="recent-title">Recent Analyses</h2>
                   <p>Your recent speech emotion records</p>
                 </div>
               </div>
-              <span className="dashboard-recordings-arrow" aria-hidden="true">
-                ↗
-              </span>
             </div>
 
             <form
@@ -310,7 +332,7 @@ export function HistoryClient() {
                 <summary>
                   <span>Filter history</span>
                   <span>
-                    State, result, language, or date <b aria-hidden="true">⌄</b>
+                    State, result, language, or date <ChevronDown size={15} aria-hidden="true" />
                   </span>
                 </summary>
                 <div className="dashboard-filter-grid">
@@ -400,11 +422,7 @@ export function HistoryClient() {
               </p>
             ) : null}
 
-            {loading ? (
-              <p className="dashboard-state" role="status" aria-live="polite">
-                Checking your history…
-              </p>
-            ) : null}
+            {loading ? <HistoryTableSkeleton /> : null}
             {error ? (
               <div className="dashboard-state dashboard-error" role="alert">
                 <p className="form-message">{error}</p>
@@ -426,12 +444,9 @@ export function HistoryClient() {
                 </div>
                 <p className="card-kicker">No analyses yet</p>
                 <h2>Your first reading will live here.</h2>
-                <p>
-                  When you submit one utterance for Analysis, its persisted progress and result will
-                  stay attached to this account.
-                </p>
+                <p>Record your first speech to see your results here.</p>
                 <Link className="primary-button" href="/analyze">
-                  Start a new analysis
+                  Start recording
                 </Link>
               </div>
             ) : null}
@@ -463,11 +478,11 @@ export function HistoryClient() {
                     href={`/analyses/${analysis.id}`}
                     key={analysis.id}
                     role="row"
-                    aria-label={`Open analysis ${analysis.id}`}
+                    aria-label={`Open ${formatEmotionLabel(analysis)} analysis from ${formatDashboardDate(analysis.createdAt)}`}
                   >
                     <span className="dashboard-record-cell" role="cell">
                       <span className="dashboard-play-icon" aria-hidden="true">
-                        ▶
+                        <Play size={12} fill="currentColor" />
                       </span>
                       <span>
                         <strong>Analysis record</strong>
@@ -493,7 +508,7 @@ export function HistoryClient() {
                       {formatDashboardDate(analysis.createdAt)}
                     </time>
                     <span className="dashboard-row-arrow" aria-hidden="true">
-                      ↗
+                      <ArrowUpRight size={17} />
                     </span>
                   </Link>
                 ))}
@@ -503,6 +518,45 @@ export function HistoryClient() {
         </div>
       </section>
     </main>
+  );
+}
+
+function HistoryTableSkeleton() {
+  return (
+    <div
+      className="dashboard-history-skeleton"
+      role="status"
+      aria-label="Loading recent analyses"
+      aria-live="polite"
+    >
+      <span className="sr-only">Loading recent analyses</span>
+      <div className="dashboard-table dashboard-history-skeleton-table" aria-hidden="true">
+        <div className="dashboard-table-row dashboard-table-header">
+          <span>Record</span>
+          <span>Transcript</span>
+          <span>Emotion</span>
+          <span>Language</span>
+          <span>Date</span>
+          <span />
+        </div>
+        {Array.from({ length: 5 }, (_, index) => (
+          <div className="dashboard-table-row dashboard-history-skeleton-row" key={index}>
+            <span className="dashboard-history-skeleton-record">
+              <i />
+              <span>
+                <i />
+                <i />
+              </span>
+            </span>
+            <i className="dashboard-history-skeleton-line dashboard-history-skeleton-transcript" />
+            <i className="dashboard-history-skeleton-line dashboard-history-skeleton-emotion" />
+            <i className="dashboard-history-skeleton-line dashboard-history-skeleton-language" />
+            <i className="dashboard-history-skeleton-line dashboard-history-skeleton-date" />
+            <i className="dashboard-history-skeleton-arrow" />
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
