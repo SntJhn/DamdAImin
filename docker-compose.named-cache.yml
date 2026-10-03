@@ -1,0 +1,7 @@
+services:
+  research-engine:
+    volumes:
+      - whisper-cache:/root/.cache/huggingface
+
+volumes:
+  whisper-cache:

@@ -24,40 +24,127 @@ The product requirements, local-first implementation route, and architecture are
 
 TypeBox schemas and their generated OpenAPI and JSON Schema artifacts own transport contracts. The current generated API document is [packages/contracts/generated/openapi.json](packages/contracts/generated/openapi.json). Drizzle schemas and committed migrations own the application database structure. The README links those sources instead of copying their contents.
 
-## Local development
+## Setup and local development
 
-The repository contains a pnpm monorepo foundation with web, API, worker, deterministic Research System, shared packages, environment templates, a reviewed initial application migration, and Docker Compose health checks.
+DamdAImin uses a pnpm monorepo for the web app, API, worker, shared packages,
+and contracts. Docker Compose supplies Redis, local object storage,
+observability, and the model-backed Research System. PostgreSQL and Neon Auth
+come from a Neon development branch.
 
-To start locally:
+### Prerequisites
 
-1. Activate Node 24 (`nvm use`), then run `pnpm install`.
-2. Copy `.env.example` to `.env` and add the local Neon development-branch connection string.
-3. Run `pnpm db:migrate` to create only the application-owned `app` schema.
-4. Start the local dependencies with `docker compose up -d redis fake-gcs otel-collector`.
-5. Run `pnpm dev`. This starts the web app, API, worker, and model-backed Research System; the
-   research engine is run in Docker because its Python dependencies and mounted TSERA checkout
-   are containerized.
+- Node.js 24.x
+- pnpm 11.x
+- Docker Desktop with Compose
+- A Neon development branch with PostgreSQL and Neon Auth enabled
 
-For an all-in-Docker runtime, `docker compose up --build` remains supported.
+The DamdAImin repository now includes the small TSERA runtime slice required by
+the Research System. A separate TSERA checkout is not required for setup.
 
-The supplied Neon credential is intentionally not stored in this repository. Keep it in the ignored `.env` file and rotate it if it has been exposed outside the intended development team.
+### Configure the environment
 
-The normal local runtime will use Docker for application dependencies and a Neon development branch for PostgreSQL and Neon Auth. Tests must use generated synthetic WAV fixtures rather than research recordings or user submissions.
+From the repository root:
 
-The issue #3 tracer bullet is available at `/analyze` after sign-in. It validates one WAV utterance against the provisional 20-second envelope, uploads it to the private local source-audio bucket, queues the durable Analysis, and polls `/analyses/{id}` until a terminal stage. The fake returns a deterministic definitive classification; full confidence, Transcript, Explanation, and Technical Trace presentation remains assigned to the result slice.
+```bash
+cp .env.example .env
+```
 
-`pnpm test:integration` starts a disposable PostgreSQL 18 container for the database/API ownership test. It does not read the configured `DATABASE_URL`; Docker must be available locally.
+Fill in the values for `DATABASE_URL`, `NEON_AUTH_BASE_URL`,
+`NEON_AUTH_JWKS_URL`, `NEON_AUTH_ISSUER`, `NEON_AUTH_AUDIENCE`, and
+`NEON_AUTH_COOKIE_SECRET`. Keep `.env` local and never commit it. Set `HF_TOKEN`
+if the machine needs authenticated Hugging Face downloads or higher Hub rate
+limits.
 
-Run `pnpm quality` for the complete local gate, including formatting, linting, type checking, OpenAPI drift, unit tests, and the disposable database/API integration test.
+### Install 
+
+```bash
+nvm use 24                 # or activate another Node 24 installation
+corepack enable
+pnpm install
+```
+
+the application-owned schema. It does not alter Neon Auth's tables.
+
+### Start the local application
+
+Start the shared local services first:
+
+```bash
+docker compose up -d redis fake-gcs otel-collector research-engine api worker
+```
+
+Then start the web app:
+
+```bash
+pnpm --filter @damdai/web dev
+```
+
+Open <http://localhost:3000>. Useful health checks are:
+
+- Web: <http://localhost:3000>
+- API: <http://localhost:4000/healthz>
+- Research System: <http://localhost:4100/healthz>
+- Contract fake: <http://localhost:4101/healthz>
+
+The first Research System startup loads the vendored neural checkpoint and the
+cached Whisper ASR model. The engine is not reported healthy until ASR is ready,
+so the first startup may take longer than later starts.
+
+### Run everything in Docker
+
+For an all-in-Docker runtime:
+
+```bash
+docker compose up --build
+```
+
+The default Compose file uses the repository-local ASR cache at
+`.cache/huggingface`.
+
+### Use a Docker-managed ASR cache
+
+To give each machine a persistent named Docker volume instead of using the
+repository-local cache:
+
+```bash
+docker compose \
+  -f docker-compose.yml \
+  -f docker-compose.named-cache.yml \
+  up --build
+```
+
+The first startup downloads Whisper into the `whisper-cache` volume. Later
+container recreations reuse that volume. Do not run `docker compose down -v`
+unless you intentionally want to delete the named cache and download Whisper
+again.
+
+The local bind-mounted cache and named-volume cache are alternative modes; use
+only one for a given Compose invocation.
+
+### Tests and quality checks
+
+```bash
+pnpm test              # unit and contract tests
+pnpm test:integration  # disposable PostgreSQL integration test
+pnpm test:e2e          # Playwright browser tests
+pnpm quality           # complete local quality gate
+```
+
+`pnpm test:integration` starts a disposable PostgreSQL 18 container and does
+not read the configured `DATABASE_URL`.
+
+The supplied Neon credential is intentionally not stored in this repository.
+Keep it in the ignored `.env` file and rotate it if it has been exposed outside
+the intended development team.
 
 ## Research integration boundary
 
 Development uses a model-backed Research System that implements the same
 versioned contract as the completed neuro-symbolic service. The service reads
-the mounted TSERA fine-tuned checkpoint, transcribes with Whisper, applies the
-preliminary symbolic layer, and returns the transcript, classification,
-explanation, and technical trace. The deterministic fake remains available at
-port 4101 for contract-only testing.
+the vendored TSERA fine-tuned checkpoint and keyword tables, transcribes with
+Whisper, applies the preliminary symbolic layer, and returns the transcript,
+classification, explanation, and technical trace. The deterministic fake
+remains available at port 4101 for contract-only testing.
 
 ## Reference inputs
 

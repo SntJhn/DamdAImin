@@ -1,0 +1,200 @@
+marker_id,marker,language,discourse_function,subtype,emotional_polarity,common_variants
+DM-0001,pero,Filipino,Contrast,contrastive conjunction,context-dependent,pero
+DM-0002,ngunit,Filipino,Contrast,contrastive conjunction,context-dependent,ngunit
+DM-0003,subalit,Filipino,Contrast,contrastive conjunction,context-dependent,subali't
+DM-0004,datapwat,Filipino,Contrast,contrastive conjunction,context-dependent,datapwa't
+DM-0005,bagaman,Filipino,Concession,concessive conjunction,context-dependent,bagama't
+DM-0006,kahit,Filipino,Concession,concessive marker,context-dependent,kahit na
+DM-0007,kahit na,Filipino,Concession,concessive marker,context-dependent,kahit
+DM-0008,kahit naman,Filipino,Concession,concessive discourse marker,context-dependent,kahit na naman
+DM-0009,dahil,Filipino,Cause,causal conjunction,context-dependent,dahil sa
+DM-0010,dahil sa,Filipino,Cause,prepositional cause marker,context-dependent,dahil
+DM-0011,kasi,Filipino,Cause,reason/explanation marker,context-dependent,kase;kc
+DM-0012,sapagkat,Filipino,Cause,causal conjunction,context-dependent,sapagka't
+DM-0013,kaya,Filipino,Result,result/consequence marker,context-dependent,kaya naman
+DM-0014,kaya naman,Filipino,Result,result/emphasis marker,context-dependent,kaya nga naman
+DM-0015,kaya nga,Filipino,Result/response,agreement/result marker,context-dependent,kaya nga eh;kaya nga
+DM-0016,kaya nga eh,Filipino,Response,agreement/confirmation marker,context-dependent,kaya nga
+DM-0017,samakatwid,Filipino,Conclusion,conclusive marker,context-dependent,sa makatuwid
+DM-0018,sa makatuwid,Filipino,Conclusion,conclusive marker,context-dependent,samakatwid
+DM-0019,samakatuwid,Filipino,Conclusion,conclusive marker,context-dependent,sa makatuwid
+DM-0020,kung gayon,Filipino,Result/conclusion,inferential marker,context-dependent,kung ganoon
+DM-0021,kung ganoon,Filipino,Result/conclusion,inferential marker,context-dependent,kung gayon
+DM-0022,kung ganon,Filipino,Result/conclusion,inferential marker,context-dependent,kung gano'n;kung ganoon
+DM-0023,tapos,Filipino,Sequence,sequencing marker,context-dependent,tapos na;tapos then
+DM-0024,pagkatapos,Filipino,Sequence,temporal/sequence marker,context-dependent,pagkatapos nito
+DM-0025,pagkatapos nun,Filipino,Sequence,temporal marker,context-dependent,pagkatapos noon
+DM-0026,saka,Filipino,Addition/sequence,additive/sequencing marker,context-dependent,at saka
+DM-0027,at saka,Filipino,Addition,additive marker,context-dependent,saka
+DM-0028,una,Filipino,Sequence,initial marker,context-dependent,unang-una
+DM-0029,unang-una,Filipino,Sequence,initial/emphasis marker,context-dependent,una sa lahat
+DM-0030,una sa lahat,Filipino,Sequence,topic-opening marker,context-dependent,first of all
+DM-0031,sunod,Filipino,Sequence,next-step marker,context-dependent,susunod
+DM-0032,susunod,Filipino,Sequence,next-step marker,context-dependent,sunod
+DM-0033,sa huli,Filipino,Conclusion/sequence,final marker,context-dependent,sa bandang huli
+DM-0034,sa bandang huli,Filipino,Conclusion/sequence,final-result marker,context-dependent,sa huli
+DM-0035,basta,Filipino,Topic management,restriction/summarizing marker,context-dependent,basta't;basta kasi
+DM-0036,anyway,Taglish,Topic shift,return/shift marker,context-dependent,anyways;anyway so
+DM-0037,siya nga pala,Filipino,Topic shift,by-the-way marker,context-dependent,sya nga pala
+DM-0038,nga pala,Filipino,Topic shift,by-the-way marker,context-dependent,ah nga pala
+DM-0039,ah nga pala,Filipino,Topic shift,reminder/shift marker,context-dependent,ay nga pala
+DM-0040,ay nga pala,Filipino,Topic shift,reminder/shift marker,context-dependent,ah nga pala
+DM-0041,tungkol naman sa,Filipino,Topic shift,topic marker,context-dependent,tungkol sa
+DM-0042,pagdating sa,Filipino,Topic shift,topic marker,context-dependent,pagdating naman sa
+DM-0043,sa totoo lang,Filipino,Stance,frankness marker,context-dependent,to be honest
+DM-0044,sa tingin ko,Filipino,Stance,opinion marker,context-dependent,tingin ko
+DM-0045,para sa akin,Filipino,Stance,opinion marker,context-dependent,para sakin;para sa'kin
+DM-0046,parang,Filipino,Hedging,approximation/comparison marker,context-dependent,parang kasi;parang ganun
+DM-0047,parang gano'n,Filipino,Hedging,approximation marker,context-dependent,parang ganon
+DM-0048,parang ganon,Filipino,Hedging,approximation marker,context-dependent,parang gano'n
+DM-0049,talaga,Filipino,Emphasis,emphatic particle,context-dependent,talaga naman
+DM-0050,nga,Filipino,Emphasis,emphatic particle,context-dependent,nga eh
+DM-0051,naman,Filipino,Contrast/emphasis,discourse particle,context-dependent,naman kasi;naman eh
+DM-0052,eh,Filipino,Response/stance,discourse particle,context-dependent,e;eh kasi
+DM-0053,e,Filipino,Response/stance,discourse particle,context-dependent,eh
+DM-0054,ay,Filipino,Response,interjection/discourse marker,context-dependent,ay naku;ay oo
+DM-0055,ay naku,Filipino,Reaction,interjection,negative/positive depending context,naku;ay nako;ay naku po
+DM-0056,naku,Filipino,Reaction,interjection,negative/positive depending context,nako;na'ko
+DM-0057,grabe,Filipino,Evaluation,evaluative marker,negative/positive depending context,grabeh;grabe naman
+DM-0058,sobrang,Filipino,Emphasis,degree/intensifier,context-dependent,super
+DM-0059,kumbaga,Filipino,Reformulation,approximation/reformulation marker,context-dependent,kung baga
+DM-0060,ibig sabihin,Filipino,Clarification,reformulation marker,context-dependent,ibig sabihin nito
+DM-0061,kung tutuusin,Filipino,Stance,counterpoint marker,context-dependent,kung tutuusin naman
+DM-0062,sa kabilang banda,Filipino,Contrast,contrastive discourse marker,context-dependent,sa kabilang side
+DM-0063,bukod dito,Filipino,Addition,additive marker,context-dependent,bukod pa dito
+DM-0064,bukod pa rito,Filipino,Addition,additive marker,context-dependent,bukod dito
+DM-0065,dagdag pa rito,Filipino,Addition,additive marker,context-dependent,dagdag pa dito
+DM-0066,maliban dito,Filipino,Addition/exception,exception marker,context-dependent,maliban diyan
+DM-0067,sa madaling salita,Filipino,Reformulation,summary marker,context-dependent,in short
+DM-0068,sa madaling sabi,Filipino,Reformulation,summary marker,context-dependent,sa madaling salita
+DM-0069,sa kabuuan,Filipino,Conclusion,summary marker,context-dependent,overall
+DM-0070,but,English,Contrast,contrastive conjunction,context-dependent,but still;but then
+DM-0071,however,English,Contrast,contrastive adverb,context-dependent,"however,"
+DM-0072,although,English,Concession,concessive conjunction,context-dependent,though;even though
+DM-0073,though,English,Concession,concessive conjunction/particle,context-dependent,even though;though
+DM-0074,even though,English,Concession,concessive conjunction,context-dependent,even if
+DM-0075,yet,English,Contrast,contrastive conjunction/adverb,context-dependent,and yet
+DM-0076,still,English,Contrast,continuative/contrastive marker,context-dependent,but still;still though
+DM-0077,nevertheless,English,Contrast,concessive adverb,context-dependent,nonetheless
+DM-0078,nonetheless,English,Contrast,concessive adverb,context-dependent,nevertheless
+DM-0079,instead,English,Replacement,alternative marker,context-dependent,instead of
+DM-0080,rather,English,Correction,reformulation/correction marker,context-dependent,rather than
+DM-0081,otherwise,English,Condition/result,conditional consequence marker,context-dependent,or else
+DM-0082,because,English,Cause,causal conjunction,context-dependent,cause;cause
+DM-0083,since,English,Cause,causal conjunction,context-dependent,since then
+DM-0084,therefore,English,Result,result marker,context-dependent,"therefore,"
+DM-0085,thus,English,Result,result marker,context-dependent,thus
+DM-0086,hence,English,Result,result marker,context-dependent,hence
+DM-0087,so,English,Result/topic progression,result/consequence marker,context-dependent,so yeah;so anyway
+DM-0088,as a result,English,Result,consequence marker,context-dependent,as a consequence
+DM-0089,consequently,English,Result,consequence marker,context-dependent,consequently
+DM-0090,and,English,Addition/sequence,coordinating conjunction,context-dependent,and then
+DM-0091,also,English,Addition,additive marker,context-dependent,also
+DM-0092,too,English,Addition,additive particle,context-dependent,me too
+DM-0093,as well,English,Addition,additive marker,context-dependent,as well
+DM-0094,besides,English,Addition,additive marker,context-dependent,besides that
+DM-0095,moreover,English,Addition,additive adverb,context-dependent,furthermore
+DM-0096,furthermore,English,Addition,additive adverb,context-dependent,moreover
+DM-0097,in addition,English,Addition,additive marker,context-dependent,in addition to
+DM-0098,first,English,Sequence,initial marker,context-dependent,first of all
+DM-0099,first of all,English,Sequence/topic opening,opening marker,context-dependent,firstly
+DM-0100,then,English,Sequence,temporal/progression marker,context-dependent,and then
+DM-0101,next,English,Sequence,next-step marker,context-dependent,next up
+DM-0102,afterward,English,Sequence,temporal marker,context-dependent,afterwards
+DM-0103,finally,English,Conclusion/sequence,final marker,context-dependent,in the end
+DM-0104,in the end,English,Conclusion,final-outcome marker,context-dependent,eventually
+DM-0105,eventually,English,Sequence/result,eventual outcome marker,context-dependent,in the end
+DM-0106,meanwhile,English,Temporal/topic shift,simultaneous-event marker,context-dependent,in the meantime
+DM-0107,in the meantime,English,Temporal/topic shift,simultaneous-event marker,context-dependent,meanwhile
+DM-0108,anyway,English,Topic shift,return/shift marker,context-dependent,anyways;anyway so
+DM-0109,by the way,English,Topic shift,side-topic marker,context-dependent,BTW
+DM-0110,speaking of,English,Topic shift,association marker,context-dependent,speaking of which
+DM-0111,as for,English,Topic shift,topic marker,context-dependent,as for me
+DM-0112,actually,English,Stance/correction,correction/stance marker,context-dependent,actually though
+DM-0113,really,English,Emphasis,intensifier/stance marker,context-dependent,really though
+DM-0114,honestly,English,Stance,frankness marker,context-dependent,honestly though
+DM-0115,frankly,English,Stance,frankness marker,context-dependent,frankly speaking
+DM-0116,personally,English,Stance,opinion marker,context-dependent,"personally,"
+DM-0117,I think,English,Stance,opinion marker,context-dependent,I think that
+DM-0118,I mean,English,Reformulation,self-repair/clarification marker,context-dependent,"I mean,"
+DM-0119,in other words,English,Reformulation,paraphrase marker,context-dependent,in short
+DM-0120,in short,English,Summary,summary marker,context-dependent,in brief
+DM-0121,in brief,English,Summary,summary marker,context-dependent,in short
+DM-0122,overall,English,Conclusion,summary marker,context-dependent,all in all
+DM-0123,all in all,English,Conclusion,summary marker,context-dependent,overall
+DM-0124,for example,English,Elaboration,example marker,context-dependent,for instance
+DM-0125,for instance,English,Elaboration,example marker,context-dependent,for example
+DM-0126,especially,English,Emphasis,specification marker,context-dependent,particularly
+DM-0127,particularly,English,Emphasis,specification marker,context-dependent,especially
+DM-0128,at the same time,English,Contrast,simultaneous/contrastive marker,context-dependent,at the same time though
+DM-0129,on the other hand,English,Contrast,counterpoint marker,context-dependent,on the flip side
+DM-0130,on the flip side,English,Contrast,counterpoint marker,context-dependent,flip side
+DM-0131,that said,English,Contrast,concessive/counterpoint marker,context-dependent,having said that
+DM-0132,having said that,English,Contrast,counterpoint marker,context-dependent,that said
+DM-0133,to be fair,English,Concession/stance,fairness marker,context-dependent,fair though
+DM-0134,after all,English,Justification,supporting-reason marker,context-dependent,after all
+DM-0135,of course,English,Stance,acknowledgment marker,context-dependent,ofc;of course
+DM-0136,you know,English,Hedging,shared-knowledge/filler marker,context-dependent,y'know;ya know
+DM-0137,like,English,Hedging/filler,approximation/filler marker,context-dependent,"like,"
+DM-0138,well,English,Response/stance,turn-opening marker,context-dependent,"well then;well,"
+DM-0139,yeah,English,Response,agreement/continuation marker,context-dependent,"yeah so;yeah, but"
+DM-0140,okay,English,Response/topic management,acknowledgment marker,context-dependent,"okay so;okay, but"
+DM-0141,right,English,Response,acknowledgment marker,context-dependent,"right so;right,"
+DM-0142,pero kasi,Taglish,Contrast + Cause,compound discourse marker,context-dependent,but kasi
+DM-0143,pero naman,Taglish,Contrast,contrastive particle combination,context-dependent,but naman
+DM-0144,pero nga,Taglish,Contrast/emphasis,contrastive emphasis,context-dependent,pero nga eh
+DM-0145,pero still,Taglish,Contrast,code-switched contrast,context-dependent,but still
+DM-0146,but still,Taglish,Contrast,code-switched contrast,context-dependent,pero still
+DM-0147,but kasi,Taglish,Contrast + Cause,code-switched explanation,context-dependent,pero kasi
+DM-0148,kasi naman,Taglish,Cause + emphasis,justification/emphasis,context-dependent,kasi nga
+DM-0149,kasi nga,Taglish,Cause + emphasis,justification/emphasis,context-dependent,kasi nga eh
+DM-0150,kaya naman,Taglish,Result/emphasis,result/emphasis,context-dependent,so naman
+DM-0151,kaya nga,Taglish,Result/response,agreement/reinforcement,context-dependent,that's why
+DM-0152,kaya nga eh,Taglish,Response,agreement/reinforcement,context-dependent,kaya nga
+DM-0153,so ayun,Taglish,Sequence/conclusion,narrative wrap-up,context-dependent,so ayan;ayun
+DM-0154,so ayan,Taglish,Sequence/conclusion,narrative wrap-up,context-dependent,so ayun
+DM-0155,and then,Taglish,Sequence,code-switched sequencing,context-dependent,then
+DM-0156,then ayun,Taglish,Sequence/conclusion,narrative transition,context-dependent,then ayan
+DM-0157,tapos then,Taglish,Sequence,code-switched sequencing,context-dependent,then tapos
+DM-0158,actually kasi,Taglish,Stance + Cause,correction/explanation,context-dependent,"actually, kasi"
+DM-0159,actually naman,Taglish,Stance/emphasis,correction/emphasis,context-dependent,actually though
+DM-0160,actually nga,Taglish,Stance/emphasis,confirmation/emphasis,context-dependent,"actually, yes"
+DM-0161,I mean kasi,Taglish,Reformulation + Cause,self-repair/explanation,context-dependent,"I mean, kasi"
+DM-0162,I mean naman,Taglish,Reformulation,self-repair/emphasis,context-dependent,I mean
+DM-0163,like kasi,Taglish,Hedging + Cause,approximation/explanation,context-dependent,"like, kasi"
+DM-0164,parang like,Taglish,Hedging,approximation/filler,context-dependent,like parang
+DM-0165,parang kasi,Taglish,Hedging + Cause,approximation/explanation,context-dependent,parang kasi eh
+DM-0166,you know kasi,Taglish,Hedging + Cause,shared-knowledge/explanation,context-dependent,"you know, kasi"
+DM-0167,you know naman,Taglish,Hedging/emphasis,shared-knowledge marker,context-dependent,you know
+DM-0168,anyway kasi,Taglish,Topic shift + Cause,shift/explanation,context-dependent,"anyway, kasi"
+DM-0169,anyway so,Taglish,Topic shift,shift/continuation,context-dependent,anyways so
+DM-0170,so anyway,Taglish,Topic shift,shift/continuation,context-dependent,anyway so
+DM-0171,but yeah,Taglish,Contrast/continuation,contrastive continuation,context-dependent,pero yeah
+DM-0172,pero yeah,Taglish,Contrast/continuation,contrastive continuation,context-dependent,but yeah
+DM-0173,yeah pero,Taglish,Contrast/response,response + contrast,context-dependent,yeah but
+DM-0174,yeah kasi,Taglish,Response + Cause,agreement/explanation,context-dependent,"yeah, kasi"
+DM-0175,okay so,Taglish,Topic opening,turn-management,context-dependent,"okay, so"
+DM-0176,okay pero,Taglish,Response + Contrast,acknowledgment/contrast,context-dependent,okay but
+DM-0177,right so,Taglish,Response + Sequence,acknowledgment/transition,context-dependent,"right, so"
+DM-0178,to be honest,Taglish,Stance,frankness marker,context-dependent,TBH
+DM-0179,honestly naman,Taglish,Stance/emphasis,frankness marker,context-dependent,honestly though
+DM-0180,for me,Taglish,Stance,opinion marker,context-dependent,para sa akin
+DM-0181,in my opinion,Taglish,Stance,opinion marker,context-dependent,IMO
+DM-0182,at the same time,Taglish,Contrast,simultaneous/contrastive marker,context-dependent,pero at the same time
+DM-0183,pero at the same time,Taglish,Contrast,counterpoint marker,context-dependent,but at the same time
+DM-0184,on the other hand,Taglish,Contrast,counterpoint marker,context-dependent,on the other hand naman
+DM-0185,at least,Taglish,Concession,minimum/positive counterpoint,context-dependent,at least naman
+DM-0186,at least naman,Taglish,Concession/emphasis,mitigation marker,context-dependent,at least
+DM-0187,in short,Taglish,Summary,summary marker,context-dependent,in short kasi
+DM-0188,basically,Taglish,Summary,generalization marker,context-dependent,basically kasi
+DM-0189,basically naman,Taglish,Summary/emphasis,generalization marker,context-dependent,basically
+DM-0190,literally,Taglish,Emphasis,intensifier,context-dependent,lit
+DM-0191,literally kasi,Taglish,Emphasis + Cause,intensifier/explanation,context-dependent,literally
+DM-0192,seriously,Taglish,Stance/emphasis,intensifier,context-dependent,srsly
+DM-0193,seriously naman,Taglish,Stance/emphasis,emphatic reaction,context-dependent,seriously though
+DM-0194,at the end of the day,Taglish,Conclusion,summary/conclusion marker,context-dependent,at the end of the day kasi
+DM-0195,bottom line,Taglish,Conclusion,summary marker,context-dependent,bottom line is
+DM-0196,the thing is,Taglish,Topic/stance,problem-introduction marker,context-dependent,the thing is kasi
+DM-0197,the thing is kasi,Taglish,Topic/stance,problem-introduction marker,context-dependent,the thing is
+DM-0198,you see,Taglish,Explanation,explanatory marker,context-dependent,you see kasi
+DM-0199,basically,English/Taglish,Summary,generalization marker,context-dependent,basically so

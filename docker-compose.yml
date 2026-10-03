@@ -83,9 +83,9 @@ services:
     environment:
       RESEARCH_ENGINE_HOST: 0.0.0.0
       RESEARCH_ENGINE_PORT: 4100
-      TSERA_SOURCE_DIR: /tsera/src
-      TSERA_MODEL_PATH: /tsera/src/models/best_finetuned_baseline.pt
-      SYMBOLIC_KEYWORD_DIR: /tsera/data/raw/keywords
+      TSERA_SOURCE_DIR: /app/vendor/tsera/src
+      TSERA_MODEL_PATH: /app/vendor/tsera/src/models/best_finetuned_baseline.pt
+      SYMBOLIC_KEYWORD_DIR: /app/vendor/tsera/data/raw/keywords
       ASR_MODEL: ${ASR_MODEL:-large-v3-turbo}
       ASR_LANGUAGE: ${ASR_LANGUAGE:-auto}
       ASR_DEVICE: ${ASR_DEVICE:-cpu}
@@ -95,7 +95,6 @@ services:
       SYMBOLIC_FUSION_WEIGHT: ${SYMBOLIC_FUSION_WEIGHT:-0.20}
     volumes:
       - ./services/research-engine/main.py:/app/main.py:ro
-      - ${TSERA_ROOT:-/Users/jagdv/Coding/TSERA}:/tsera:ro
       - ./.cache/huggingface:/root/.cache/huggingface
     ports:
       - '4100:4100'

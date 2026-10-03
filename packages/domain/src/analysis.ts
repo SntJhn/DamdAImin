@@ -54,6 +54,7 @@ export interface TechnicalTrace {
   scoreAdjustments: ScoreAdjustment[];
   probabilities: {
     before: ConfidenceBreakdown;
+    symbolic?: ConfidenceBreakdown;
     after: ConfidenceBreakdown;
   };
 }

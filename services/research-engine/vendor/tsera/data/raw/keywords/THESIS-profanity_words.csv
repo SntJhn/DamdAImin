@@ -1,0 +1,284 @@
+lexicon_id,term,language,category,severity
+PROF-0001,pisshead,English,body insult,high
+PROF-0002,bollocks,English,body profanity,high
+PROF-0003,eat shit,English,body profanity,high
+PROF-0004,horseshit,English,body profanity,high
+PROF-0005,kiss my ass,English,body profanity,high
+PROF-0006,shit,English,body profanity,high
+PROF-0007,shitty,English,body profanity,high
+PROF-0008,crap,English,body profanity,medium
+PROF-0009,crappy,English,body profanity,medium
+PROF-0010,piss,English,body profanity,medium
+PROF-0011,piss off,English,body profanity,medium
+PROF-0012,pissed,English,body profanity,medium
+PROF-0013,pissed off,English,body profanity,medium
+PROF-0014,piece of shit,English,body profanity/insult,extreme
+PROF-0015,bullshit,English,body profanity/insult,high
+PROF-0016,dipshit,English,body profanity/insult,high
+PROF-0017,shitbag,English,body profanity/insult,high
+PROF-0018,shitface,English,body profanity/insult,high
+PROF-0019,shithead,English,body profanity/insult,high
+PROF-0020,bollocking,English,body/insult profanity,medium
+PROF-0021,assclown,English,body/insult slang,high
+PROF-0022,asshat,English,body/insult slang,high
+PROF-0023,asswipe,English,body/insult slang,high
+PROF-0024,holy shit,English,body/religious profanity,high
+PROF-0025,arsehole,English,body/sexual profanity,high
+PROF-0026,asshole,English,body/sexual profanity,high
+PROF-0027,ass,English,body/sexual profanity,medium
+PROF-0028,retard,English,disability-related slur,extreme
+PROF-0029,spaz,English,disability-related slur,high
+PROF-0030,cripple,English,disability-related slur/insult,high
+PROF-0031,bloody,English,expletive,medium
+PROF-0032,bloody hell,English,expletive,medium
+PROF-0033,bloody bastard,English,expletive/insult,high
+PROF-0034,son of a bitch,English,family/gendered profanity,extreme
+PROF-0035,bitchy,English,gendered insult,high
+PROF-0036,whore,English,gendered/sexual insult,extreme
+PROF-0037,bitch,English,gendered/sexual insult,high
+PROF-0038,hoe,English,gendered/sexual insult,high
+PROF-0039,skank,English,gendered/sexual insult,high
+PROF-0040,slag,English,gendered/sexual insult,high
+PROF-0041,slut,English,gendered/sexual insult,high
+PROF-0042,tramp,English,gendered/sexual insult,medium/high
+PROF-0043,Karen,English,gendered/social insult,low/medium
+PROF-0044,kys,English,harassment/self-harm phrase,extreme
+PROF-0045,queer,English,identity/slur; context-sensitive,variable
+PROF-0046,scumbag,English,insult,high
+PROF-0047,dumb,English,insult,low/medium
+PROF-0048,loser,English,insult,low/medium
+PROF-0049,stupid,English,insult,low/medium
+PROF-0050,garbage,English,insult,medium
+PROF-0051,idiot,English,insult,medium
+PROF-0052,imbecile,English,insult,medium
+PROF-0053,jerk,English,insult,medium
+PROF-0054,trash,English,insult,medium
+PROF-0055,moron,English,insult,medium/high
+PROF-0056,dumbass,English,insult/profanity,high
+PROF-0057,jackass,English,insult/profanity,high
+PROF-0058,edgelord,English,internet insult,medium
+PROF-0059,simp,English,internet insult/slang,low/medium
+PROF-0060,incel,English,internet insult/slang,medium
+PROF-0061,foad,English,internet profanity,high
+PROF-0062,pos,English,internet profanity,high
+PROF-0063,wtf,English,internet profanity,high
+PROF-0064,af,English,internet profanity,medium
+PROF-0065,lmao,English,internet profanity/slang,low
+PROF-0066,lmfao,English,internet profanity/slang,low
+PROF-0067,smd,English,internet sexual profanity,high
+PROF-0068,smdh,English,internet sexual profanity,high
+PROF-0069,shitposter,English,internet slang,medium
+PROF-0070,shitposting,English,internet slang,medium
+PROF-0071,afk,English,internet slang,none
+PROF-0072,ragebait,English,internet slang,none
+PROF-0073,gtfo,English,internet/sexual profanity,extreme
+PROF-0074,stfu,English,internet/sexual profanity,extreme
+PROF-0075,what the fuck,English,internet/sexual profanity,extreme
+PROF-0076,wtaf,English,internet/sexual profanity,extreme
+PROF-0077,schizo,English,mental-health-related insult,high
+PROF-0078,lunatic,English,mental-health-related insult,medium
+PROF-0079,psycho,English,mental-health-related insult,medium/high
+PROF-0080,douchecanoe,English,modern compound insult,high
+PROF-0081,Jesus H. Christ,English,religious expletive,high
+PROF-0082,Christ almighty,English,religious expletive,medium/high
+PROF-0083,Jesus Christ,English,religious expletive,medium/high
+PROF-0084,goddammit,English,religious profanity,high
+PROF-0085,goddamn,English,religious profanity,high
+PROF-0086,hell,English,religious profanity,low/medium
+PROF-0087,dammit,English,religious profanity,medium
+PROF-0088,damn,English,religious profanity,medium
+PROF-0089,go to hell,English,religious profanity,medium
+PROF-0090,goddamn bastard,English,religious/family profanity,high
+PROF-0091,eff,English,sexual euphemism,low/medium
+PROF-0092,freakin',English,sexual euphemism,low/medium
+PROF-0093,freaking,English,sexual euphemism,low/medium
+PROF-0094,frick,English,sexual euphemism,low/medium
+PROF-0095,effing,English,sexual euphemism,medium
+PROF-0096,fricking,English,sexual euphemism,medium
+PROF-0097,frig,English,sexual euphemism,medium
+PROF-0098,screw off,English,sexual euphemism/insult,medium
+PROF-0099,screw you,English,sexual euphemism/insult,medium
+PROF-0100,cuck,English,sexual insult,high
+PROF-0101,cuckold,English,sexual insult,high
+PROF-0102,eat a dick,English,sexual profanity,extreme
+PROF-0103,fuck,English,sexual profanity,extreme
+PROF-0104,fuck off,English,sexual profanity,extreme
+PROF-0105,fuck you,English,sexual profanity,extreme
+PROF-0106,fucked,English,sexual profanity,extreme
+PROF-0107,fucking,English,sexual profanity,extreme
+PROF-0108,suck my dick,English,sexual profanity,extreme
+PROF-0109,as fuck,English,sexual profanity,high
+PROF-0110,blow me,English,sexual profanity,high
+PROF-0111,bugger,English,sexual profanity,high
+PROF-0112,bugger off,English,sexual profanity,high
+PROF-0113,for fuck's sake,English,sexual profanity,high
+PROF-0114,fucksake,English,sexual profanity,high
+PROF-0115,suck it,English,sexual profanity,high
+PROF-0116,wanker,English,sexual profanity,high
+PROF-0117,cocksucker,English,sexual profanity/insult,extreme
+PROF-0118,fucker,English,sexual profanity/insult,extreme
+PROF-0119,jerkoff,English,sexual profanity/insult,high
+PROF-0120,up yours,English,sexual/body euphemism,medium
+PROF-0121,fuckface,English,sexual/body insult,extreme
+PROF-0122,fuckwit,English,sexual/body insult,extreme
+PROF-0123,asslicker,English,sexual/body insult,high
+PROF-0124,dickhead,English,sexual/body insult,high
+PROF-0125,dickwad,English,sexual/body insult,high
+PROF-0126,douche,English,sexual/body insult,high
+PROF-0127,douchebag,English,sexual/body insult,high
+PROF-0128,prick,English,sexual/body insult,high
+PROF-0129,twat,English,sexual/body insult,high
+PROF-0130,cock,English,sexual/body profanity,high
+PROF-0131,dick,English,sexual/body profanity,high
+PROF-0132,bastard,English,sexual/family insult,high
+PROF-0133,motherfuck,English,sexual/family profanity,extreme
+PROF-0134,motherfucker,English,sexual/family profanity,extreme
+PROF-0135,cunt,English,sexual/gendered profanity,extreme
+PROF-0136,pussy,English,sexual/gendered profanity,high
+PROF-0137,holy fuck,English,sexual/religious profanity,extreme
+PROF-0138,homo,English,sexuality-related insult,high
+PROF-0139,dyke,English,sexuality-related slur,extreme
+PROF-0140,fag,English,sexuality-related slur,extreme
+PROF-0141,faggot,English,sexuality-related slur,extreme
+PROF-0142,badass,English,slang/profanity,medium
+PROF-0143,c*nt,English / Filipino orthographic variants,English evasion,extreme
+PROF-0144,wh0re,English / Filipino orthographic variants,English evasion,extreme
+PROF-0145,a**hole,English / Filipino orthographic variants,English evasion,high
+PROF-0146,b*tch,English / Filipino orthographic variants,English evasion,high
+PROF-0147,b1tch,English / Filipino orthographic variants,English evasion,high
+PROF-0148,c0ck,English / Filipino orthographic variants,English evasion,high
+PROF-0149,d*ck,English / Filipino orthographic variants,English evasion,high
+PROF-0150,d1ck,English / Filipino orthographic variants,English evasion,high
+PROF-0151,f*ck,English / Filipino orthographic variants,English evasion,high
+PROF-0152,fck,English / Filipino orthographic variants,English evasion,high
+PROF-0153,fcking,English / Filipino orthographic variants,English evasion,high
+PROF-0154,fuk,English / Filipino orthographic variants,English evasion,high
+PROF-0155,fuq,English / Filipino orthographic variants,English evasion,high
+PROF-0156,sh*t,English / Filipino orthographic variants,English evasion,high
+PROF-0157,sh1t,English / Filipino orthographic variants,English evasion,high
+PROF-0158,sl*t,English / Filipino orthographic variants,English evasion,high
+PROF-0159,a$$,English / Filipino orthographic variants,English evasion,medium
+PROF-0160,f@k,English / Filipino orthographic variants,English/Filipino evasion,high
+PROF-0161,p*ta,English / Filipino orthographic variants,Filipino evasion,extreme
+PROF-0162,p*tang ina,English / Filipino orthographic variants,Filipino evasion,extreme
+PROF-0163,p4ta,English / Filipino orthographic variants,Filipino evasion,extreme
+PROF-0164,p@kyu,English / Filipino orthographic variants,Filipino evasion,extreme
+PROF-0165,b0bo,English / Filipino orthographic variants,Filipino evasion,high
+PROF-0166,g4go,English / Filipino orthographic variants,Filipino evasion,high
+PROF-0167,g@g0,English / Filipino orthographic variants,Filipino evasion,high
+PROF-0168,t4nga,English / Filipino orthographic variants,Filipino evasion,high
+PROF-0169,ta3,English / Filipino orthographic variants,Filipino evasion,high
+PROF-0170,ul0l,English / Filipino orthographic variants,Filipino evasion,high
+PROF-0171,tae,Filipino/Philippine languages,body profanity,high
+PROF-0172,puke,Filipino/Philippine languages,body profanity,medium
+PROF-0173,suka,Filipino/Philippine languages,body profanity,medium
+PROF-0174,taena,Filipino/Philippine languages,body/family profanity,extreme
+PROF-0175,atay,Filipino/Philippine languages,expletive,high
+PROF-0176,pakshet,Filipino/Philippine languages,expletive,high
+PROF-0177,pakshit,Filipino/Philippine languages,expletive,high
+PROF-0178,paksit,Filipino/Philippine languages,expletive,high
+PROF-0179,punyemas,Filipino/Philippine languages,expletive,high
+PROF-0180,punyeta,Filipino/Philippine languages,expletive,high
+PROF-0181,shet,Filipino/Philippine languages,expletive,high
+PROF-0182,shuta,Filipino/Philippine languages,expletive,high
+PROF-0183,syet,Filipino/Philippine languages,expletive,high
+PROF-0184,leche,Filipino/Philippine languages,expletive,medium
+PROF-0185,letse,Filipino/Philippine languages,expletive,medium
+PROF-0186,lintik,Filipino/Philippine languages,expletive,medium
+PROF-0187,buwisit,Filipino/Philippine languages,expletive/insult,high
+PROF-0188,bwiset,Filipino/Philippine languages,expletive/insult,high
+PROF-0189,bwisit,Filipino/Philippine languages,expletive/insult,high
+PROF-0190,bwisit ka,Filipino/Philippine languages,expletive/insult,high
+PROF-0191,lintik ka,Filipino/Philippine languages,expletive/insult,high
+PROF-0192,piste,Filipino/Philippine languages,expletive/insult,high
+PROF-0193,pisti,Filipino/Philippine languages,expletive/insult,high
+PROF-0194,animal ka,Filipino/Philippine languages,insult,high
+PROF-0195,demonyang,Filipino/Philippine languages,insult,high
+PROF-0196,hayop,Filipino/Philippine languages,insult,high
+PROF-0197,hayop ka,Filipino/Philippine languages,insult,high
+PROF-0198,hayup,Filipino/Philippine languages,insult,high
+PROF-0199,sira ulo,Filipino/Philippine languages,insult,high
+PROF-0200,siraulo,Filipino/Philippine languages,insult,high
+PROF-0201,ahas,Filipino/Philippine languages,insult,medium
+PROF-0202,kapal ng mukha,Filipino/Philippine languages,insult,medium
+PROF-0203,ulupong,Filipino/Philippine languages,insult,medium
+PROF-0204,anak ng tokwa,Filipino/Philippine languages,insult/euphemism,medium
+PROF-0205,demonyo,Filipino/Philippine languages,insult/expletive,high
+PROF-0206,leche ka,Filipino/Philippine languages,insult/expletive,high
+PROF-0207,satanas,Filipino/Philippine languages,insult/expletive,high
+PROF-0208,yawa,Filipino/Philippine languages,insult/expletive,high
+PROF-0209,bobo,Filipino/Philippine languages,insult/profanity,high
+PROF-0210,bobo ka,Filipino/Philippine languages,insult/profanity,high
+PROF-0211,gaga,Filipino/Philippine languages,insult/profanity,high
+PROF-0212,gago,Filipino/Philippine languages,insult/profanity,high
+PROF-0213,gago ka,Filipino/Philippine languages,insult/profanity,high
+PROF-0214,tanga,Filipino/Philippine languages,insult/profanity,high
+PROF-0215,tanga ka,Filipino/Philippine languages,insult/profanity,high
+PROF-0216,tarantada,Filipino/Philippine languages,insult/profanity,high
+PROF-0217,tarantado,Filipino/Philippine languages,insult/profanity,high
+PROF-0218,tarantado ka,Filipino/Philippine languages,insult/profanity,high
+PROF-0219,ulol,Filipino/Philippine languages,insult/profanity,high
+PROF-0220,ulol ka,Filipino/Philippine languages,insult/profanity,high
+PROF-0221,walang hiya,Filipino/Philippine languages,insult/profanity,high
+PROF-0222,walang hiya ka,Filipino/Philippine languages,insult/profanity,high
+PROF-0223,walanghiya,Filipino/Philippine languages,insult/profanity,high
+PROF-0224,anak ng kamote,Filipino/Philippine languages,insult/slang,medium
+PROF-0225,tamod mo,Filipino/Philippine languages,sexual insult,high
+PROF-0226,fakyu,Filipino/Philippine languages,sexual profanity,extreme
+PROF-0227,jakol,Filipino/Philippine languages,sexual profanity,extreme
+PROF-0228,jakulan,Filipino/Philippine languages,sexual profanity,extreme
+PROF-0229,kantot,Filipino/Philippine languages,sexual profanity,extreme
+PROF-0230,kantutan,Filipino/Philippine languages,sexual profanity,extreme
+PROF-0231,kinantot,Filipino/Philippine languages,sexual profanity,extreme
+PROF-0232,kumantot,Filipino/Philippine languages,sexual profanity,extreme
+PROF-0233,pakyu,Filipino/Philippine languages,sexual profanity,extreme
+PROF-0234,pakyu ka,Filipino/Philippine languages,sexual profanity,extreme
+PROF-0235,pota,Filipino/Philippine languages,sexual profanity,extreme
+PROF-0236,puta,Filipino/Philippine languages,sexual profanity,extreme
+PROF-0237,fubu,Filipino/Philippine languages,sexual slang,high
+PROF-0238,pekpek,Filipino/Philippine languages,sexual/body profanity,extreme
+PROF-0239,tamod,Filipino/Philippine languages,sexual/body profanity,high
+PROF-0240,bayag,Filipino/Philippine languages,sexual/body profanity,medium
+PROF-0241,semilya,Filipino/Philippine languages,sexual/body profanity,medium
+PROF-0242,pepe,Filipino/Philippine languages,sexual/body slang,high
+PROF-0243,itlog,Filipino/Philippine languages,sexual/body slang,medium
+PROF-0244,anak ng puta,Filipino/Philippine languages,sexual/family profanity,extreme
+PROF-0245,potang ina,Filipino/Philippine languages,sexual/family profanity,extreme
+PROF-0246,putang ina,Filipino/Philippine languages,sexual/family profanity,extreme
+PROF-0247,putangina mo,Filipino/Philippine languages,sexual/family profanity,extreme
+PROF-0248,shutaena,Filipino/Philippine languages,sexual/family profanity,extreme
+PROF-0249,shutang ina,Filipino/Philippine languages,sexual/family profanity,extreme
+PROF-0250,tang ina,Filipino/Philippine languages,sexual/family profanity,extreme
+PROF-0251,tangina mo,Filipino/Philippine languages,sexual/family profanity,extreme
+PROF-0252,anak ng teteng,Filipino/Philippine languages,sexual/family profanity,high
+PROF-0253,pokpok ka,Filipino/Philippine languages,sexualized insult,extreme
+PROF-0254,puta ka,Filipino/Philippine languages,sexualized insult,extreme
+PROF-0255,malandi ka,Filipino/Philippine languages,sexualized insult,high
+PROF-0256,pokpok,Filipino/Philippine languages,sexualized insult,high
+PROF-0257,malandi,Filipino/Philippine languages,sexualized insult,medium
+PROF-0258,kapalmuks,Filipino/Philippine languages,slang insult,high
+PROF-0259,hell no,Taglish / Philippine English,English-Taglish expression,medium
+PROF-0260,fuck naman,Taglish / Philippine English,Filipino-English code-switching,extreme
+PROF-0261,fuck you nga,Taglish / Philippine English,Filipino-English code-switching,extreme
+PROF-0262,fucking naman,Taglish / Philippine English,Filipino-English code-switching,extreme
+PROF-0263,pakyu naman,Taglish / Philippine English,Filipino-English code-switching,extreme
+PROF-0264,putangina bro,Taglish / Philippine English,Filipino-English code-switching,extreme
+PROF-0265,putangina dude,Taglish / Philippine English,Filipino-English code-switching,extreme
+PROF-0266,shut the fuck up ka,Taglish / Philippine English,Filipino-English code-switching,extreme
+PROF-0267,what the fuck naman,Taglish / Philippine English,Filipino-English code-switching,extreme
+PROF-0268,bobo ka bro,Taglish / Philippine English,Filipino-English code-switching,high
+PROF-0269,bullshit yan,Taglish / Philippine English,Filipino-English code-switching,high
+PROF-0270,gago bro,Taglish / Philippine English,Filipino-English code-switching,high
+PROF-0271,shit naman,Taglish / Philippine English,Filipino-English code-switching,high
+PROF-0272,shut up ka,Taglish / Philippine English,Filipino-English code-switching,high
+PROF-0273,this is bullshit,Taglish / Philippine English,Filipino-English code-switching,high
+PROF-0274,damn naman,Taglish / Philippine English,Filipino-English code-switching,medium
+PROF-0275,touch grass,Taglish / Philippine English,internet insult,low/medium
+PROF-0276,clout chaser,Taglish / Philippine English,internet insult,medium
+PROF-0277,troll ka,Taglish / Philippine English,internet insult/code-switching,low/medium
+PROF-0278,simp ka,Taglish / Philippine English,internet insult/code-switching,medium
+PROF-0279,ratio,Taglish / Philippine English,internet slang/insult,low
+PROF-0280,fuckboi,Taglish / Philippine English,sexualized insult/slang,high
+PROF-0281,fuckboy,Taglish / Philippine English,sexualized insult/slang,high
+PROF-0282,fuckgirl,Taglish / Philippine English,sexualized slang,high
+PROF-0283,hindot,Taglish / Philippine English,sexualized slang,high

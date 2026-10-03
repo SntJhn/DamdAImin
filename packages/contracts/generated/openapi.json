@@ -803,6 +803,37 @@
                                             }
                                           }
                                         },
+                                        "symbolic": {
+                                          "type": "object",
+                                          "required": [
+                                            "happiness",
+                                            "sadness",
+                                            "anger",
+                                            "neutrality"
+                                          ],
+                                          "properties": {
+                                            "happiness": {
+                                              "minimum": 0,
+                                              "maximum": 1,
+                                              "type": "number"
+                                            },
+                                            "sadness": {
+                                              "minimum": 0,
+                                              "maximum": 1,
+                                              "type": "number"
+                                            },
+                                            "anger": {
+                                              "minimum": 0,
+                                              "maximum": 1,
+                                              "type": "number"
+                                            },
+                                            "neutrality": {
+                                              "minimum": 0,
+                                              "maximum": 1,
+                                              "type": "number"
+                                            }
+                                          }
+                                        },
                                         "after": {
                                           "type": "object",
                                           "required": [
@@ -1079,6 +1110,37 @@
                                       ],
                                       "properties": {
                                         "before": {
+                                          "type": "object",
+                                          "required": [
+                                            "happiness",
+                                            "sadness",
+                                            "anger",
+                                            "neutrality"
+                                          ],
+                                          "properties": {
+                                            "happiness": {
+                                              "minimum": 0,
+                                              "maximum": 1,
+                                              "type": "number"
+                                            },
+                                            "sadness": {
+                                              "minimum": 0,
+                                              "maximum": 1,
+                                              "type": "number"
+                                            },
+                                            "anger": {
+                                              "minimum": 0,
+                                              "maximum": 1,
+                                              "type": "number"
+                                            },
+                                            "neutrality": {
+                                              "minimum": 0,
+                                              "maximum": 1,
+                                              "type": "number"
+                                            }
+                                          }
+                                        },
+                                        "symbolic": {
                                           "type": "object",
                                           "required": [
                                             "happiness",
@@ -1931,6 +1993,37 @@
                                         }
                                       }
                                     },
+                                    "symbolic": {
+                                      "type": "object",
+                                      "required": [
+                                        "happiness",
+                                        "sadness",
+                                        "anger",
+                                        "neutrality"
+                                      ],
+                                      "properties": {
+                                        "happiness": {
+                                          "minimum": 0,
+                                          "maximum": 1,
+                                          "type": "number"
+                                        },
+                                        "sadness": {
+                                          "minimum": 0,
+                                          "maximum": 1,
+                                          "type": "number"
+                                        },
+                                        "anger": {
+                                          "minimum": 0,
+                                          "maximum": 1,
+                                          "type": "number"
+                                        },
+                                        "neutrality": {
+                                          "minimum": 0,
+                                          "maximum": 1,
+                                          "type": "number"
+                                        }
+                                      }
+                                    },
                                     "after": {
                                       "type": "object",
                                       "required": [
@@ -2207,6 +2300,37 @@
                                   ],
                                   "properties": {
                                     "before": {
+                                      "type": "object",
+                                      "required": [
+                                        "happiness",
+                                        "sadness",
+                                        "anger",
+                                        "neutrality"
+                                      ],
+                                      "properties": {
+                                        "happiness": {
+                                          "minimum": 0,
+                                          "maximum": 1,
+                                          "type": "number"
+                                        },
+                                        "sadness": {
+                                          "minimum": 0,
+                                          "maximum": 1,
+                                          "type": "number"
+                                        },
+                                        "anger": {
+                                          "minimum": 0,
+                                          "maximum": 1,
+                                          "type": "number"
+                                        },
+                                        "neutrality": {
+                                          "minimum": 0,
+                                          "maximum": 1,
+                                          "type": "number"
+                                        }
+                                      }
+                                    },
+                                    "symbolic": {
                                       "type": "object",
                                       "required": [
                                         "happiness",
@@ -2739,6 +2863,37 @@
                                             }
                                           }
                                         },
+                                        "symbolic": {
+                                          "type": "object",
+                                          "required": [
+                                            "happiness",
+                                            "sadness",
+                                            "anger",
+                                            "neutrality"
+                                          ],
+                                          "properties": {
+                                            "happiness": {
+                                              "minimum": 0,
+                                              "maximum": 1,
+                                              "type": "number"
+                                            },
+                                            "sadness": {
+                                              "minimum": 0,
+                                              "maximum": 1,
+                                              "type": "number"
+                                            },
+                                            "anger": {
+                                              "minimum": 0,
+                                              "maximum": 1,
+                                              "type": "number"
+                                            },
+                                            "neutrality": {
+                                              "minimum": 0,
+                                              "maximum": 1,
+                                              "type": "number"
+                                            }
+                                          }
+                                        },
                                         "after": {
                                           "type": "object",
                                           "required": [
@@ -3015,6 +3170,37 @@
                                       ],
                                       "properties": {
                                         "before": {
+                                          "type": "object",
+                                          "required": [
+                                            "happiness",
+                                            "sadness",
+                                            "anger",
+                                            "neutrality"
+                                          ],
+                                          "properties": {
+                                            "happiness": {
+                                              "minimum": 0,
+                                              "maximum": 1,
+                                              "type": "number"
+                                            },
+                                            "sadness": {
+                                              "minimum": 0,
+                                              "maximum": 1,
+                                              "type": "number"
+                                            },
+                                            "anger": {
+                                              "minimum": 0,
+                                              "maximum": 1,
+                                              "type": "number"
+                                            },
+                                            "neutrality": {
+                                              "minimum": 0,
+                                              "maximum": 1,
+                                              "type": "number"
+                                            }
+                                          }
+                                        },
+                                        "symbolic": {
                                           "type": "object",
                                           "required": [
                                             "happiness",
@@ -3546,6 +3732,37 @@
                                         }
                                       }
                                     },
+                                    "symbolic": {
+                                      "type": "object",
+                                      "required": [
+                                        "happiness",
+                                        "sadness",
+                                        "anger",
+                                        "neutrality"
+                                      ],
+                                      "properties": {
+                                        "happiness": {
+                                          "minimum": 0,
+                                          "maximum": 1,
+                                          "type": "number"
+                                        },
+                                        "sadness": {
+                                          "minimum": 0,
+                                          "maximum": 1,
+                                          "type": "number"
+                                        },
+                                        "anger": {
+                                          "minimum": 0,
+                                          "maximum": 1,
+                                          "type": "number"
+                                        },
+                                        "neutrality": {
+                                          "minimum": 0,
+                                          "maximum": 1,
+                                          "type": "number"
+                                        }
+                                      }
+                                    },
                                     "after": {
                                       "type": "object",
                                       "required": [
@@ -3822,6 +4039,37 @@
                                   ],
                                   "properties": {
                                     "before": {
+                                      "type": "object",
+                                      "required": [
+                                        "happiness",
+                                        "sadness",
+                                        "anger",
+                                        "neutrality"
+                                      ],
+                                      "properties": {
+                                        "happiness": {
+                                          "minimum": 0,
+                                          "maximum": 1,
+                                          "type": "number"
+                                        },
+                                        "sadness": {
+                                          "minimum": 0,
+                                          "maximum": 1,
+                                          "type": "number"
+                                        },
+                                        "anger": {
+                                          "minimum": 0,
+                                          "maximum": 1,
+                                          "type": "number"
+                                        },
+                                        "neutrality": {
+                                          "minimum": 0,
+                                          "maximum": 1,
+                                          "type": "number"
+                                        }
+                                      }
+                                    },
+                                    "symbolic": {
                                       "type": "object",
                                       "required": [
                                         "happiness",

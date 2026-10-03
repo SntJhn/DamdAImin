@@ -4,9 +4,9 @@ The service is intentionally stateless. It receives one WAV payload, runs ASR,
 the fine-tuned TSERA model, and the preliminary symbolic layer, then returns
 the versioned Research System response consumed by the DamdAImin worker.
 
-The TSERA model implementation is imported read-only from the mounted TSERA
-checkout. This keeps preprocessing and checkpoint loading identical to the
-research repository rather than maintaining a second model definition here.
+The TSERA model implementation is vendored read-only from the research
+repository. This keeps preprocessing and checkpoint loading identical to the
+research repository without requiring the full research checkout at runtime.
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ import numpy as np
 from faster_whisper import WhisperModel
 
 
-TSERA_SOURCE_DIR = Path(os.getenv("TSERA_SOURCE_DIR", "/tsera/src"))
+TSERA_SOURCE_DIR = Path(os.getenv("TSERA_SOURCE_DIR", "/app/vendor/tsera/src"))
 if str(TSERA_SOURCE_DIR) not in sys.path:
     sys.path.insert(0, str(TSERA_SOURCE_DIR))
 
@@ -77,9 +77,14 @@ ASR_LANGUAGE = os.getenv("ASR_LANGUAGE", "auto").strip().casefold()
 ASR_DEVICE = os.getenv("ASR_DEVICE", "cpu")
 ASR_COMPUTE_TYPE = os.getenv("ASR_COMPUTE_TYPE", "int8")
 MODEL_PATH = Path(
-    os.getenv("TSERA_MODEL_PATH", "/tsera/src/models/best_finetuned_baseline.pt")
+    os.getenv(
+        "TSERA_MODEL_PATH",
+        "/app/vendor/tsera/src/models/best_finetuned_baseline.pt",
+    )
 )
-KEYWORD_DIR = Path(os.getenv("SYMBOLIC_KEYWORD_DIR", "/tsera/data/raw/keywords"))
+KEYWORD_DIR = Path(
+    os.getenv("SYMBOLIC_KEYWORD_DIR", "/app/vendor/tsera/data/raw/keywords")
+)
 
 
 def normalize_text(value: Any) -> str:
@@ -597,6 +602,7 @@ class ResearchRuntime:
         self.reasoner = SymbolicReasoner()
         self.asr: WhisperModel | None = None
         self.lock = threading.Lock()
+        self.ensure_asr()
 
     def ensure_asr(self) -> WhisperModel:
         if self.asr is None:
@@ -764,7 +770,11 @@ class ResearchRuntime:
                     "cueSpans": cue_spans,
                     "activatedRules": activated_rules,
                     "scoreAdjustments": score_adjustments,
-                    "probabilities": {"before": before, "after": after},
+                    "probabilities": {
+                        "before": before,
+                        "symbolic": probability_breakdown(symbolic["symbolic_probabilities"]),
+                        "after": after,
+                    },
                 },
                 "contractVersion": contract_version,
                 "schemaVersion": "research-response-v2",

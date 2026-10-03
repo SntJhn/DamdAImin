@@ -6,11 +6,13 @@ receives a WAV payload, performs ASR and emotion inference, applies the
 preliminary symbolic layer, and returns the transcript, fused probabilities,
 explanation, and technical trace.
 
-The service imports the TSERA inference implementation and reads the model and
-keyword resources through a read-only bind mount. The default local paths are:
+The service vendors the small TSERA runtime slice it needs under
+`vendor/tsera`. The full TSERA checkout is not required to run DamdAImin. The
+vendored runtime includes:
 
-- `/tsera/src/models/best_finetuned_baseline.pt`
-- `/tsera/data/raw/keywords`
+- the fine-tuned neural checkpoint;
+- the TSERA audio preprocessing/inference module; and
+- the five symbolic keyword tables.
 
 Whisper `large-v3-turbo` is the default ASR model. Override `ASR_MODEL` when a
 different locally supported Whisper checkpoint is required. The preliminary
@@ -21,6 +23,18 @@ validated thesis settings.
 Set `HF_TOKEN` in the repository `.env` file to authenticate Whisper downloads
 against the Hugging Face Hub. The token is passed only to the local research
 engine container and is not committed.
+
+The default Compose setup mounts the repository-local `.cache/huggingface`
+directory. To use a Docker-managed named volume instead, run Compose with the
+named-cache override:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.named-cache.yml up --build research-engine api worker
+```
+
+The named volume downloads the ASR model on its first startup and reuses it on
+later container recreations. The research engine preloads ASR before serving
+traffic, so its health check does not pass until the model is ready.
 
 ## Local startup
 
@@ -34,7 +48,7 @@ pnpm dev
 dependencies first with `docker compose up -d redis fake-gcs otel-collector`. To run only this
 service, use `docker compose up --build research-engine api worker` instead.
 
-The first build downloads Python dependencies and the first analysis downloads
-the ASR checkpoint. The model-backed service is available at
+The first build installs Python dependencies and the first engine startup
+downloads the ASR checkpoint when it is not already cached. The model-backed service is available at
 `http://localhost:4100/healthz`. The deterministic contract fake remains
 available at `http://localhost:4101` for contract-only testing.

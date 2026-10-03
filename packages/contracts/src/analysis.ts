@@ -58,6 +58,7 @@ export const TechnicalTraceSchema = Type.Object({
   scoreAdjustments: Type.Array(ScoreAdjustmentSchema),
   probabilities: Type.Object({
     before: ConfidenceBreakdownSchema,
+    symbolic: Type.Optional(ConfidenceBreakdownSchema),
     after: ConfidenceBreakdownSchema,
   }),
 });

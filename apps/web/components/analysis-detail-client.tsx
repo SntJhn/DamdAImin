@@ -630,7 +630,12 @@ function AnalysisRecord({
         </section>
       </div>
 
-      {classification ? <ConfidenceBreakdown confidence={result.confidence} /> : null}
+      {classification ? (
+        <ConfidenceBreakdown
+          neural={result.technicalTrace.probabilities.before}
+          symbolic={result.technicalTrace.probabilities.symbolic}
+        />
+      ) : null}
 
       <section className="analysis-result-trace" aria-labelledby="traceability-heading">
         <div className="analysis-result-section-heading">
@@ -661,35 +666,68 @@ function AnalysisRecord({
 
 const classificationKeys = ['happiness', 'sadness', 'anger', 'neutrality'] as const;
 
-function ConfidenceBreakdown({ confidence }: { confidence: AnalysisResult['confidence'] }) {
+function ConfidenceBreakdown({
+  neural,
+  symbolic,
+}: {
+  neural: AnalysisResult['confidence'];
+  symbolic?: AnalysisResult['confidence'];
+}) {
   return (
     <section className="analysis-result-confidence" aria-labelledby="confidence-heading">
       <div className="analysis-result-section-heading">
         <div>
-          <p className="dashboard-card-kicker">Probability distribution</p>
-          <h2 id="confidence-heading">Confidence breakdown</h2>
+          <p className="dashboard-card-kicker">Layer comparison</p>
+          <h2 id="confidence-heading">Neural and symbolic probabilities</h2>
         </div>
-        <p>Returned probabilities for the definitive classification.</p>
+        <p>
+          Separate emotion distributions from each layer before they are blended into the final
+          result.
+        </p>
       </div>
-      <ul className="analysis-result-confidence-list">
-        {classificationKeys.map((classification) => {
-          const probability = confidence[classification];
-          return (
-            <li key={classification}>
-              <div className="analysis-result-confidence-label">
-                <span>{formatClassification(classification)}</span>
-                <strong>{formatProbability(probability)}</strong>
-              </div>
-              <meter
-                min="0"
-                max="1"
-                value={probability}
-                aria-label={`${formatClassification(classification)} probability`}
-              />
-            </li>
-          );
-        })}
-      </ul>
+      <div className="analysis-result-confidence-grid">
+        <ConfidenceColumn title="Neural" confidence={neural} />
+        <ConfidenceColumn title="Symbolic" confidence={symbolic} />
+      </div>
+    </section>
+  );
+}
+
+function ConfidenceColumn({
+  title,
+  confidence,
+}: {
+  title: string;
+  confidence?: AnalysisResult['confidence'];
+}) {
+  return (
+    <section className="analysis-result-confidence-model" aria-label={title + ' probabilities'}>
+      <h3>{title}</h3>
+      {confidence ? (
+        <ul className="analysis-result-confidence-list">
+          {classificationKeys.map((classification) => {
+            const probability = confidence[classification];
+            return (
+              <li key={classification}>
+                <div className="analysis-result-confidence-label">
+                  <span>{formatClassification(classification)}</span>
+                  <strong>{formatProbability(probability)}</strong>
+                </div>
+                <meter
+                  min="0"
+                  max="1"
+                  value={probability}
+                  aria-label={title + ' ' + formatClassification(classification) + ' probability'}
+                />
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <p className="analysis-result-confidence-unavailable">
+          Symbolic probabilities were not recorded for this analysis.
+        </p>
+      )}
     </section>
   );
 }
@@ -711,13 +749,15 @@ function TechnicalTraceView({
   const resultBefore = classification ? trace.probabilities.before[classification] : undefined;
   const resultAfter = classification ? trace.probabilities.after[classification] : undefined;
   const resultChangeCopy =
-    resultBefore === undefined || resultAfter === undefined
+    resultBefore === undefined || resultAfter === undefined || classification === undefined
       ? 'The evidence did not favor one emotion clearly enough.'
-      : ruleCount > 0
-        ? `Symbolic processing changed the score from ${formatProbability(resultBefore)} to ${formatProbability(resultAfter)}.`
-        : Math.round(resultBefore * 100) === Math.round(resultAfter * 100)
-          ? `The symbolic layer activated no rules. The final score stayed at ${formatProbability(resultAfter)}.`
-          : `The symbolic layer activated no rules. The final probability blend changed the score from ${formatProbability(resultBefore)} to ${formatProbability(resultAfter)}.`;
+      : 'For ' +
+        formatClassification(classification) +
+        ', the neural model assigned ' +
+        formatProbability(resultBefore) +
+        '; the final blend assigned ' +
+        formatProbability(resultAfter) +
+        '.';
 
   return (
     <div className="analysis-trace-body">
