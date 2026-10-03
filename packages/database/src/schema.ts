@@ -48,6 +48,7 @@ export const analyses = appSchema.table(
     retryOfAnalysisId: uuid('retry_of_analysis_id').unique(),
     retryAnalysisId: uuid('retry_analysis_id'),
     result: jsonb('result').$type<AnalysisResult | null>(),
+    transcript: text('transcript'),
     failureMessage: text('failure_message'),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),

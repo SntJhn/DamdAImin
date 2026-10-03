@@ -37,6 +37,10 @@
     "audioBase64": {
       "minLength": 1,
       "type": "string"
+    },
+    "transcript": {
+      "maxLength": 4000,
+      "type": "string"
     }
   }
 }

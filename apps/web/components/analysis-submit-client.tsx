@@ -21,8 +21,14 @@ export function AnalysisSubmitClient() {
   const [inputMethod, setInputMethod] = useState<'microphone' | 'upload'>('microphone');
   const [retainSourceAudio, setRetainSourceAudio] = useState(false);
   const [file, setFile] = useState<File | null>(null);
+  const [audioPreviewUrl, setAudioPreviewUrl] = useState<string | null>(null);
+  const [asrTranscriptGenerated, setAsrTranscriptGenerated] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [pendingUploadId, setPendingUploadId] = useState<string | null>(null);
+  const [transcriptDraft, setTranscriptDraft] = useState('');
+  const [transcriptionNotice, setTranscriptionNotice] = useState('');
+  const [reviewingTranscript, setReviewingTranscript] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -49,9 +55,71 @@ export function AnalysisSubmitClient() {
     };
   }, [router]);
 
+  useEffect(() => {
+    if (!file) {
+      setAudioPreviewUrl(null);
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(file);
+    setAudioPreviewUrl(previewUrl);
+    return () => URL.revokeObjectURL(previewUrl);
+  }, [file]);
+
+  async function queueAnalysis(token: string, uploadId: string, transcript: string) {
+    const finalizeResponse = await fetch(`${apiBaseUrl}/analyses`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${token}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ uploadId, transcript }),
+    });
+    if (finalizeResponse.status === 401) {
+      router.replace('/auth/sign-in?next=/analyze');
+      return;
+    }
+
+    const finalized = (await finalizeResponse.json()) as Partial<AcceptedAnalysisResponse> & {
+      error?: string;
+      message?: string;
+    };
+    if (!finalizeResponse.ok || !finalized.analysis?.id) {
+      throw new Error(finalized.message ?? 'The WAV file was not accepted.');
+    }
+
+    router.replace(`/analyses/${finalized.analysis.id}`);
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError('');
+
+    if (reviewingTranscript) {
+      if (!pendingUploadId) {
+        setError('The uploaded recording is no longer available. Upload it again to continue.');
+        return;
+      }
+
+      setBusy(true);
+      try {
+        const token = await getAuthToken();
+        if (!token) {
+          router.replace('/auth/sign-in?next=/analyze');
+          return;
+        }
+        await queueAnalysis(token, pendingUploadId, transcriptDraft);
+      } catch (submissionError) {
+        setError(
+          submissionError instanceof Error
+            ? submissionError.message
+            : 'The Analysis could not be submitted. Try again.',
+        );
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
 
     if (!file) {
       setError(
@@ -96,7 +164,11 @@ export function AnalysisSubmitClient() {
         error?: string;
         message?: string;
       };
-      if (!uploadResponse.ok || typeof uploadBody.uploadUrl !== 'string') {
+      if (
+        !uploadResponse.ok ||
+        typeof uploadBody.uploadUrl !== 'string' ||
+        typeof uploadBody.uploadId !== 'string'
+      ) {
         throw new Error(uploadBody.message ?? 'The upload could not be prepared.');
       }
 
@@ -109,28 +181,37 @@ export function AnalysisSubmitClient() {
         throw new Error('The WAV file could not be uploaded. Try again.');
       }
 
-      const finalizeResponse = await fetch(`${apiBaseUrl}/analyses`, {
-        method: 'POST',
-        headers: {
-          authorization: `Bearer ${token}`,
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify({ uploadId: uploadBody.uploadId }),
-      });
-      if (finalizeResponse.status === 401) {
-        router.replace('/auth/sign-in?next=/analyze');
-        return;
-      }
+      setPendingUploadId(uploadBody.uploadId);
+      try {
+        const previewResponse = await fetch(
+          `${apiBaseUrl}/analysis-uploads/${uploadBody.uploadId}/transcription-preview`,
+          { method: 'POST', headers: { authorization: `Bearer ${token}` } },
+        );
+        if (previewResponse.status === 401) {
+          router.replace('/auth/sign-in?next=/analyze');
+          return;
+        }
 
-      const finalized = (await finalizeResponse.json()) as Partial<AcceptedAnalysisResponse> & {
-        error?: string;
-        message?: string;
-      };
-      if (!finalizeResponse.ok || !finalized.analysis?.id) {
-        throw new Error(finalized.message ?? 'The WAV file was not accepted.');
-      }
+        const previewBody = (await previewResponse.json()) as {
+          transcript?: unknown;
+        };
+        if (!previewResponse.ok || typeof previewBody.transcript !== 'string') {
+          throw new Error('Transcription preview unavailable');
+        }
 
-      router.replace(`/analyses/${finalized.analysis.id}`);
+        setTranscriptDraft(previewBody.transcript);
+        setAsrTranscriptGenerated(true);
+        setTranscriptionNotice(
+          'Check names, slang, and code-switched words. You can correct the transcript before analysis.',
+        );
+      } catch {
+        setTranscriptDraft('');
+        setAsrTranscriptGenerated(false);
+        setTranscriptionNotice(
+          'Automatic transcription could not be generated. Type a transcript, or leave it blank to analyze the audio without language cues.',
+        );
+      }
+      setReviewingTranscript(true);
     } catch (submissionError) {
       setError(
         submissionError instanceof Error
@@ -150,11 +231,21 @@ export function AnalysisSubmitClient() {
   function chooseInputMethod(method: 'microphone' | 'upload') {
     setInputMethod(method);
     setFile(null);
+    setPendingUploadId(null);
+    setTranscriptDraft('');
+    setTranscriptionNotice('');
+    setAsrTranscriptGenerated(false);
+    setReviewingTranscript(false);
     setError('');
   }
 
   function selectSpeechSample(nextFile: File | null) {
     setFile(nextFile);
+    setPendingUploadId(null);
+    setTranscriptDraft('');
+    setTranscriptionNotice('');
+    setAsrTranscriptGenerated(false);
+    setReviewingTranscript(false);
     if (nextFile) setError('');
   }
 
@@ -258,18 +349,57 @@ export function AnalysisSubmitClient() {
               </Link>
             </header>
 
-            <div className="analysis-intake-body">
+            <section
+              className="analysis-transcript-review"
+              hidden={!reviewingTranscript}
+              aria-labelledby="transcript-review-title"
+            >
+              <p className="analysis-panel-kicker">
+                {asrTranscriptGenerated ? 'ASR TRANSCRIPT' : 'TRANSCRIPT ENTRY'}
+              </p>
+              <h3 id="transcript-review-title">Check the words before analysis.</h3>
+              <p className="analysis-transcript-guidance">
+                Correct names, Taglish spelling, and anything Whisper missed. The neural model reads
+                the audio; this transcript is used by the symbolic language rules.
+              </p>
+              {file && audioPreviewUrl ? (
+                <AudioPreview fileName={file.name} src={audioPreviewUrl} />
+              ) : null}
+              <label className="analysis-transcript-field" htmlFor="analysis-transcript">
+                <span>
+                  {asrTranscriptGenerated
+                    ? 'ASR-generated transcript (editable)'
+                    : 'Transcript text (editable)'}
+                </span>
+                <textarea
+                  id="analysis-transcript"
+                  name="transcript"
+                  value={transcriptDraft}
+                  maxLength={4000}
+                  placeholder="Type the words that were spoken"
+                  rows={6}
+                  onChange={(event) => setTranscriptDraft(event.target.value)}
+                />
+              </label>
+              <p className="analysis-transcription-notice" role="status">
+                {transcriptionNotice}
+              </p>
+            </section>
+
+            <div className="analysis-intake-body" hidden={reviewingTranscript}>
               <section className="analysis-capture-panel" aria-labelledby="capture-title">
-                <div className="analysis-signal-visual" aria-hidden="true">
-                  <span />
-                  <span />
-                  <span />
-                  <span />
-                  <span />
-                  <span />
-                  <span />
-                  <b>✦</b>
-                </div>
+                {inputMethod === 'upload' ? (
+                  <div className="analysis-signal-visual" aria-hidden="true">
+                    <span />
+                    <span />
+                    <span />
+                    <span />
+                    <span />
+                    <span />
+                    <span />
+                    <b>✦</b>
+                  </div>
+                ) : null}
                 <div className="analysis-capture-copy">
                   <p className="analysis-panel-kicker">YOUR RECORDING</p>
                   <h3 id="capture-title">Say what you mean.</h3>
@@ -342,6 +472,9 @@ export function AnalysisSubmitClient() {
                     />
                   </label>
                 )}
+                {file && audioPreviewUrl ? (
+                  <AudioPreview fileName={file.name} src={audioPreviewUrl} />
+                ) : null}
               </section>
 
               <aside className="analysis-options-panel" aria-label="Analysis options">
@@ -395,14 +528,24 @@ export function AnalysisSubmitClient() {
                   {error}
                 </p>
               ) : (
-                <p>Private by default. Your recording follows the retention choice above.</p>
+                <p>
+                  {reviewingTranscript
+                    ? 'Review the transcript, then run the analysis with your corrections.'
+                    : 'Private by default. Your recording follows the retention choice above.'}
+                </p>
               )}
               <button
                 className="analysis-submit-button primary-button"
                 type="submit"
                 disabled={busy}
               >
-                {busy ? 'Preparing Analysis…' : 'Submit for analysis'}
+                {busy
+                  ? reviewingTranscript
+                    ? 'Queueing Analysis…'
+                    : 'Transcribing audio…'
+                  : reviewingTranscript
+                    ? 'Run analysis'
+                    : 'Generate transcript'}
                 <span aria-hidden="true">↗</span>
               </button>
             </footer>
@@ -410,6 +553,20 @@ export function AnalysisSubmitClient() {
         </div>
       </section>
     </main>
+  );
+}
+
+function AudioPreview({ fileName, src }: { fileName: string; src: string }) {
+  return (
+    <section className="analysis-audio-preview" aria-label="Audio preview">
+      <div className="analysis-audio-preview-heading">
+        <p className="analysis-panel-kicker">AUDIO PREVIEW</p>
+        <span>{fileName}</span>
+      </div>
+      <audio controls preload="metadata" src={src} aria-label="Play the selected recording">
+        Audio playback is not supported in this browser.
+      </audio>
+    </section>
   );
 }
 

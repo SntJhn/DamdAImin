@@ -43,6 +43,7 @@ export interface Analysis {
   retryAnalysisId?: string | null;
   createdAt: Date;
   result: AnalysisResult | null;
+  transcript?: string | null;
   failureMessage: string | null;
 }
 
@@ -138,11 +139,13 @@ export interface SourceAudioStorage {
 }
 
 export interface ResearchSystemClient {
+  transcribe?(input: { audio: Uint8Array }): Promise<string>;
   analyze(input: {
     analysisId: string;
     language: AnalysisLanguage;
     contractVersion: string;
     audio: Uint8Array;
+    transcript?: string;
   }): Promise<AnalysisResult>;
 }
 
@@ -172,7 +175,8 @@ export interface AnalysisServices {
     contractVersion: string;
     retainSourceAudio?: boolean;
   }): Promise<CreatedAnalysisUpload>;
-  finalizeUpload(accountId: string, uploadId: string): Promise<Analysis>;
+  previewTranscription?(accountId: string, uploadId: string): Promise<string>;
+  finalizeUpload(accountId: string, uploadId: string, transcript?: string): Promise<Analysis>;
   getAnalysis(accountId: string, analysisId: string): Promise<Analysis>;
   deleteAnalysis(accountId: string, analysisId: string): Promise<void>;
   cancelAnalysis(accountId: string, analysisId: string): Promise<Analysis>;
@@ -260,7 +264,54 @@ export function createAnalysisServices(options: AnalysisServiceOptions): Analysi
       return { upload: storedUpload, ...instruction };
     },
 
-    async finalizeUpload(accountId: string, uploadId: string): Promise<Analysis> {
+    async previewTranscription(accountId: string, uploadId: string): Promise<string> {
+      const upload = await options.repository.getUpload(accountId, uploadId);
+      if (!upload) {
+        throw new AnalysisNotFoundError();
+      }
+
+      if (upload.analysisId || upload.status !== 'created') {
+        throw new AnalysisInputError('This upload has already been submitted');
+      }
+
+      if (upload.expiresAt.getTime() <= now().getTime()) {
+        throw new AnalysisInputError('The upload has expired');
+      }
+
+      const storedObject = await options.storage.stat(upload.objectKey);
+      if (!storedObject) {
+        throw new AnalysisInputError('Upload the WAV file before generating a transcript');
+      }
+
+      if (storedObject.contentType !== 'audio/wav') {
+        await deleteBestEffort(options.storage, upload.objectKey);
+        throw new AnalysisInputError('Only WAV audio uploads are supported');
+      }
+
+      const audio = await options.storage.read(upload.objectKey);
+      try {
+        inspectWavAudio(audio);
+      } catch (error) {
+        await deleteBestEffort(options.storage, upload.objectKey);
+        if (error instanceof Error) {
+          throw new AnalysisInputError(error.message);
+        }
+
+        throw new AnalysisInputError('The WAV file is invalid');
+      }
+
+      if (!options.researchClient?.transcribe) {
+        throw new Error('Research System transcription is unavailable');
+      }
+
+      return options.researchClient.transcribe({ audio });
+    },
+
+    async finalizeUpload(
+      accountId: string,
+      uploadId: string,
+      transcript?: string,
+    ): Promise<Analysis> {
       const upload = await options.repository.getUpload(accountId, uploadId);
       if (!upload) {
         throw new AnalysisNotFoundError();
@@ -322,6 +373,7 @@ export function createAnalysisServices(options: AnalysisServiceOptions): Analysi
         retryAnalysisId: null,
         createdAt: now(),
         result: null,
+        transcript: transcript === undefined ? null : transcript,
         failureMessage: null,
       };
       const storedAnalysis = await options.repository.finalizeUploadAndCreateAnalysis({
@@ -467,6 +519,7 @@ export function createAnalysisServices(options: AnalysisServiceOptions): Analysi
         retryAnalysisId: null,
         createdAt: now(),
         result: null,
+        transcript: original.transcript ?? null,
         failureMessage: null,
       };
       const retryResult = await options.repository.retryFailedAnalysis({
@@ -545,7 +598,18 @@ export function createAnalysisServices(options: AnalysisServiceOptions): Analysi
           language: analysis.language,
           contractVersion: analysis.contractVersion,
           audio,
+          ...(analysis.transcript === undefined || analysis.transcript === null
+            ? {}
+            : { transcript: analysis.transcript }),
         });
+
+        if (
+          analysis.transcript !== undefined &&
+          analysis.transcript !== null &&
+          result.transcript !== analysis.transcript
+        ) {
+          throw new Error('Research System did not use the reviewed transcript');
+        }
 
         const completed = await options.repository.completeAnalysis(analysis.id, result);
         if (completed) {

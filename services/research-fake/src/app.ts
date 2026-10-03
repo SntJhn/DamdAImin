@@ -87,6 +87,9 @@ function createFixtureResponse(
   request: ResearchAnalysisRequest,
   fixture: ResearchFakeFixture,
 ): ResearchAnalysisResponse {
+  const transcript =
+    request.transcript ?? (fixture === 'inconclusive' ? '' : 'Masaya ako sa araw na ito.');
+
   if (fixture === 'inconclusive') {
     return {
       analysisId: request.analysisId,
@@ -98,7 +101,7 @@ function createFixtureResponse(
           anger: 0.25,
           neutrality: 0.25,
         },
-        transcript: '',
+        transcript,
         explanation:
           'The deterministic fixture returned insufficient acoustic and linguistic evidence for a definitive classification.',
         technicalTrace: {
@@ -140,7 +143,7 @@ function createFixtureResponse(
         anger: 0.02,
         neutrality: 0.04,
       },
-      transcript: 'Masaya ako sa araw na ito.',
+      transcript,
       explanation:
         'The returned rising pitch contour and positive lexical cue support the happiness classification.',
       technicalTrace: {
@@ -157,7 +160,8 @@ function createFixtureResponse(
             startMs: 850,
             endMs: 1_450,
             cue: 'positive lexical cue',
-            value: 'Masaya',
+            value:
+              request.transcript === undefined ? 'Masaya' : request.transcript || 'No transcript',
           },
         ],
         activatedRules: [

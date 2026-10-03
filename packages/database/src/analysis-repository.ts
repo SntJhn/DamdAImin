@@ -99,6 +99,7 @@ export function createAnalysisRepository(db: Database): AnalysisRepository {
             retryOfAnalysisId: analysis.retryOfAnalysisId,
             retryAnalysisId: analysis.retryAnalysisId,
             result: analysis.result,
+            transcript: analysis.transcript ?? null,
             failureMessage: analysis.failureMessage,
             createdAt: analysis.createdAt,
             updatedAt: analysis.createdAt,
@@ -378,6 +379,7 @@ export function createAnalysisRepository(db: Database): AnalysisRepository {
             retryOfAnalysisId: failed.id,
             retryAnalysisId: null,
             result: null,
+            transcript: analysis.transcript ?? null,
             failureMessage: null,
             createdAt: analysis.createdAt,
             updatedAt: analysis.createdAt,
@@ -430,6 +432,7 @@ function mapAnalysis(row: typeof analyses.$inferSelect): Analysis {
     retryAnalysisId: row.retryAnalysisId,
     createdAt: row.createdAt,
     result: row.result,
+    transcript: row.transcript,
     failureMessage: row.failureMessage,
   };
 }

@@ -7,6 +7,15 @@ export const ResearchAnalysisRequestSchema = Type.Object({
   language: AnalysisLanguageSchema,
   contractVersion: Type.String({ minLength: 1, maxLength: 64 }),
   audioBase64: Type.String({ minLength: 1 }),
+  transcript: Type.Optional(Type.String({ maxLength: 4000 })),
+});
+
+export const ResearchTranscriptionRequestSchema = Type.Object({
+  audioBase64: Type.String({ minLength: 1 }),
+});
+
+export const ResearchTranscriptionResponseSchema = Type.Object({
+  transcript: Type.String(),
 });
 
 export const ResearchAnalysisResponseSchema = Type.Object({
@@ -21,4 +30,6 @@ export const ResearchErrorResponseSchema = Type.Object({
 
 export type ResearchAnalysisRequest = Static<typeof ResearchAnalysisRequestSchema>;
 export type ResearchAnalysisResponse = Static<typeof ResearchAnalysisResponseSchema>;
+export type ResearchTranscriptionRequest = Static<typeof ResearchTranscriptionRequestSchema>;
+export type ResearchTranscriptionResponse = Static<typeof ResearchTranscriptionResponseSchema>;
 export type ResearchErrorResponse = Static<typeof ResearchErrorResponseSchema>;

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import {
   convertRecordingToWav,
+  InaudibleRecordingError,
   MAX_RECORDING_SECONDS,
   microphoneErrorMessage,
 } from '../lib/recording-audio';
@@ -26,8 +27,17 @@ export function MicrophoneRecorder({
   const [status, setStatus] = useState<RecorderStatus>('idle');
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [error, setError] = useState('');
+  const [signalDetected, setSignalDetected] = useState(false);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const sourceNodeRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const silentOutputNodeRef = useRef<GainNode | null>(null);
+  const waveformFrameRef = useRef<number | null>(null);
+  const waveformCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const waveformDataRef = useRef<Float32Array<ArrayBuffer> | null>(null);
+  const signalDetectedRef = useRef(false);
   const chunksRef = useRef<Blob[]>([]);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const limitRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -37,6 +47,7 @@ export function MicrophoneRecorder({
 
   function releaseCaptureHardware(stopRecorder = false) {
     clearRecordingTimers(intervalRef, limitRef);
+    stopSignalMonitor();
     const recorder = recorderRef.current;
     if (stopRecorder && recorder?.state === 'recording') recorder.stop();
     stopStream(streamRef.current);
@@ -46,7 +57,13 @@ export function MicrophoneRecorder({
 
   useEffect(() => {
     mountedRef.current = true;
+    drawWaveform(waveformCanvasRef.current, null);
+    const redrawWaveform = () => {
+      drawWaveform(waveformCanvasRef.current, waveformDataRef.current);
+    };
+    window.addEventListener('resize', redrawWaveform);
     return () => {
+      window.removeEventListener('resize', redrawWaveform);
       mountedRef.current = false;
       conversionGenerationRef.current += 1;
       discardOnStopRef.current = true;
@@ -58,6 +75,10 @@ export function MicrophoneRecorder({
   async function startRecording() {
     setError('');
     setElapsedSeconds(0);
+    setSignalDetected(false);
+    signalDetectedRef.current = false;
+    waveformDataRef.current = null;
+    drawWaveform(waveformCanvasRef.current, null);
     onDiscard();
     conversionGenerationRef.current += 1;
     discardOnStopRef.current = false;
@@ -80,6 +101,7 @@ export function MicrophoneRecorder({
       stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           channelCount: 1,
+          autoGainControl: true,
           echoCancellation: true,
           noiseSuppression: true,
         },
@@ -112,6 +134,7 @@ export function MicrophoneRecorder({
     const conversionGeneration = conversionGenerationRef.current;
     streamRef.current = stream;
     recorderRef.current = recorder;
+    startSignalMonitor(stream);
 
     recorder.ondataavailable = (event) => {
       if (!discardOnStopRef.current && event.data.size > 0) {
@@ -153,13 +176,18 @@ export function MicrophoneRecorder({
             setStatus('ready');
           }
         })
-        .catch(() => {
+        .catch((conversionError: unknown) => {
           if (mountedRef.current && conversionGeneration === conversionGenerationRef.current) {
             onDiscard();
             setStatus('idle');
             setElapsedSeconds(0);
+            setSignalDetected(false);
+            waveformDataRef.current = null;
+            drawWaveform(waveformCanvasRef.current, null);
             setError(
-              'The recording could not be converted into a valid WAV. Record one utterance again or upload a WAV file.',
+              conversionError instanceof InaudibleRecordingError
+                ? conversionError.message
+                : 'The recording could not be converted into a valid WAV. Record one utterance again or upload a WAV file.',
             );
           }
         });
@@ -213,6 +241,10 @@ export function MicrophoneRecorder({
     onDiscard();
     setStatus('idle');
     setElapsedSeconds(0);
+    setSignalDetected(false);
+    signalDetectedRef.current = false;
+    waveformDataRef.current = null;
+    drawWaveform(waveformCanvasRef.current, null);
     setError('');
   }
 
@@ -232,6 +264,26 @@ export function MicrophoneRecorder({
 
   return (
     <div className="microphone-recorder">
+      <div
+        className={`recorder-waveform${status === 'recording' ? ' is-recording' : ''}`}
+        data-signal-detected={signalDetected ? 'true' : 'false'}
+      >
+        <canvas
+          ref={waveformCanvasRef}
+          className="recorder-waveform-canvas"
+          role="img"
+          aria-label="Live microphone waveform"
+        />
+        <span className="recorder-waveform-label" aria-hidden="true">
+          {status === 'recording'
+            ? signalDetected
+              ? 'Voice signal detected'
+              : 'Listening for your voice'
+            : status === 'ready'
+              ? 'Captured waveform'
+              : 'Live microphone input'}
+        </span>
+      </div>
       <div className="recorder-status">
         <span
           className={`recorder-indicator${status === 'recording' ? ' is-recording' : ''}`}
@@ -296,6 +348,125 @@ export function MicrophoneRecorder({
       ) : null}
     </div>
   );
+
+  function startSignalMonitor(stream: MediaStream) {
+    try {
+      const audioContext = new AudioContext();
+      const sourceNode = audioContext.createMediaStreamSource(stream);
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 2_048;
+      analyser.smoothingTimeConstant = 0.72;
+      const silentOutput = audioContext.createGain();
+      silentOutput.gain.value = 0;
+      sourceNode.connect(analyser);
+      analyser.connect(silentOutput);
+      silentOutput.connect(audioContext.destination);
+
+      audioContextRef.current = audioContext;
+      sourceNodeRef.current = sourceNode;
+      analyserRef.current = analyser;
+      silentOutputNodeRef.current = silentOutput;
+      const samples = new Float32Array(analyser.fftSize);
+
+      const renderFrame = () => {
+        if (analyserRef.current !== analyser) return;
+        analyser.getFloatTimeDomainData(samples);
+        waveformDataRef.current = samples.slice();
+        drawWaveform(waveformCanvasRef.current, samples);
+
+        if (!signalDetectedRef.current && hasLiveSignal(samples)) {
+          signalDetectedRef.current = true;
+          if (mountedRef.current) setSignalDetected(true);
+        }
+
+        waveformFrameRef.current = requestAnimationFrame(renderFrame);
+      };
+
+      void audioContext.resume().catch(() => undefined);
+      renderFrame();
+    } catch {
+      stopSignalMonitor();
+      drawWaveform(waveformCanvasRef.current, null);
+    }
+  }
+
+  function stopSignalMonitor() {
+    if (waveformFrameRef.current !== null) cancelAnimationFrame(waveformFrameRef.current);
+    waveformFrameRef.current = null;
+    sourceNodeRef.current?.disconnect();
+    analyserRef.current?.disconnect();
+    silentOutputNodeRef.current?.disconnect();
+    sourceNodeRef.current = null;
+    analyserRef.current = null;
+    silentOutputNodeRef.current = null;
+    const audioContext = audioContextRef.current;
+    audioContextRef.current = null;
+    if (audioContext && audioContext.state !== 'closed') {
+      void audioContext.close().catch(() => undefined);
+    }
+  }
+}
+
+function hasLiveSignal(samples: Float32Array): boolean {
+  let squareSum = 0;
+  for (const sample of samples) {
+    squareSum += sample * sample;
+  }
+  return Math.sqrt(squareSum / samples.length) >= 0.0001;
+}
+
+function drawWaveform(
+  canvas: HTMLCanvasElement | null,
+  samples: Float32Array<ArrayBuffer> | null,
+): void {
+  if (!canvas) return;
+  const bounds = canvas.getBoundingClientRect();
+  const width = Math.max(Math.round(bounds.width), 1);
+  const height = Math.max(Math.round(bounds.height), 1);
+  const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+  const renderWidth = Math.round(width * pixelRatio);
+  const renderHeight = Math.round(height * pixelRatio);
+  if (canvas.width !== renderWidth || canvas.height !== renderHeight) {
+    canvas.width = renderWidth;
+    canvas.height = renderHeight;
+  }
+
+  const context = canvas.getContext('2d');
+  if (!context) return;
+  context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+  context.clearRect(0, 0, width, height);
+
+  const middle = height / 2;
+  context.beginPath();
+  context.moveTo(0, middle);
+  context.lineTo(width, middle);
+  context.strokeStyle = 'rgba(117, 117, 117, 0.2)';
+  context.lineWidth = 1;
+  context.stroke();
+
+  context.beginPath();
+  if (!samples?.length) {
+    context.moveTo(0, middle);
+    context.lineTo(width, middle);
+  } else {
+    const horizontalStep = width / Math.max(samples.length - 1, 1);
+    for (let index = 0; index < samples.length; index += 1) {
+      const normalized = samples[index] ?? 0;
+      const x = index * horizontalStep;
+      const y = middle + normalized * height * 0.42;
+      if (index === 0) context.moveTo(x, y);
+      else context.lineTo(x, y);
+    }
+  }
+  const gradient = context.createLinearGradient(0, 0, width, 0);
+  gradient.addColorStop(0, '#fd5113');
+  gradient.addColorStop(0.52, '#ff8b1f');
+  gradient.addColorStop(1, '#f3b61f');
+  context.strokeStyle = gradient;
+  context.lineWidth = 2.2;
+  context.lineCap = 'round';
+  context.lineJoin = 'round';
+  context.stroke();
 }
 
 function clearRecordingTimers(

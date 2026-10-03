@@ -78,6 +78,44 @@ describe('browser microphone WAV conversion', () => {
     expect(close).toHaveBeenCalledOnce();
   });
 
+  it('rejects a decoded capture that contains no audible microphone signal', async () => {
+    const close = vi.fn(async () => undefined);
+
+    await expect(
+      convertRecordingToWav(new Blob(['synthetic encoded capture']), () => ({
+        close,
+        decodeAudioData: async () => ({
+          length: 16_000,
+          numberOfChannels: 1,
+          sampleRate: 16_000,
+          getChannelData: () => new Float32Array(16_000),
+        }),
+      })),
+    ).rejects.toThrow('No audible speech signal was detected');
+    expect(close).toHaveBeenCalledOnce();
+  });
+
+  it('keeps a quiet but nonzero capture for the Research System to evaluate', async () => {
+    const close = vi.fn(async () => undefined);
+    const quietSamples = Float32Array.from(
+      { length: 16_000 },
+      (_, index) => Math.sin((index / 16_000) * Math.PI * 2 * 220) * 0.0005,
+    );
+
+    await expect(
+      convertRecordingToWav(new Blob(['synthetic encoded capture']), () => ({
+        close,
+        decodeAudioData: async () => ({
+          length: quietSamples.length,
+          numberOfChannels: 1,
+          sampleRate: 16_000,
+          getChannelData: () => quietSamples,
+        }),
+      })),
+    ).resolves.toBeInstanceOf(File);
+    expect(close).toHaveBeenCalledOnce();
+  });
+
   it('releases its decoder when browser conversion fails', async () => {
     const close = vi.fn(async () => undefined);
 

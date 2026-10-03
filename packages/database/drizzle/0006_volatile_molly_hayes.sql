@@ -1,0 +1,1 @@
+ALTER TABLE "app"."analyses" ADD COLUMN "transcript" text;

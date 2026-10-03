@@ -41,6 +41,13 @@ const outcomePresentations: Record<AnalysisOutcome, AnalysisOutcomePresentation>
   },
 };
 
+const classificationLabels: Record<EmotionClassification, string> = {
+  anger: 'Angry',
+  happiness: 'Happy',
+  neutrality: 'Neutral',
+  sadness: 'Sad',
+};
+
 export function getAnalysisLanguagePresentation(
   language: AnalysisLanguage,
 ): AnalysisLanguagePresentation {
@@ -54,7 +61,7 @@ export function getAnalysisOutcomePresentation(
 }
 
 export function formatClassification(classification: EmotionClassification): string {
-  return classification.charAt(0).toUpperCase() + classification.slice(1);
+  return classificationLabels[classification];
 }
 
 export function formatProbability(probability: number): string {

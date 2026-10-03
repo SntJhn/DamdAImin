@@ -36,6 +36,8 @@ import {
   HealthResponseSchema,
   NotFoundResponseSchema,
   ServiceUnavailableResponseSchema,
+  TranscriptionPreviewParamsSchema,
+  TranscriptionPreviewResponseSchema,
   UnauthorizedResponseSchema,
   ValidationErrorResponseSchema,
   type AnalysisIdParams,
@@ -265,6 +267,52 @@ export function buildApi(options: ApiOptions = {}): FastifyInstance {
       );
 
       api.post(
+        '/analysis-uploads/:uploadId/transcription-preview',
+        {
+          schema: {
+            tags: ['Analyses'],
+            summary: 'Generate an editable transcript preview for uploaded Source Audio',
+            security: [{ bearerAuth: [] }],
+            params: TranscriptionPreviewParamsSchema,
+            response: {
+              200: TranscriptionPreviewResponseSchema,
+              400: ValidationErrorResponseSchema,
+              401: UnauthorizedResponseSchema,
+              404: NotFoundResponseSchema,
+              503: ServiceUnavailableResponseSchema,
+            },
+          },
+        },
+        async (request, reply) => {
+          if (!options.analysisServices?.previewTranscription || !request.accountId) {
+            return reply.code(503).send({ error: 'service_unavailable' as const });
+          }
+
+          try {
+            const params = request.params as { uploadId: string };
+            const transcript = await options.analysisServices.previewTranscription(
+              request.accountId,
+              params.uploadId,
+            );
+            return { transcript };
+          } catch (error) {
+            if (error instanceof AnalysisInputError) {
+              return reply
+                .code(400)
+                .send({ error: 'validation_error' as const, message: error.message });
+            }
+
+            if (error instanceof AnalysisNotFoundError) {
+              return reply.code(404).send({ error: 'not_found' as const });
+            }
+
+            request.log.error(error, 'transcription preview unavailable');
+            return reply.code(503).send({ error: 'service_unavailable' as const });
+          }
+        },
+      );
+
+      api.post(
         '/analyses',
         {
           schema: {
@@ -291,6 +339,7 @@ export function buildApi(options: ApiOptions = {}): FastifyInstance {
             const analysis = await options.analysisServices.finalizeUpload(
               request.accountId,
               body.uploadId,
+              body.transcript,
             );
             const location = `/api/v2/analyses/${analysis.id}`;
             request.log.info(

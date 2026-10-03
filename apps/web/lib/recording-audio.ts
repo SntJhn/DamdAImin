@@ -1,6 +1,19 @@
 import { inspectWavAudio } from '@damdai/domain';
 
 export const MAX_RECORDING_SECONDS = 20;
+// Keep this guard below the Research System's speech/VAD decision. It only
+// rejects numerically silent captures; quiet speech must still reach ASR.
+const MIN_RECORDING_PEAK = 0.0001;
+const MIN_RECORDING_RMS = 0.00001;
+
+export class InaudibleRecordingError extends Error {
+  constructor() {
+    super(
+      'No audible speech signal was detected. Check the live waveform, move closer to the microphone, and record again.',
+    );
+    this.name = 'InaudibleRecordingError';
+  }
+}
 
 interface DecodedAudio {
   readonly length: number;
@@ -81,6 +94,34 @@ export function encodePcm16Wav(audio: PcmAudio): Uint8Array<ArrayBuffer> {
   return new Uint8Array(wavBuffer);
 }
 
+export function validateRecordingSignal(channels: readonly Float32Array[]): void {
+  let sampleCount = 0;
+  let sampleSum = 0;
+
+  for (const channel of channels) {
+    sampleCount += channel.length;
+    for (const sample of channel) sampleSum += sample;
+  }
+
+  if (sampleCount === 0) throw new InaudibleRecordingError();
+
+  const mean = sampleSum / sampleCount;
+  let centeredSquareSum = 0;
+  let centeredPeak = 0;
+  for (const channel of channels) {
+    for (const sample of channel) {
+      const centered = sample - mean;
+      centeredSquareSum += centered * centered;
+      centeredPeak = Math.max(centeredPeak, Math.abs(centered));
+    }
+  }
+
+  const rms = Math.sqrt(centeredSquareSum / sampleCount);
+  if (centeredPeak < MIN_RECORDING_PEAK || rms < MIN_RECORDING_RMS) {
+    throw new InaudibleRecordingError();
+  }
+}
+
 export async function convertRecordingToWav(
   capture: Blob,
   createDecoder: () => AudioDecoder = createBrowserAudioDecoder,
@@ -95,6 +136,7 @@ export async function convertRecordingToWav(
     const channels = Array.from({ length: decoded.numberOfChannels }, (_, channel) =>
       decoded.getChannelData(channel).slice(),
     );
+    validateRecordingSignal(channels);
     const wav = encodePcm16Wav({ sampleRate: decoded.sampleRate, channels });
 
     // Guard the browser conversion at the same structural seam used by the API

@@ -43,6 +43,13 @@
       "when": 1785928924260,
       "tag": "0005_clever_wonder_man",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790988382548,
+      "tag": "0006_volatile_molly_hayes",
+      "breakpoints": true
     }
   ]
 }

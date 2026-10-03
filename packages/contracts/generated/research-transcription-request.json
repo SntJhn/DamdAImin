@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://damdai.local/contracts/research-transcription-request-v1.json",
+  "type": "object",
+  "required": [
+    "audioBase64"
+  ],
+  "properties": {
+    "audioBase64": {
+      "minLength": 1,
+      "type": "string"
+    }
+  }
+}

@@ -11,6 +11,7 @@ import type {
 } from '@damdai/contracts';
 
 import { authClient, getAuthToken } from '../lib/auth-client';
+import { formatClassification } from '../lib/analysis-result';
 
 const apiBaseUrl = (process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:4000/api/v2').replace(
   /\/$/,
@@ -339,10 +340,10 @@ export function HistoryClient() {
                       <option value="">Any result</option>
                       <option value="definitive">Definitive classification</option>
                       <option value="inconclusive">Inconclusive Result</option>
-                      <option value="happiness">Happiness</option>
-                      <option value="sadness">Sadness</option>
-                      <option value="anger">Anger</option>
-                      <option value="neutrality">Neutrality</option>
+                      <option value="happiness">Happy</option>
+                      <option value="sadness">Sad</option>
+                      <option value="anger">Angry</option>
+                      <option value="neutrality">Neutral</option>
                     </select>
                   </label>
                   <label className="field">
@@ -563,7 +564,7 @@ function truncateTranscript(value: string): string {
 
 function formatEmotionLabel(analysis: AnalysisHistoryItem): string {
   if (analysis.result?.outcome === 'definitive') {
-    return formatLabel(analysis.result.emotionClassification);
+    return formatClassification(analysis.result.emotionClassification);
   }
 
   if (analysis.result?.outcome === 'inconclusive') return 'Inconclusive';
@@ -574,20 +575,4 @@ function getEmotionKey(analysis: AnalysisHistoryItem): string {
   return analysis.result?.outcome === 'definitive'
     ? analysis.result.emotionClassification
     : 'pending';
-}
-
-function formatResult(analysis: AnalysisHistoryItem): string {
-  if (!analysis.result) {
-    return analysis.status === 'failed' ? 'Analysis failed' : 'Awaiting result';
-  }
-
-  if (analysis.result.outcome === 'inconclusive') {
-    return 'Inconclusive Result';
-  }
-
-  return `${formatLabel(analysis.result.emotionClassification)} classification`;
-}
-
-function formatLabel(value: string): string {
-  return value.charAt(0).toUpperCase() + value.slice(1);
 }

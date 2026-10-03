@@ -110,6 +110,15 @@ export const CreateAnalysisUploadResponseSchema = Type.Object({
 
 export const FinalizeAnalysisRequestSchema = Type.Object({
   uploadId: Type.String({ format: 'uuid' }),
+  transcript: Type.Optional(Type.String({ maxLength: 4000 })),
+});
+
+export const TranscriptionPreviewParamsSchema = Type.Object({
+  uploadId: Type.String({ format: 'uuid' }),
+});
+
+export const TranscriptionPreviewResponseSchema = Type.Object({
+  transcript: Type.String(),
 });
 
 export const AnalysisIdParamsSchema = Type.Object({

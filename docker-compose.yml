@@ -94,7 +94,9 @@ services:
       NEURAL_FUSION_WEIGHT: ${NEURAL_FUSION_WEIGHT:-0.80}
       SYMBOLIC_FUSION_WEIGHT: ${SYMBOLIC_FUSION_WEIGHT:-0.20}
     volumes:
+      - ./services/research-engine/main.py:/app/main.py:ro
       - ${TSERA_ROOT:-/Users/jagdv/Coding/TSERA}:/tsera:ro
+      - ./.cache/huggingface:/root/.cache/huggingface
     ports:
       - '4100:4100'
     healthcheck:

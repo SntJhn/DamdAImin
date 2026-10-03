@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  formatClassification,
   formatProbability,
   getAnalysisLanguagePresentation,
   getAnalysisOutcomePresentation,
@@ -26,5 +27,14 @@ describe('Analysis Record presentation', () => {
   it('formats returned probabilities for readable display', () => {
     expect(formatProbability(0.91)).toBe('91%');
     expect(formatProbability(0.035)).toBe('4%');
+  });
+
+  it.each([
+    ['anger', 'Angry'],
+    ['happiness', 'Happy'],
+    ['neutrality', 'Neutral'],
+    ['sadness', 'Sad'],
+  ] as const)('uses the model-facing label %s as the user-facing %s label', (value, label) => {
+    expect(formatClassification(value)).toBe(label);
   });
 });

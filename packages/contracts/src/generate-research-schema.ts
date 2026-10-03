@@ -6,6 +6,8 @@ import {
   ResearchAnalysisRequestSchema,
   ResearchAnalysisResponseSchema,
   ResearchErrorResponseSchema,
+  ResearchTranscriptionRequestSchema,
+  ResearchTranscriptionResponseSchema,
 } from './research.js';
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -26,6 +28,16 @@ await writeArtifact(
   'research-error.json',
   'https://damdai.local/contracts/research-error-v1.json',
   ResearchErrorResponseSchema,
+);
+await writeArtifact(
+  'research-transcription-request.json',
+  'https://damdai.local/contracts/research-transcription-request-v1.json',
+  ResearchTranscriptionRequestSchema,
+);
+await writeArtifact(
+  'research-transcription-response.json',
+  'https://damdai.local/contracts/research-transcription-response-v1.json',
+  ResearchTranscriptionResponseSchema,
 );
 
 async function writeArtifact(
