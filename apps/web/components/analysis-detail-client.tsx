@@ -681,13 +681,14 @@ function ConfidenceBreakdown({
           <h2 id="confidence-heading">Neural and symbolic probabilities</h2>
         </div>
         <p>
-          Separate emotion distributions from each layer before they are blended into the final
-          result.
+          When a rule supports the neural model’s top emotion, that class receives an agreement
+          boost. If adjusted rule scores cancel out, the symbolic distribution falls back to an
+          even split.
         </p>
       </div>
       <div className="analysis-result-confidence-grid">
         <ConfidenceColumn title="Neural" confidence={neural} />
-        <ConfidenceColumn title="Symbolic" confidence={symbolic} />
+        <ConfidenceColumn title="Symbolic + agreement" confidence={symbolic} />
       </div>
     </section>
   );
@@ -827,8 +828,8 @@ function TechnicalTraceView({
               </div>
               {trace.cueSpans.length ? (
                 <ul className="analysis-trace-list">
-                  {trace.cueSpans.map((span) => (
-                    <li key={`${span.source}-${span.startMs}-${span.endMs}-${span.cue}`}>
+                  {trace.cueSpans.map((span, cueIndex) => (
+                    <li key={`${span.source}-${span.startMs}-${span.endMs}-${span.cue}-${cueIndex}`}>
                       <div className="analysis-trace-item-heading">
                         <strong>{span.cue}</strong>
                         <span>{span.source}</span>
@@ -866,8 +867,8 @@ function TechnicalTraceView({
 
             <section className="analysis-trace-card" aria-labelledby="score-adjustments-heading">
               <div className="analysis-trace-card-heading">
-                <p className="dashboard-card-kicker">Decision effect</p>
-                <h3 id="score-adjustments-heading">How scores changed</h3>
+                <p className="dashboard-card-kicker">Rule evidence</p>
+                <h3 id="score-adjustments-heading">Raw symbolic score signals</h3>
               </div>
               {trace.scoreAdjustments.length ? (
                 <ul className="analysis-trace-list">
@@ -875,14 +876,14 @@ function TechnicalTraceView({
                     <li key={`${adjustment.emotionClassification}-${index}`}>
                       <div className="analysis-trace-item-heading">
                         <strong>{formatClassification(adjustment.emotionClassification)}</strong>
-                        <span>{formatScoreDelta(adjustment.delta)}</span>
+                        <span>{`${adjustment.delta >= 0 ? "+" : ""}${adjustment.delta.toFixed(2)} score`}</span>
                       </div>
                       <p>{adjustment.reason}</p>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="analysis-empty-value">No score changes were returned.</p>
+                <p className="analysis-empty-value">No rule score signals were returned.</p>
               )}
             </section>
           </div>

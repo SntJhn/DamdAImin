@@ -46,12 +46,14 @@ CONTRACT_EMOTION = {
     "sad": "sadness",
 }
 RULE_NAMES = ["lexical", "code_switch", "prosodic", "contrast", "contradiction"]
+COMPONENT_NAMES = [*RULE_NAMES, "agreement"]
 RULE_DESCRIPTIONS = {
     "lexical": "Lexical Rules recognize emotion-bearing words, modifiers, profanity or aggression, politeness, and negation cues.",
     "code_switch": "Code-Switch Detection identifies token-level alternation between Filipino and English.",
     "prosodic": "Prosodic Rules use energy and speaking-rate evidence as supplementary emotional cues.",
     "contrast": "Contrast-aware Rules interpret the post-contrast clause when discourse markers signal a contrast or concession.",
     "contradiction": "Contradiction Rules identify disagreement between neural and symbolic emotional evidence.",
+    "agreement": "Neural-rule Agreement boosts the symbolic score when the neural model's top emotion has positive support from an active rule.",
 }
 RULE_IDS = {
     "lexical": "lexical-context",
@@ -59,6 +61,7 @@ RULE_IDS = {
     "prosodic": "prosodic-context",
     "contrast": "contrast-context",
     "contradiction": "contradiction-context",
+    "agreement": "neural-rule-agreement",
 }
 RULE_WEIGHTS = {
     "lexical": float(os.getenv("RULE_WEIGHT_LEXICAL", "1.00")),
@@ -66,6 +69,8 @@ RULE_WEIGHTS = {
     "prosodic": float(os.getenv("RULE_WEIGHT_PROSODIC", "1.00")),
     "contrast": float(os.getenv("RULE_WEIGHT_CONTRAST", "1.00")),
     "contradiction": float(os.getenv("RULE_WEIGHT_CONTRADICTION", "1.00")),
+    # Stronger default keeps supported neural-rule agreement distinct in the symbolic distribution.
+    "agreement": float(os.getenv("RULE_WEIGHT_AGREEMENT", "2.50")),
 }
 
 SAMPLE_RATE = 16_000
@@ -125,8 +130,9 @@ def emotion_targets(value: Any) -> dict[str, float]:
     normalized = normalize_text(value)
     if normalized in EMOTION_LABELS:
         return {normalized: 1.0}
+    # Positive valence and preferences are not sufficient evidence of happiness.
     if normalized == "positive":
-        return {"happy": 1.0}
+        return {}
     if normalized == "sad/neutral":
         return {"sad": 0.5, "neutral": 0.5}
     return {}
@@ -325,7 +331,7 @@ class SymbolicReasoner:
         tokens = tokenize(transcript)
         components = {
             name: np.zeros(len(EMOTION_LABELS), dtype=np.float32)
-            for name in RULE_NAMES
+            for name in COMPONENT_NAMES
         }
         traces: list[dict[str, Any]] = []
         emotion_matches = find_matches(tokens, self.emotion_index)
@@ -509,33 +515,45 @@ class SymbolicReasoner:
                 }
             )
 
-        for marker in contrast_matches:
-            affected = [
-                item for item in emotion_matches if item["start"] > marker["end"]
+        affected_by_marker: dict[int, list[dict[str, Any]]] = defaultdict(list)
+        for emotion_match in emotion_matches:
+            preceding_markers = [
+                (index, marker)
+                for index, marker in enumerate(contrast_matches)
+                if marker["end"] < emotion_match["start"]
             ]
+            if preceding_markers:
+                marker_index, _marker = max(
+                    preceding_markers,
+                    key=lambda item: item[1]["end"],
+                )
+                affected_by_marker[marker_index].append(emotion_match)
+
+        for marker_index, affected in affected_by_marker.items():
+            marker = contrast_matches[marker_index]
             for item in affected:
                 base = 0.05 * item["strength"]
                 for label, share in item["targets"].items():
                     components["contrast"][EMOTION_LABELS.index(label)] += base * share
-            if affected:
-                traces.append(
-                    {
-                        "rule_id": "CONTRAST_POST_CLAUSE",
-                        "rule_category": "contrast",
-                        "cue": marker["text"],
-                        "cue_span": [marker["start"], marker["end"]],
-                        "target_emotion": [
-                            label for item in affected for label in item["targets"]
-                        ],
-                        "direction": "increase",
-                        "reported_adjustment": float(
-                            sum(0.05 * item["strength"] for item in affected)
-                        ),
-                        "activated": True,
-                        "scope": "post-contrast clause",
-                    }
-                )
+            traces.append(
+                {
+                    "rule_id": "CONTRAST_POST_CLAUSE",
+                    "rule_category": "contrast",
+                    "cue": marker["text"],
+                    "cue_span": [marker["start"], marker["end"]],
+                    "target_emotion": [
+                        label for item in affected for label in item["targets"]
+                    ],
+                    "direction": "increase",
+                    "reported_adjustment": float(
+                        sum(0.05 * item["strength"] for item in affected)
+                    ),
+                    "activated": True,
+                    "scope": "post-contrast clause",
+                }
+            )
 
+        neural_index = int(np.argmax(neural_probabilities))
         symbolic_scores = sum(
             (
                 self.rule_weights[name] * values
@@ -545,7 +563,6 @@ class SymbolicReasoner:
         )
         contradiction_active = False
         if np.any(symbolic_scores > 0):
-            neural_index = int(np.argmax(neural_probabilities))
             symbolic_index = int(np.argmax(symbolic_scores))
             if neural_index != symbolic_index:
                 components["contradiction"][symbolic_index] -= 0.05
@@ -561,6 +578,35 @@ class SymbolicReasoner:
                         "activated": True,
                     }
                 )
+
+        neural_emotion = EMOTION_LABELS[neural_index]
+        supporting_rule_categories = [
+            name
+            for name in RULE_NAMES
+            if components[name][neural_index] > 0
+        ]
+        if supporting_rule_categories:
+            supporting_rules = [
+                str(trace["rule_id"])
+                for trace in traces
+                if trace.get("activated")
+                and neural_emotion in trace.get("target_emotion", [])
+                and float(trace.get("reported_adjustment", 0.0)) > 0
+            ]
+            agreement_evidence = float(neural_probabilities[neural_index])
+            components["agreement"][neural_index] += agreement_evidence
+            traces.append(
+                {
+                    "rule_id": "NEURAL_RULE_AGREEMENT",
+                    "rule_category": "agreement",
+                    "cue": "neural prediction corroborated by positive rule evidence",
+                    "target_emotion": [neural_emotion],
+                    "direction": "increase",
+                    "reported_adjustment": agreement_evidence,
+                    "activated": True,
+                    "supporting_rules": supporting_rules,
+                }
+            )
 
         weighted_scores = sum(
             (
@@ -689,15 +735,16 @@ class ResearchRuntime:
                 category = str(trace["rule_category"])
                 source = "acoustic" if category == "prosodic" else "linguistic"
                 cue = str(trace.get("cue", trace["rule_id"]))
-                cue_spans.append(
-                    {
-                        "source": source,
-                        "startMs": 0.0,
-                        "endMs": duration_ms,
-                        "cue": str(trace["rule_id"]),
-                        "value": cue,
-                    }
-                )
+                if category != "agreement":
+                    cue_spans.append(
+                        {
+                            "source": source,
+                            "startMs": 0.0,
+                            "endMs": duration_ms,
+                            "cue": str(trace["rule_id"]),
+                            "value": cue,
+                        }
+                    )
                 rule_weight = RULE_WEIGHTS.get(category, 1.0)
                 activated_rules.append(
                     {
@@ -719,8 +766,14 @@ class ResearchRuntime:
                                     trace.get("reported_adjustment", 0.0) * rule_weight
                                 ),
                                 "reason": (
-                                    f"{trace['rule_id']} detected {cue!r} and reported a "
-                                    f"{trace.get('direction', 'support')} adjustment."
+                                    "The neural model and "
+                                    f"{', '.join(trace.get('supporting_rules', [])) or 'active rule evidence'} "
+                                    f"both support {target}; an agreement adjustment was added."
+                                    if category == "agreement"
+                                    else (
+                                        f"{trace['rule_id']} detected {cue!r} and reported a "
+                                        f"{trace.get('direction', 'support')} adjustment."
+                                    )
                                 ),
                             }
                         )
@@ -784,7 +837,7 @@ class ResearchRuntime:
                     else f"{MODEL_VERSION}+asr-{ASR_MODEL_NAME}"
                 ),
                 "preprocessingVersion": "tsera-16khz-5s-logmel-delta-v1",
-                "ruleSetVersion": "preliminary-five-tier-rules-v1",
+                "ruleSetVersion": "preliminary-five-tier-rules-v3-neural-agreement-lexicon",
             }
         finally:
             temporary_path.unlink(missing_ok=True)
