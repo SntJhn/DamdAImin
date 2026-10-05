@@ -48,7 +48,7 @@ EMO-0046,hopeful,Taglish,happy,medium/high,explicit emotion,hope;hopeful ako
 EMO-0047,umaasa,Filipino,happy,medium/high,stance/emotion,asa
 EMO-0048,pag-asa,Filipino,happy,medium/high,emotion noun,asa
 EMO-0049,confident,Taglish,happy,medium/high,state,confidence;confident ako
-EMO-0050,kalma,Filipino,neutral,medium,state,kalma lang;kalmado
+EMO-0050,kalma,Filipino,neutral,medium,state,kalma lang; kalmado
 EMO-0051,relax,Taglish,neutral,medium,state,relaxed;relaxing
 EMO-0052,relaxed,Taglish,neutral,medium,state,relax
 EMO-0053,malungkot,Filipino,sad,high,explicit emotion,malungkot na malungkot
@@ -71,7 +71,7 @@ EMO-0069,nabigo,Filipino,sad,high,emotion/state,bigo
 EMO-0070,disappointed,Taglish,sad,high,explicit emotion,disappointing;disappointment
 EMO-0071,disappointment,English/Taglish,sad,high,emotion noun,disappointed
 EMO-0072,panghihinayang,Filipino,sad,high,emotion noun,nanghihinayang
-EMO-0073,nanghihinayang,Filipino,sad,high,explicit emotion,panghihinayang;hinayang;nanghinayang
+EMO-0073,nanghihinayang,Filipino,sad,high,explicit emotion,panghihinayang; ;hinayang;nanghinayang
 EMO-0074,nagsisisi,Filipino,sad,high,explicit emotion,pagsisisi;pinagsisisihan
 EMO-0075,pagsisisi,Filipino,sad,high,emotion noun,nagsisisi
 EMO-0076,regret,English/Taglish,sad,high,emotion noun/verb,regretful
@@ -167,3 +167,30 @@ EMO-0165,chill,English/Taglish,neutral,medium,slang state,chill lang
 EMO-0166,chill lang,Taglish,neutral,medium,slang state,chill
 EMO-0167,nothing,English/Taglish,neutral,medium,minimizer,nothing much
 EMO-0168,nothing much,English/Taglish,neutral,medium,minimizer,nothing
+EMO-0169,kinakabahan,Filipino,fear,high,explicit emotion,kaba;kinakabahan ako
+EMO-0170,kaba,Filipino,fear,medium,emotion noun,kinakabahan;kinakabahan ako
+EMO-0171,takot,Filipino,fear,high,explicit emotion,natatakot;takot na takot
+EMO-0172,natatakot,Filipino,fear,high,explicit emotion,takot;natatakot ako
+EMO-0173,nakakalungkot,Filipino,sad,medium/high,emotion-inducing,nakalulungkot;nakakalungkot isipin
+EMO-0174,nakakapagod,Filipino,sad,medium/high,emotion/state,nakapapagod;pagod
+EMO-0175,nakakabwisit,Filipino,angry,high,emotion-inducing,bwisit;nakabubwisit
+EMO-0176,nakakapikon,Filipino,angry,high,emotion-inducing,pikon;nakapipikon
+EMO-0177,gigil,Filipino,angry,high,emotion noun,nakakagigil;panggigigil
+EMO-0178,nakakagigil,Filipino,angry,high,emotion-inducing,gigil;nanggigigil
+EMO-0179,awa,Filipino,sad,medium/high,emotion noun,naaawa;kaawa-awa
+EMO-0180,naiinggit,Filipino,angry,medium,explicit emotion,inggit;nainggit
+EMO-0181,nadismaya,Filipino,sad,medium/high,explicit emotion,dismaya;dismayado
+EMO-0182,nahihiya,Filipino,sad,medium,explicit emotion,hiya;nahiya
+EMO-0183,peaceful,English,happy,medium,emotion adjective,peace;feeling peaceful
+EMO-0184,satisfying,English,happy,high,emotion adjective,satisfied;satisfaction
+EMO-0185,fulfilling,English,happy,high,emotion adjective,fulfillment;fulfilled
+EMO-0186,enjoyable,English,happy,medium/high,emotion adjective,enjoy;enjoying
+EMO-0187,anxiety,English,sad,high,emotion noun,anxious;anxiety attacks
+EMO-0188,depression,English,sad,very high,emotion noun,depressed;depressing
+EMO-0189,depressed,English/Taglish,sad,very high,explicit emotion,depression;nadedepress
+EMO-0190,overwhelming,English,sad,high,emotion adjective,overwhelmed;overwhelm
+EMO-0191,guilty,English/Taglish,sad,medium/high,explicit emotion,guilt;na-guilty
+EMO-0192,offended,English,angry,medium/high,explicit emotion,offense;offensive
+EMO-0193,awkward,English,neutral,medium,emotion adjective,awkward feeling;awkwardness
+EMO-0194,amazing,English,happy,high,explicit emotion,awesome;amazed
+EMO-0195,wow,English/Taglish,happy,high,explicit emotion,wow
