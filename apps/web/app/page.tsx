@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowUpRight } from 'lucide-react';
+import { ArrowUpRight, Sparkles } from 'lucide-react';
 
 type ProcessStep = {
   title: string;
@@ -165,8 +165,14 @@ export default function HomePage() {
             <div className="thesis-marquee-track">
               {[0, 1].map((group) => (
                 <span className="thesis-marquee-group" key={group} aria-hidden={group === 1}>
-                  <span>Taglish Speech Analysis</span>✦<span>Emotion Classification</span>✦
-                  <span>Neuro-Symbolic AI</span>✦<span>Explainable AI</span>✦
+                  <span>Taglish Speech Analysis</span>
+                  ✦
+                  <span>Emotion Classification</span>
+                  ✦
+                  <span>Neuro-Symbolic AI</span>
+                  ✦
+                  <span>Explainable AI</span>
+                  ✦
                 </span>
               ))}
             </div>

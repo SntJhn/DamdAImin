@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useEffect, useState } from 'react';
 import {
+  AudioLines,
   ArrowUpRight,
   FileAudio,
   History,
@@ -195,10 +196,26 @@ export function AnalysisSubmitClient() {
 
       setPendingUploadId(uploadBody.uploadId);
       try {
-        const previewResponse = await fetch(
-          `${apiBaseUrl}/analysis-uploads/${uploadBody.uploadId}/transcription-preview`,
-          { method: 'POST', headers: { authorization: `Bearer ${token}` } },
-        );
+        const previewUrl = `${apiBaseUrl}/analysis-uploads/${uploadBody.uploadId}/transcription-preview`;
+        let previewToken = await getAuthToken();
+        if (!previewToken) {
+          router.replace('/auth/sign-in?next=/analyze');
+          return;
+        }
+
+        let previewResponse = await fetch(previewUrl, {
+          method: 'POST',
+          headers: { authorization: `Bearer ${previewToken}` },
+        });
+        if (previewResponse.status === 401) {
+          previewToken = await getAuthToken();
+          if (previewToken) {
+            previewResponse = await fetch(previewUrl, {
+              method: 'POST',
+              headers: { authorization: `Bearer ${previewToken}` },
+            });
+          }
+        }
         if (previewResponse.status === 401) {
           router.replace('/auth/sign-in?next=/analyze');
           return;
@@ -214,7 +231,7 @@ export function AnalysisSubmitClient() {
         setTranscriptDraft(previewBody.transcript);
         setAsrTranscriptGenerated(true);
         setTranscriptionNotice(
-          'Check names, slang, and code-switched words. You can correct the transcript before analysis.',
+          'Check names, slang, and code-switched words. You can only correct the transcript before analysis.',
         );
       } catch {
         setTranscriptDraft('');
@@ -269,8 +286,8 @@ export function AnalysisSubmitClient() {
         <div className="analysis-loading-backdrop">
           <section
             className="analysis-loading-modal"
-            role="status"
-            aria-live="polite"
+            role="dialog"
+            aria-modal="true"
             aria-labelledby="transcription-loading-title"
             aria-describedby="transcription-loading-description"
           >
@@ -355,8 +372,12 @@ export function AnalysisSubmitClient() {
           <form className="analysis-intake-card" onSubmit={submit} noValidate>
             <header className="analysis-intake-header">
               <div>
-                <h1 id="analysis-title">Start an Emotion Analysis.</h1>
-                <p>
+                <p className="analysis-intake-eyebrow">
+                  <AudioLines size={15} aria-hidden="true" />
+                  Voice + text analysis
+                </p>
+                <h2>Start an Emotion Analysis.</h2>
+                <p className="analysis-intake-description">
                   Speak naturally. We’ll listen for the acoustic and linguistic cues that shape the
                   emotion in your words.
                 </p>
@@ -374,11 +395,17 @@ export function AnalysisSubmitClient() {
               <p className="analysis-panel-kicker">
                 {asrTranscriptGenerated ? 'ASR TRANSCRIPT' : 'TRANSCRIPT ENTRY'}
               </p>
-              <h2 id="transcript-review-title">Check the words before analysis.</h2>
+              <h3 id="transcript-review-title">Check the words before analysis.</h3>
               <p className="analysis-transcript-guidance">
-                Correct names, Taglish spelling, and anything Whisper missed. The neural model reads
-                the audio; this transcript is used by the symbolic language rules.
+                Review the transcript and fix names, Taglish spelling, or anything Whisper missed.
               </p>
+              <div className="analysis-transcript-context">
+                <AudioLines size={17} aria-hidden="true" />
+                <p>
+                  Your voice is analyzed for acoustic emotion. The transcript helps the language
+                  rules understand the words you said.
+                </p>
+              </div>
               {file && audioPreviewUrl ? (
                 <AudioPreview fileName={file.name} src={audioPreviewUrl} />
               ) : null}
@@ -397,6 +424,9 @@ export function AnalysisSubmitClient() {
                   rows={6}
                   onChange={(event) => setTranscriptDraft(event.target.value)}
                 />
+                <span className="analysis-transcript-count" aria-live="polite">
+                  {transcriptDraft.length.toLocaleString()} / 4,000 characters
+                </span>
               </label>
               <p className="analysis-transcription-notice" role="status">
                 {transcriptionNotice}
@@ -421,11 +451,11 @@ export function AnalysisSubmitClient() {
                   <p className="analysis-panel-kicker" style={{ marginBottom: '4px' }}>
                     YOUR RECORDING
                   </p>
-                  <h2 id="capture-title" style={{ margin: '0 0 6px' }}>
+                  <h3 id="capture-title" style={{ margin: '0 0 6px' }}>
                     Say what you mean.
-                  </h2>
+                  </h3>
                   <p style={{ margin: 0 }}>
-                    One utterance is enough. Keep it natural and under 60 seconds.
+                    One utterance is enough. Keep it natural and under 20 seconds.
                   </p>
                 </div>
 
@@ -533,7 +563,7 @@ export function AnalysisSubmitClient() {
                   <p className="analysis-panel-kicker">BEFORE YOU SUBMIT</p>
                   <ul>
                     <li>One Analysis contains one utterance.</li>
-                    <li>Maximum recording length is 60 seconds.</li>
+                    <li>Maximum recording length is 20 seconds.</li>
                     <li>Long audio is not segmented into multiple Analyses.</li>
                     <li>There is no arbitrary minimum duration.</li>
                   </ul>
@@ -579,8 +609,13 @@ function AudioPreview({ fileName, src }: { fileName: string; src: string }) {
   return (
     <section className="analysis-audio-preview" aria-label="Audio preview">
       <div className="analysis-audio-preview-heading">
-        <p className="analysis-panel-kicker">AUDIO PREVIEW</p>
-        <span>{fileName}</span>
+        <span className="analysis-audio-preview-icon" aria-hidden="true">
+          <FileAudio size={18} />
+        </span>
+        <div className="analysis-audio-preview-copy">
+          <p className="analysis-panel-kicker">Audio preview</p>
+          <span title={fileName}>{fileName}</span>
+        </div>
       </div>
       <audio controls preload="metadata" src={src} aria-label="Play the selected recording">
         Audio playback is not supported in this browser.
