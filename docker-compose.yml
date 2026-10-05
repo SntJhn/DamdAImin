@@ -96,6 +96,7 @@ services:
       RULE_WEIGHT_AGREEMENT: ${RULE_WEIGHT_AGREEMENT:-2.50}
     volumes:
       - ./services/research-engine/main.py:/app/main.py:ro
+      - ./services/research-engine/audio_windows.py:/app/audio_windows.py:ro
       - ./.cache/huggingface:/root/.cache/huggingface
     ports:
       - '4100:4100'
