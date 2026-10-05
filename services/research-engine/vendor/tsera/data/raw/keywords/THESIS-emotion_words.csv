@@ -71,7 +71,7 @@ EMO-0069,nabigo,Filipino,sad,high,emotion/state,bigo
 EMO-0070,disappointed,Taglish,sad,high,explicit emotion,disappointing;disappointment
 EMO-0071,disappointment,English/Taglish,sad,high,emotion noun,disappointed
 EMO-0072,panghihinayang,Filipino,sad,high,emotion noun,nanghihinayang
-EMO-0073,nanghihinayang,Filipino,sad,high,explicit emotion,panghihinayang
+EMO-0073,nanghihinayang,Filipino,sad,high,explicit emotion,panghihinayang;hinayang;nanghinayang
 EMO-0074,nagsisisi,Filipino,sad,high,explicit emotion,pagsisisi;pinagsisisihan
 EMO-0075,pagsisisi,Filipino,sad,high,emotion noun,nagsisisi
 EMO-0076,regret,English/Taglish,sad,high,emotion noun/verb,regretful
