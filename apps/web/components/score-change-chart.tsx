@@ -239,9 +239,9 @@ export function ScoreChangeChart({
       <div>
         <p className="dashboard-card-kicker">
           <Activity size={14} aria-hidden="true" />
-          Illustrative score replay
+          SCORE CHANGES
         </p>
-        <h2 id="score-changes-heading">How each clue shifts the neural score</h2>
+        <h2 id="score-changes-heading">How Each Clue Shifted the Scores</h2>
       </div>
     </header>
   );
