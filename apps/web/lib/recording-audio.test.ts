@@ -52,7 +52,7 @@ describe('browser microphone WAV conversion', () => {
         channels: [new Float32Array(2), new Float32Array(3)],
       }),
     ).toThrow('inconsistent audio channels');
-    expect(() => validateRecordingDuration(20.01)).toThrow('20-second maximum');
+    expect(() => validateRecordingDuration(60.01)).toThrow('60-second maximum');
     expect(() => validateRecordingDuration(0)).not.toThrow();
   });
 

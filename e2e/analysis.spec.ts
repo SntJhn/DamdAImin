@@ -609,9 +609,9 @@ test('stops an over-limit capture without creating an Analysis', async ({ page }
   await page.clock.install();
   await page.getByRole('button', { name: 'Grant access and record' }).click();
   await expect(page.getByText(/Recording — .* seconds elapsed/)).toBeVisible();
-  await page.clock.fastForward(20_200);
+  await page.clock.fastForward(60_200);
 
-  await expect(page.getByText(/Recording exceeded the 20-second maximum/)).toBeVisible();
+  await expect(page.getByText(/Recording exceeded the 60-second maximum/)).toBeVisible();
   expect(calls).toEqual({ uploadOperations: 0, analysisCreations: 0 });
 });
 

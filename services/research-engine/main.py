@@ -906,7 +906,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         try:
             content_length = int(self.headers.get("content-length", "0"))
-            if content_length <= 0 or content_length > 20 * 1024 * 1024:
+            if content_length <= 0 or content_length > 32 * 1024 * 1024:
                 raise ValueError("Request body is missing or too large")
             request = json.loads(self.rfile.read(content_length))
             encoded_audio = str(request["audioBase64"])

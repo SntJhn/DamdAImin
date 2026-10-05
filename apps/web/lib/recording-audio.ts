@@ -1,6 +1,6 @@
 import { inspectWavAudio } from '@damdai/domain';
 
-export const MAX_RECORDING_SECONDS = 20;
+export const MAX_RECORDING_SECONDS = 60;
 // Keep this guard below the Research System's speech/VAD decision. It only
 // rejects numerically silent captures; quiet speech must still reach ASR.
 const MIN_RECORDING_PEAK = 0.0001;

@@ -96,7 +96,7 @@ export class InvalidWavError extends Error {
   }
 }
 
-export function inspectWavAudio(bytes: Uint8Array, maximumDurationSeconds = 20): WavInspection {
+export function inspectWavAudio(bytes: Uint8Array, maximumDurationSeconds = 60): WavInspection {
   if (bytes.byteLength < 44) {
     throw new InvalidWavError('WAV data is too short');
   }
