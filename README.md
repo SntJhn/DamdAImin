@@ -55,7 +55,7 @@ Fill in the values for `DATABASE_URL`, `NEON_AUTH_BASE_URL`,
 if the machine needs authenticated Hugging Face downloads or higher Hub rate
 limits.
 
-### Install 
+### Install
 
 ```bash
 nvm use 24                 # or activate another Node 24 installation

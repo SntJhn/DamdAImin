@@ -119,6 +119,26 @@ async function trackRejectedSubmissionCalls(page: Page) {
   return calls;
 }
 
+async function mockVirtualMicrophone(page: Page) {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator.mediaDevices, 'getUserMedia', {
+      configurable: true,
+      value: async () => {
+        const context = new AudioContext();
+        const oscillator = context.createOscillator();
+        oscillator.frequency.value = 220;
+        const gain = context.createGain();
+        gain.gain.value = 0.2;
+        const destination = context.createMediaStreamDestination();
+        oscillator.connect(gain).connect(destination);
+        oscillator.start();
+        await context.resume();
+        return destination.stream;
+      },
+    });
+  });
+}
+
 async function startAndStopVirtualRecording(page: Page) {
   await page.getByRole('button', { name: 'Grant access and record' }).click();
   await expect(page.getByText(/Recording — .* seconds elapsed/)).toBeVisible();
@@ -176,22 +196,27 @@ test('searches and filters the authenticated Analysis History accessibly', async
   });
 
   await page.goto('/history');
-  await expect(page.getByRole('heading', { name: 'Your Analysis History.' })).toBeVisible();
-  await expect(page.getByText('Happy classification', { exact: true })).toBeVisible();
-  await expect(page.locator('.history-item-status', { hasText: 'Queued' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Welcome back,/ })).toBeVisible();
+  await expect(page.locator('.dashboard-emotion', { hasText: 'Happy' })).toBeVisible();
+  await expect(page.locator('.dashboard-emotion', { hasText: 'Queued' })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+    await page.evaluate(() => document.documentElement.clientWidth),
+  );
 
-  await page.getByRole('searchbox', { name: 'Search Transcript' }).fill('Hindi');
+  await page.getByRole('searchbox', { name: 'Search your analyses' }).fill('Hindi');
+  await page.getByText('Filter history', { exact: true }).click();
   await page.getByRole('combobox', { name: 'Result' }).selectOption('inconclusive');
   await page.getByRole('button', { name: 'Apply filters' }).click();
+  await expect(page.locator('.dashboard-emotion', { hasText: 'Inconclusive' })).toBeVisible();
   await expect(
-    page.locator('.history-item-main strong', { hasText: 'Inconclusive Result' }),
-  ).toBeVisible();
-  await expect(
-    page.locator('.history-transcript', { hasText: 'Hindi malinaw ang sample.' }),
+    page.locator('.dashboard-transcript-cell', { hasText: 'Hindi malinaw ang sample.' }),
   ).toBeVisible();
   expect(requests.at(-1)).toContain('search=Hindi');
   expect(requests.at(-1)).toContain('result=inconclusive');
   await expect(new AxeBuilder({ page }).analyze()).resolves.toMatchObject({ violations: [] });
+  await page.getByRole('link', { name: 'Open Inconclusive analysis from Aug 2, 2026' }).focus();
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL('/analyses/a0ad9a3f-26b2-4014-8f51-ec7d67bb4f1a');
 });
 
 test('communicates empty, filtered-empty, and API-error History states', async ({ page }) => {
@@ -223,13 +248,13 @@ test('communicates empty, filtered-empty, and API-error History states', async (
     page.getByRole('heading', { name: 'Your first reading will live here.' }),
   ).toBeVisible();
 
-  await page.getByRole('searchbox', { name: 'Search Transcript' }).fill('nothing');
-  await page.getByRole('button', { name: 'Apply filters' }).click();
+  await page.getByRole('searchbox', { name: 'Search your analyses' }).fill('nothing');
+  await page.getByRole('button', { name: 'Search', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Try a wider search.' })).toBeVisible();
 
   failRequests = true;
   await page.reload();
-  await expect(page.locator('p[role="alert"]')).toHaveText(
+  await expect(page.getByRole('alert').filter({ hasText: 'History is unavailable' })).toContainText(
     'History is unavailable right now. Refresh to try again.',
   );
   await expect(page.getByRole('button', { name: 'Try again' })).toBeVisible();
@@ -280,19 +305,16 @@ test('reviews the ASR transcript before submitting one WAV utterance', async ({ 
   });
 
   await page.goto('/analyze');
-  await expect(page.getByText('verified@example.test')).toBeVisible();
+  await expect(page.getByText('verified@example.test')).toHaveText('verified@example.test');
   await expect(
-    page.getByRole('heading', { name: 'One utterance. One honest signal.' }),
+    page.getByRole('heading', { name: 'Start an Emotion Analysis.', level: 1 }),
   ).toBeVisible();
-  await expect(
-    page.getByText('The Research System owns the detectable-speech rule.'),
-  ).toBeVisible();
-  await expect(
-    page.getByText('The application imposes no arbitrary minimum duration.'),
-  ).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Start an Emotion Analysis.' })).toBeVisible();
+  await expect(page.getByText('Maximum recording length is 60 seconds.')).toBeVisible();
+  await expect(page.getByText('There is no arbitrary minimum duration.')).toBeVisible();
   await expect(page.getByText('Long audio is not segmented into multiple Analyses.')).toBeVisible();
 
-  await page.getByRole('radio', { name: 'Upload WAV' }).check();
+  await page.getByRole('radio', { name: /Upload a WAV/ }).check();
   await page.locator('#analysis-file').setInputFiles({
     name: 'synthetic.wav',
     mimeType: 'audio/wav',
@@ -310,6 +332,7 @@ test('reviews the ASR transcript before submitting one WAV utterance', async ({ 
 test('records virtual synthetic media, replaces it locally, and submits the converted WAV', async ({
   page,
 }) => {
+  await mockVirtualMicrophone(page);
   await page.addInitScript(() => {
     Object.defineProperty(AudioContext.prototype, 'decodeAudioData', {
       configurable: true,
@@ -413,7 +436,7 @@ test('records virtual synthetic media, replaces it locally, and submits the conv
   });
 
   await page.goto('/analyze');
-  await expect(page.getByText('verified@example.test')).toBeVisible();
+  await expect(page.getByText('verified@example.test')).toHaveText('verified@example.test');
   await page.locator('#analysis-language').focus();
   await page.keyboard.press('ArrowDown');
 
@@ -472,13 +495,11 @@ test('records virtual synthetic media, replaces it locally, and submits the conv
   await runAnalysis.focus();
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(`/analyses/${analysisId}`);
-  await expect(
-    page.getByRole('heading', { name: 'Your signal is safely in line.' }),
-  ).toBeVisible();
-  await expect(page.getByText('Completed Analysis')).toBeVisible({ timeout: 4_000 });
+  await expect(page.getByRole('heading', { name: 'Your signal is safely in line.' })).toBeVisible();
+  await expect(page.getByText('Detected emotion')).toBeVisible({ timeout: 4_000 });
   await expect(page.getByRole('heading', { name: 'Happy', exact: true })).toBeVisible();
   await page.reload();
-  await expect(page.getByText('Completed Analysis')).toBeVisible();
+  await expect(page.getByText('Detected emotion')).toBeVisible();
 
   expect(uploadOperations).toBe(1);
   expect(analysisCreations).toBe(1);
@@ -504,7 +525,7 @@ test('reports denied microphone permission without creating an Analysis', async 
   const calls = await trackRejectedSubmissionCalls(page);
 
   await page.goto('/analyze');
-  await expect(page.getByText('verified@example.test')).toBeVisible();
+  await expect(page.getByText('verified@example.test')).toHaveText('verified@example.test');
   await page.getByRole('button', { name: 'Grant access and record' }).click();
 
   await expect(page.getByText(/Microphone permission was denied/)).toBeVisible();
@@ -527,7 +548,7 @@ test('reports unavailable microphone hardware without creating an Analysis', asy
   const calls = await trackRejectedSubmissionCalls(page);
 
   await page.goto('/analyze');
-  await expect(page.getByText('verified@example.test')).toBeVisible();
+  await expect(page.getByText('verified@example.test')).toHaveText('verified@example.test');
   await page.getByRole('button', { name: 'Grant access and record' }).click();
 
   await expect(page.getByText(/No microphone is available/)).toBeVisible();
@@ -535,6 +556,7 @@ test('reports unavailable microphone hardware without creating an Analysis', asy
 });
 
 test('reports microphone conversion failure without creating an Analysis', async ({ page }) => {
+  await mockVirtualMicrophone(page);
   await page.addInitScript(() => {
     Object.defineProperty(AudioContext.prototype, 'decodeAudioData', {
       configurable: true,
@@ -547,7 +569,7 @@ test('reports microphone conversion failure without creating an Analysis', async
   const calls = await trackRejectedSubmissionCalls(page);
 
   await page.goto('/analyze');
-  await expect(page.getByText('verified@example.test')).toBeVisible();
+  await expect(page.getByText('verified@example.test')).toHaveText('verified@example.test');
   await startAndStopVirtualRecording(page);
 
   await expect(page.getByText(/could not be converted into a valid WAV/)).toBeVisible();
@@ -555,6 +577,7 @@ test('reports microphone conversion failure without creating an Analysis', async
 });
 
 test('rejects a silent microphone capture before creating an Analysis', async ({ page }) => {
+  await mockVirtualMicrophone(page);
   await page.addInitScript(() => {
     Object.defineProperty(AudioContext.prototype, 'decodeAudioData', {
       configurable: true,
@@ -570,7 +593,7 @@ test('rejects a silent microphone capture before creating an Analysis', async ({
   const calls = await trackRejectedSubmissionCalls(page);
 
   await page.goto('/analyze');
-  await expect(page.getByText('verified@example.test')).toBeVisible();
+  await expect(page.getByText('verified@example.test')).toHaveText('verified@example.test');
   await startAndStopVirtualRecording(page);
 
   await expect(page.getByText(/No audible speech signal was detected/)).toBeVisible();
@@ -578,14 +601,16 @@ test('rejects a silent microphone capture before creating an Analysis', async ({
 });
 
 test('reports invalid converted output without creating an Analysis', async ({ page }) => {
+  await mockVirtualMicrophone(page);
   await page.addInitScript(() => {
     Object.defineProperty(AudioContext.prototype, 'decodeAudioData', {
       configurable: true,
       value: async () => ({
-        length: 0,
+        length: 16_000,
         numberOfChannels: 1,
-        sampleRate: 16_000,
-        getChannelData: () => new Float32Array(),
+        sampleRate: 0,
+        getChannelData: () =>
+          Float32Array.from({ length: 16_000 }, (_, index) => (index % 2 ? 0.2 : -0.2)),
       }),
     });
   });
@@ -593,7 +618,7 @@ test('reports invalid converted output without creating an Analysis', async ({ p
   const calls = await trackRejectedSubmissionCalls(page);
 
   await page.goto('/analyze');
-  await expect(page.getByText('verified@example.test')).toBeVisible();
+  await expect(page.getByText('verified@example.test')).toHaveText('verified@example.test');
   await startAndStopVirtualRecording(page);
 
   await expect(page.getByText(/could not be converted into a valid WAV/)).toBeVisible();
@@ -601,11 +626,12 @@ test('reports invalid converted output without creating an Analysis', async ({ p
 });
 
 test('stops an over-limit capture without creating an Analysis', async ({ page }) => {
+  await mockVirtualMicrophone(page);
   await mockVerifiedSession(page);
   const calls = await trackRejectedSubmissionCalls(page);
 
   await page.goto('/analyze');
-  await expect(page.getByText('verified@example.test')).toBeVisible();
+  await expect(page.getByText('verified@example.test')).toHaveText('verified@example.test');
   await page.clock.install();
   await page.getByRole('button', { name: 'Grant access and record' }).click();
   await expect(page.getByText(/Recording — .* seconds elapsed/)).toBeVisible();
@@ -649,10 +675,10 @@ test('shows a persisted completed result after reload and has no accessibility v
   });
 
   await page.goto(`/analyses/${analysisId}`);
-  await expect(page.getByText('verified@example.test')).toBeVisible();
-  await expect(page.getByText('Completed Analysis')).toBeVisible();
+  await expect(page.getByText('verified@example.test')).toHaveText('verified@example.test');
+  await expect(page.getByText('Detected emotion')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Happy', exact: true })).toBeVisible();
-  await expect(page.getByText('Confidence breakdown')).toBeVisible();
+  await expect(page.getByText('Score Breakdown')).toBeVisible();
   await expect(
     page.locator('.analysis-result-confidence').getByText('91%', { exact: true }),
   ).toBeVisible();
@@ -661,25 +687,31 @@ test('shows a persisted completed result after reload and has no accessibility v
   ).toBeVisible();
   const resultPath = page.getByRole('list', { name: 'How the system reached the result' });
   await expect(resultPath.getByText('clues found', { exact: true })).toBeVisible();
-  await expect(resultPath.getByText('rule activated', { exact: true })).toBeVisible();
+  await expect(resultPath.getByText('rule applied', { exact: true })).toBeVisible();
   await expect(resultPath.getByText('Happy', { exact: true })).toBeVisible();
   await expect(resultPath.getByText('91% final score', { exact: true })).toBeVisible();
 
-  const technicalTrace = page.locator('summary').filter({ hasText: 'View technical evidence' });
+  const technicalTrace = page.locator('.analysis-trace-technical > summary');
   await technicalTrace.focus();
   await page.keyboard.press('Enter');
-  await expect(page.getByText('Detected speech clues', { exact: true })).toBeVisible();
-  await expect(page.getByText('Rules the system activated', { exact: true })).toBeVisible();
-  await expect(page.getByText('How scores changed', { exact: true })).toBeVisible();
-  await expect(page.getByText('Before-and-after probabilities', { exact: true })).toBeVisible();
-  const versionIdentifiers = page.locator('summary').filter({ hasText: 'Version identifiers' });
+  await expect(
+    page.getByRole('heading', { name: 'Words and sounds that stood out', exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText('Scoring rules used', { exact: true })).toBeVisible();
+  await expect(page.getByText('How clues shifted the scores', { exact: true })).toBeVisible();
+  await expect(
+    page.getByText('Scores before and after clue adjustments', { exact: true }),
+  ).toBeVisible();
+  const versionIdentifiers = page
+    .locator('summary')
+    .filter({ hasText: 'Model and system versions' });
   await versionIdentifiers.click();
   await expect(page.getByText('research-response-v2', { exact: true })).toBeVisible();
   await expect(page.getByText('fake-model-1', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: /edit|correct/i })).toHaveCount(0);
   await expect(new AxeBuilder({ page }).analyze()).resolves.toMatchObject({ violations: [] });
   await page.reload();
-  await expect(page.getByText('Completed Analysis')).toBeVisible();
+  await expect(page.getByText('Detected emotion')).toBeVisible();
   await page.waitForTimeout(2_100);
   expect(reads).toBe(2);
 });
@@ -725,11 +757,9 @@ test('presents an Inconclusive Result without a headline class or visible raw pr
   await expect(page.getByText('English', { exact: true })).toBeVisible();
   await expect(page.getByText('Experimental', { exact: true })).toBeVisible();
   await expect(
-    page.getByText(
-      'It does not provide a definitive classification because the returned evidence was insufficient.',
-    ),
+    page.getByText('The Research System marked this result inconclusive.'),
   ).toBeVisible();
-  await expect(page.getByText('Confidence breakdown')).toHaveCount(0);
+  await expect(page.getByText('Score Breakdown')).toHaveCount(0);
   await expect(page.locator('.probability-table')).toBeHidden();
   await expect(page.getByRole('button', { name: /edit|correct/i })).toHaveCount(0);
 
@@ -737,12 +767,16 @@ test('presents an Inconclusive Result without a headline class or visible raw pr
   await expect(resultPath.getByText('No clear result', { exact: true })).toBeVisible();
   await expect(resultPath.getByText('Inconclusive', { exact: true })).toBeVisible();
 
-  const technicalTrace = page.locator('summary').filter({ hasText: 'View technical evidence' });
+  const technicalTrace = page.locator('.analysis-trace-technical > summary');
   await technicalTrace.focus();
   await page.keyboard.press('Enter');
-  await expect(page.getByText('Before-and-after probabilities', { exact: true })).toBeVisible();
+  await expect(
+    page.getByText('Scores before and after clue adjustments', { exact: true }),
+  ).toBeVisible();
   await expect(page.getByText('25%', { exact: true }).first()).toBeVisible();
-  await expect(page.getByText('No speech clues were returned.')).toBeVisible();
+  await expect(
+    page.locator('.analysis-cue-section').getByText('No specific words or sounds were flagged.'),
+  ).toBeVisible();
   await expect(new AxeBuilder({ page }).analyze()).resolves.toMatchObject({ violations: [] });
 });
 
@@ -783,7 +817,7 @@ test('cancels a queued Analysis and removes it from the active journey', async (
   await expect(page.getByRole('heading', { name: 'Your signal is safely in line.' })).toBeVisible();
   await expect(page.getByRole('progressbar', { name: 'Analysis queued' })).toBeVisible();
   await expect(page.getByRole('list', { name: 'Analysis progress' })).toContainText(
-    'Waiting for engine',
+    'Waiting to start',
   );
   await expect(page.getByRole('button', { name: 'Cancel Analysis' })).toBeVisible();
   await page.getByRole('button', { name: 'Cancel Analysis' }).click();
@@ -810,13 +844,17 @@ test('shows when the Research System is actively processing an Analysis', async 
 
   await page.goto(`/analyses/${analysisId}`);
   await expect(
-    page.getByRole('heading', { name: 'The research system is reading your signal.' }),
+    page.getByRole('heading', { name: 'DamdAImin is reading your signal.' }),
   ).toBeVisible();
   await expect(page.getByRole('progressbar', { name: 'Analysis processing' })).toBeVisible();
   await expect(page.getByRole('list', { name: 'Analysis progress' })).toContainText(
-    'ASR + model active',
+    'In progress now',
   );
-  await expect(page.getByText('CPU processing can take a few minutes.')).toBeVisible();
+  await expect(
+    page.getByText(
+      'We’re turning your recording into text and analyzing it. This can take a few minutes.',
+    ),
+  ).toBeVisible();
 });
 
 test('retries a failed Analysis only when retained Source Audio is available', async ({ page }) => {
@@ -863,3 +901,95 @@ test('retries a failed Analysis only when retained Source Audio is available', a
   await page.getByRole('button', { name: 'Retry Analysis' }).click();
   await expect(page).toHaveURL(`/analyses/${retriedAnalysisId}`);
 });
+
+for (const [classification, label] of [
+  ['happiness', 'Happy'],
+  ['sadness', 'Sad'],
+  ['anger', 'Angry'],
+  ['neutrality', 'Neutral'],
+] as const) {
+  test(`renders ${label} evidence truthfully with accessible colors`, async ({ page }) => {
+    await mockVerifiedSession(page);
+    const neutralScores = { happiness: 0.1, sadness: 0.1, anger: 0.1, neutrality: 0.7 };
+    const symbolic =
+      classification === 'neutrality'
+        ? { happiness: 0.25, sadness: 0.25, anger: 0.25, neutrality: 0.25 }
+        : { happiness: 0.1166667, sadness: 0.1166667, anger: 0.1166666, neutrality: 0.65 };
+    const combined = { happiness: 0.1, sadness: 0.1, anger: 0.1, neutrality: 0.1 };
+    combined[classification] = 0.7;
+    const acousticReason =
+      "PROSODIC_ENERGY_RATE detected 'energy and speaking rate' and reported a increase adjustment.";
+    const computedReason =
+      "CONTRADICTION_RECALIBRATION detected 'neural-symbolic disagreement' and reported a decrease adjustment.";
+    await page.route(`**/api/v2/analyses/${analysisId}`, async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: analysisId,
+          status: 'completed',
+          stage: 'completed',
+          language: 'taglish',
+          createdAt: '2026-08-02T00:00:00.000Z',
+          result: {
+            outcome: 'definitive',
+            emotionClassification: classification,
+            confidence: combined,
+            transcript: 'Synthetic fixture.',
+            explanation: 'Synthetic fixture.',
+            technicalTrace: {
+              ...definitiveTechnicalTrace,
+              activatedRules: [
+                { id: 'PROSODIC_ENERGY_RATE-1', description: 'Returned acoustic rule evidence.' },
+                {
+                  id: 'CONTRADICTION_RECALIBRATION-2',
+                  description: 'Returned comparison evidence.',
+                },
+              ],
+              scoreAdjustments: [
+                { emotionClassification: 'anger', delta: 0.05, reason: acousticReason },
+                { emotionClassification: 'neutrality', delta: -0.05, reason: computedReason },
+              ],
+              probabilities: { before: neutralScores, symbolic, after: combined },
+            },
+            contractVersion: 'taglish-v2',
+            schemaVersion: 'research-response-v2',
+            modelVersion: 'fake-model-1',
+            preprocessingVersion: 'fake-preprocessing-1',
+            ruleSetVersion: 'fake-rules-1',
+          },
+        }),
+      });
+    });
+
+    await page.goto(`/analyses/${analysisId}`);
+    await expect(page.getByRole('heading', { name: label, exact: true })).toBeVisible();
+    for (const layer of ['Neural Layer', 'Symbolic Layer', 'Combined Result']) {
+      const percentages = await page
+        .getByRole('region', { name: layer, exact: true })
+        .locator('.analysis-result-confidence-label strong')
+        .allTextContents();
+      expect(percentages).toHaveLength(4);
+      expect(percentages.reduce((sum, value) => sum + Number.parseInt(value), 0)).toBe(100);
+    }
+    if (classification === 'neutrality') {
+      await expect(
+        page.getByText('The symbolic layer gave all four emotions equal scores (25% each).', {
+          exact: false,
+        }),
+      ).toBeVisible();
+      await expect(
+        page.getByText('The layers leaned toward different emotions', { exact: false }),
+      ).toHaveCount(0);
+    }
+    await page.locator('.analysis-trace-technical > summary').click();
+    await expect(page.getByText('Returned acoustic rule evidence.', { exact: true })).toBeVisible();
+    await expect(page.getByText('Returned comparison evidence.', { exact: true })).toBeVisible();
+    await expect(page.getByText(acousticReason, { exact: true })).toBeVisible();
+    await expect(page.getByText(computedReason, { exact: true })).toBeVisible();
+    await expect(
+      page.getByText('The word or phrase “energy and speaking rate”', { exact: false }),
+    ).toHaveCount(0);
+    await expect(new AxeBuilder({ page }).analyze()).resolves.toMatchObject({ violations: [] });
+  });
+}
