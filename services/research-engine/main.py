@@ -113,6 +113,9 @@ def normalize_text(value: Any) -> str:
 
 
 TOKEN_RE = re.compile(r"[^\W_]+(?:['-][^\W_]+)*", flags=re.UNICODE)
+FILIPINO_STEM_INDEX_KEY = "__filipino_stems__"
+FILIPINO_STEM_MIN_LENGTH = 5
+FILIPINO_STEM_MAX_LENGTH_DIFFERENCE = 6
 
 
 def tokenize(text: str) -> list[str]:
@@ -205,13 +208,32 @@ def make_entries(
     return entries
 
 
-def index_entries(entries: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+def index_entries(
+    entries: list[dict[str, Any]],
+    include_filipino_stems: bool = False,
+) -> dict[str, list[dict[str, Any]]]:
     indexed: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for entry in entries:
         indexed[entry["tokens"][0]].append(entry)
+        if include_filipino_stems and len(entry["tokens"]) == 1:
+            language_values = normalize_text(entry["row"].get("language", "")).split("/")
+            languages = {
+                language.strip() for language in language_values
+            }
+            if "filipino" in languages:
+                indexed[FILIPINO_STEM_INDEX_KEY].append(entry)
     for token in indexed:
         indexed[token].sort(key=lambda item: len(item["tokens"]), reverse=True)
     return indexed
+
+
+def is_filipino_stem_variant(transcript_token: str, lexicon_token: str) -> bool:
+    shorter, longer = sorted((transcript_token, lexicon_token), key=len)
+    return (
+        len(shorter) >= FILIPINO_STEM_MIN_LENGTH
+        and len(longer) - len(shorter) <= FILIPINO_STEM_MAX_LENGTH_DIFFERENCE
+        and shorter in longer
+    )
 
 
 def find_matches(
@@ -220,15 +242,37 @@ def find_matches(
 ) -> list[dict[str, Any]]:
     candidates: list[dict[str, Any]] = []
     for start, token in enumerate(tokens):
+        exact_matches = []
         for entry in indexed_entries.get(token, []):
             length = len(entry["tokens"])
             if tuple(tokens[start : start + length]) == entry["tokens"]:
                 match = dict(entry)
                 match["start"] = start
                 match["end"] = start + length - 1
+                exact_matches.append(match)
+
+        if exact_matches:
+            candidates.extend(exact_matches)
+            continue
+
+        for entry in indexed_entries.get(FILIPINO_STEM_INDEX_KEY, []):
+            lexicon_token = entry["tokens"][0]
+            if is_filipino_stem_variant(token, lexicon_token):
+                match = dict(entry)
+                match["text"] = token
+                match["match_type"] = "shared_stem"
+                match["stem_length_difference"] = abs(len(token) - len(lexicon_token))
+                match["start"] = start
+                match["end"] = start
                 candidates.append(match)
 
-    candidates.sort(key=lambda item: (item["start"], -(item["end"] - item["start"] + 1)))
+    candidates.sort(
+        key=lambda item: (
+            item["start"],
+            -(item["end"] - item["start"] + 1),
+            item.get("stem_length_difference", 0),
+        )
+    )
     selected: list[dict[str, Any]] = []
     occupied: set[int] = set()
     for match in candidates:
@@ -266,7 +310,10 @@ class SymbolicReasoner:
             if entry["targets"]:
                 emotion_entries.append(entry)
 
-        self.emotion_index = index_entries(emotion_entries)
+        self.emotion_index = index_entries(
+            emotion_entries,
+            include_filipino_stems=True,
+        )
         self.intensifier_index = index_entries(
             make_entries(intensifier_rows, "intensifier", "intensifier_or_downtoner")
         )
@@ -909,7 +956,7 @@ class ResearchRuntime:
                     else f"{MODEL_VERSION}+asr-{ASR_MODEL_NAME}"
                 ),
                 "preprocessingVersion": "tsera-16khz-windowed-5s-logmel-delta-v2",
-                "ruleSetVersion": "preliminary-five-tier-rules-v5-neutral-evidence",
+                "ruleSetVersion": "preliminary-five-tier-rules-v6-filipino-stem-match",
             }
         finally:
             temporary_path.unlink(missing_ok=True)

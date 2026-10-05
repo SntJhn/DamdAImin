@@ -22,7 +22,8 @@ validated thesis settings. When no emotion-bearing symbolic rules contribute
 evidence, the symbolic layer uses a neutral-leaning prior: `0.40` neutral and
 `0.20` for each other emotion. When positive symbolic evidence supports only
 neutral, neutral receives at least `0.65` of the symbolic probability before
-fusion.
+fusion. Emotion matching checks exact lexicon forms first, then allows a
+bounded shared-stem match for single-word Filipino emotion entries.
 
 Set `HF_TOKEN` in the repository `.env` file to authenticate Whisper downloads
 against the Hugging Face Hub. The token is passed only to the local research
