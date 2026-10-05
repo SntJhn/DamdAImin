@@ -88,8 +88,8 @@ RULE_WEIGHTS = {
 }
 
 SAMPLE_RATE = 16_000
-NEURAL_FUSION_WEIGHT = float(os.getenv("NEURAL_FUSION_WEIGHT", "0.60"))
-SYMBOLIC_FUSION_WEIGHT = float(os.getenv("SYMBOLIC_FUSION_WEIGHT", "0.40"))
+NEURAL_FUSION_WEIGHT = float(os.getenv("NEURAL_FUSION_WEIGHT", "0.40"))
+SYMBOLIC_FUSION_WEIGHT = float(os.getenv("SYMBOLIC_FUSION_WEIGHT", "0.60"))
 MODEL_VERSION = os.getenv("MODEL_VERSION", "tsera-finetuned-baseline")
 ASR_MODEL_NAME = os.getenv("ASR_MODEL", "large-v3-turbo")
 ASR_LANGUAGE = os.getenv("ASR_LANGUAGE", "auto").strip().casefold()
