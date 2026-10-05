@@ -269,8 +269,8 @@ export function AnalysisSubmitClient() {
         <div className="analysis-loading-backdrop">
           <section
             className="analysis-loading-modal"
-            role="dialog"
-            aria-modal="true"
+            role="status"
+            aria-live="polite"
             aria-labelledby="transcription-loading-title"
             aria-describedby="transcription-loading-description"
           >
@@ -352,11 +352,10 @@ export function AnalysisSubmitClient() {
         </header>
 
         <div className="analysis-workspace-content">
-
           <form className="analysis-intake-card" onSubmit={submit} noValidate>
             <header className="analysis-intake-header">
               <div>
-                <h2>Start an Emotion Analysis.</h2>
+                <h1 id="analysis-title">Start an Emotion Analysis.</h1>
                 <p>
                   Speak naturally. We’ll listen for the acoustic and linguistic cues that shape the
                   emotion in your words.
@@ -375,7 +374,7 @@ export function AnalysisSubmitClient() {
               <p className="analysis-panel-kicker">
                 {asrTranscriptGenerated ? 'ASR TRANSCRIPT' : 'TRANSCRIPT ENTRY'}
               </p>
-              <h3 id="transcript-review-title">Check the words before analysis.</h3>
+              <h2 id="transcript-review-title">Check the words before analysis.</h2>
               <p className="analysis-transcript-guidance">
                 Correct names, Taglish spelling, and anything Whisper missed. The neural model reads
                 the audio; this transcript is used by the symbolic language rules.
@@ -422,9 +421,9 @@ export function AnalysisSubmitClient() {
                   <p className="analysis-panel-kicker" style={{ marginBottom: '4px' }}>
                     YOUR RECORDING
                   </p>
-                  <h3 id="capture-title" style={{ margin: '0 0 6px' }}>
+                  <h2 id="capture-title" style={{ margin: '0 0 6px' }}>
                     Say what you mean.
-                  </h3>
+                  </h2>
                   <p style={{ margin: 0 }}>
                     One utterance is enough. Keep it natural and under 60 seconds.
                   </p>

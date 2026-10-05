@@ -253,7 +253,7 @@ export function HistoryClient() {
 
                 <span className="dashboard-microphone-label">
                   <strong>Tap to record</strong>
-                  <small>Up to 20 seconds</small>
+                  <small>Up to 60 seconds</small>
                 </span>
               </Link>
             </section>
@@ -470,24 +470,30 @@ export function HistoryClient() {
                   <span role="columnheader">Emotion</span>
                   <span role="columnheader">Language</span>
                   <span role="columnheader">Date</span>
-                  <span role="columnheader" aria-label="Open record" />
+                  <span role="columnheader">
+                    <span className="sr-only">Open record</span>
+                  </span>
                 </div>
                 {analyses.map((analysis) => (
-                  <Link
+                  <div
                     className="dashboard-table-row dashboard-table-record"
-                    href={`/analyses/${analysis.id}`}
                     key={analysis.id}
                     role="row"
-                    aria-label={`Open ${formatEmotionLabel(analysis)} analysis from ${formatDashboardDate(analysis.createdAt)}`}
                   >
-                    <span className="dashboard-record-cell" role="cell">
-                      <span className="dashboard-play-icon" aria-hidden="true">
-                        <Play size={12} fill="currentColor" />
-                      </span>
-                      <span>
-                        <strong>Analysis record</strong>
-                        <small>#{analysis.id.slice(0, 8)}</small>
-                      </span>
+                    <span role="cell">
+                      <Link
+                        className="dashboard-record-cell dashboard-record-link"
+                        href={`/analyses/${analysis.id}`}
+                        aria-label={`Open ${formatEmotionLabel(analysis)} analysis from ${formatDashboardDate(analysis.createdAt)}`}
+                      >
+                        <span className="dashboard-play-icon" aria-hidden="true">
+                          <Play size={12} fill="currentColor" />
+                        </span>
+                        <span>
+                          <strong>Analysis record</strong>
+                          <small>#{analysis.id.slice(0, 8)}</small>
+                        </span>
+                      </Link>
                     </span>
                     <span className="dashboard-transcript-cell" role="cell">
                       {analysis.result?.transcript
@@ -507,10 +513,10 @@ export function HistoryClient() {
                     <time className="dashboard-date-cell" dateTime={analysis.createdAt} role="cell">
                       {formatDashboardDate(analysis.createdAt)}
                     </time>
-                    <span className="dashboard-row-arrow" aria-hidden="true">
-                      <ArrowUpRight size={17} />
+                    <span className="dashboard-row-arrow" role="cell">
+                      <ArrowUpRight size={17} aria-hidden="true" />
                     </span>
-                  </Link>
+                  </div>
                 ))}
               </div>
             ) : null}
