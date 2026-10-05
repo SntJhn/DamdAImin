@@ -724,9 +724,7 @@ function AnalysisRecord({
       <ScoreChangeChart
         key={createdAt}
         trace={result.technicalTrace}
-        transcript={result.transcript}
         classification={classification}
-        finalScores={result.confidence}
       >
         <EmotionScoreBreakdown trace={result.technicalTrace} finalScores={result.confidence} />
       </ScoreChangeChart>

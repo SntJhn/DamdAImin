@@ -48,10 +48,18 @@ export interface ScoreAdjustment {
   reason: string;
 }
 
+export interface SymbolicScoreJourneyStep {
+  cue: string;
+  ruleId: string;
+  source: 'baseline' | 'linguistic' | 'acoustic' | 'system';
+  scores: ConfidenceBreakdown;
+}
+
 export interface TechnicalTrace {
   cueSpans: TechnicalCueSpan[];
   activatedRules: ActivatedRule[];
   scoreAdjustments: ScoreAdjustment[];
+  scoreJourney?: SymbolicScoreJourneyStep[];
   probabilities: {
     before: ConfidenceBreakdown;
     symbolic?: ConfidenceBreakdown;

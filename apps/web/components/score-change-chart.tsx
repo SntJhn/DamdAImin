@@ -12,13 +12,6 @@ import { formatClassification, formatProbability } from '../lib/analysis-result'
 
 type EmotionScores = Record<EmotionClassification, number>;
 type Trace = AnalysisResult['technicalTrace'];
-type ReplayStep = {
-  cue: string;
-  ruleId: string;
-  source: 'baseline' | 'linguistic' | 'acoustic' | 'system';
-  scores: EmotionScores;
-  adjustment?: Trace['scoreAdjustments'][number];
-};
 type ScaleMode = 'full' | 'zoom';
 
 const classificationKeys = ['happiness', 'sadness', 'anger', 'neutrality'] as const;
@@ -66,69 +59,6 @@ function topEmotion(scores: EmotionScores): EmotionClassification {
   return classificationKeys.reduce((best, key) => (scores[key] > scores[best] ? key : best));
 }
 
-/** Build an illustrative replay from the neural scores and reported rule evidence. */
-function buildScoreJourney(trace: Trace, transcript: string): ReplayStep[] {
-  const baseline = trace.probabilities.before;
-  const logits: EmotionScores = Object.fromEntries(
-    classificationKeys.map((emotion) => [emotion, Math.log(baseline[emotion])]),
-  ) as EmotionScores;
-  const steps: ReplayStep[] = [
-    { cue: 'Neural baseline', ruleId: 'BASELINE', source: 'baseline', scores: { ...baseline } },
-  ];
-  const transcriptLower = transcript.toLocaleLowerCase();
-  const adjustments = trace.scoreAdjustments
-    .map((adjustment, index) => {
-      const ruleId = adjustment.reason.split(' ')[0] ?? '';
-      const detected = adjustment.reason.match(/detected ['"](.+?)['"]/i)?.[1];
-      const cuePosition = detected ? transcriptLower.indexOf(detected.toLocaleLowerCase()) : -1;
-      const source: ReplayStep['source'] = ruleId === 'PROSODIC_ENERGY_RATE'
-        ? 'acoustic'
-        : ruleId === 'NEURAL_RULE_AGREEMENT' || ruleId === 'CONTRADICTION_RECALIBRATION'
-          ? 'system'
-          : 'linguistic';
-      const order = source === 'system'
-        ? transcript.length + (ruleId === 'CONTRADICTION_RECALIBRATION' ? 1 : 2)
-        : source === 'acoustic'
-          ? transcript.length
-          : cuePosition >= 0
-            ? cuePosition
-            : transcript.length - 1;
-      const cue = detected ?? (
-        source === 'acoustic'
-          ? 'energy and speaking rate'
-          : ruleId === 'NEURAL_RULE_AGREEMENT'
-            ? 'Agreement'
-            : ruleId === 'CONTRADICTION_RECALIBRATION'
-              ? 'neural-symbolic disagreement'
-              : formatClassification(adjustment.emotionClassification)
-      );
-      return { adjustment, index, ruleId, source, order, cue };
-    })
-    .filter(({ ruleId }) => !['LEXICAL_MODIFIER', 'LEXICAL_NEGATION'].includes(ruleId))
-    .sort((a, b) => a.order - b.order || a.index - b.index);
-
-  for (const item of adjustments) {
-    logits[item.adjustment.emotionClassification] += item.adjustment.delta;
-    const maxLogit = Math.max(...classificationKeys.map((emotion) => logits[emotion]));
-    const exponentials = Object.fromEntries(
-      classificationKeys.map((emotion) => [emotion, Math.exp(logits[emotion] - maxLogit)]),
-    ) as EmotionScores;
-    const total = classificationKeys.reduce((sum, emotion) => sum + exponentials[emotion], 0);
-    const scores = Object.fromEntries(
-      classificationKeys.map((emotion) => [emotion, exponentials[emotion] / total]),
-    ) as EmotionScores;
-    steps.push({
-      cue: item.cue,
-      ruleId: item.ruleId,
-      source: item.source,
-      scores,
-      adjustment: item.adjustment,
-    });
-  }
-
-  return steps;
-}
-
 function getDomain(values: number[], mode: ScaleMode): [number, number] {
   if (mode === 'full') return [0, 1];
   let lo = Math.max(0, Math.floor((Math.min(...values) - 0.05) * 10) / 10);
@@ -142,23 +72,21 @@ function getDomain(values: number[], mode: ScaleMode): [number, number] {
 
 export function ScoreChangeChart({
   trace,
-  transcript,
   classification,
-  finalScores,
   children,
 }: {
   trace: Trace;
-  transcript: string;
   classification?: EmotionClassification;
-  finalScores: EmotionScores;
   children?: ReactNode;
 }) {
-  const journey = buildScoreJourney(trace, transcript);
+  const journey = trace.scoreJourney ?? [];
   const lastIndex = journey.length - 1;
 
-  // The line starts from whatever the neural model thought was strongest.
+  // Open on the symbolic layer's strongest emotion.
   const [tracked, setTracked] = useState<EmotionClassification>(
-    () => classification ?? topEmotion(trace.probabilities.before),
+    () => trace.probabilities.symbolic
+      ? topEmotion(trace.probabilities.symbolic)
+      : classification ?? topEmotion(trace.probabilities.before),
   );
   const [mode, setMode] = useState<ScaleMode>('full');
   const [open, setOpen] = useState<number | null>(null);
@@ -177,7 +105,7 @@ export function ScoreChangeChart({
     const observer = new ResizeObserver(update);
     observer.observe(el);
     return () => observer.disconnect();
-  }, []);
+  }, [journey.length]);
 
   // Modal behavior: focus, Esc to close, arrows to move, Tab stays inside.
   useEffect(() => {
@@ -239,9 +167,9 @@ export function ScoreChangeChart({
       <div>
         <p className="dashboard-card-kicker">
           <Activity size={14} aria-hidden="true" />
-          SCORE CHANGES
+          SYMBOLIC SCORE CHANGES
         </p>
-        <h2 id="score-changes-heading">How Each Clue Shifted the Scores</h2>
+        <h2 id="score-changes-heading">How Each Word or Cue Shifts the Symbolic Scores</h2>
       </div>
     </header>
   );
@@ -253,7 +181,7 @@ export function ScoreChangeChart({
         <p className="sjc-empty">
           {journey.length === 1
             ? 'No score-affecting clues were returned for this analysis.'
-            : 'This saved analysis does not include step-by-step symbolic scores. New analyses will show the change after each score-affecting clue.'}
+            : 'Per-clue symbolic scores are unavailable for this result.'}
         </p>
         {children}
       </section>
@@ -280,7 +208,10 @@ export function ScoreChangeChart({
   const yAt = (value: number) =>
     bottom - ((clamp01(value) - domainLo) / (domainHi - domainLo)) * (bottom - top);
   const points = values.map((value, index) => ({ x: xAt(index), y: yAt(value), value }));
-  const ticks = [domainLo, (domainLo + domainHi) / 2, domainHi];
+  const ticks = Array.from(
+    { length: 5 },
+    (_, index) => domainLo + ((domainHi - domainLo) * index) / 4,
+  );
 
   const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x} ${p.y}`).join(' ');
   const areaPath = `${linePath} L${points[lastIndex].x} ${bottom} L${points[0].x} ${bottom} Z`;
@@ -306,11 +237,10 @@ export function ScoreChangeChart({
     const color = emotionFill[tracked];
     const ink = emotionInk[tracked];
 
-    const title = isStart ? 'Neural baseline' : journeyStep.cue;
-    const evidence = journeyStep.adjustment?.delta ?? 0;
+    const title = isStart ? 'Starting symbolic scores' : journeyStep.cue;
     const body = isStart
-      ? `The neural model's starting ${trackedLabel} score was ${formatProbability(to)}.`
-      : `${journeyStep.cue} contributes ${formatPoints(evidence)} weighted rule evidence toward ${formatClassification(journeyStep.adjustment?.emotionClassification ?? tracked)}. In this illustrative replay, ${trackedLabel} moves from ${formatProbability(from)} to ${formatProbability(to)} (${formatPoints(change)}).`;
+      ? `Before symbolic clues were applied, ${trackedLabel} was ${formatProbability(to)}.`
+      : `${journeyStep.cue} changed the symbolic ${trackedLabel} score from ${formatProbability(from)} to ${formatProbability(to)} (${formatPoints(change)}).`;
 
     return {
       isStart,
@@ -322,8 +252,7 @@ export function ScoreChangeChart({
       ink,
       title,
       body,
-      adjustment: journeyStep.adjustment,
-      layer: journeyStep.source === 'baseline' ? 'Neural baseline' : journeyStep.source === 'acoustic' ? 'Acoustic clue' : journeyStep.source === 'system' ? 'System adjustment' : 'Linguistic clue',
+      layer: journeyStep.source === 'baseline' ? 'Symbolic baseline' : journeyStep.source === 'acoustic' ? 'Acoustic clue' : journeyStep.source === 'system' ? 'System adjustment' : 'Linguistic clue',
     };
   }
 
@@ -451,27 +380,27 @@ export function ScoreChangeChart({
 
       <div className="sjc-summary" aria-label="Score change summary">
         <div className="sjc-summary-stat">
-          <span>Neural starting score</span>
+          <span>Starting symbolic score</span>
           <b>{formatProbability(startValue)}</b>
         </div>
         <div className="sjc-summary-stat">
-          <span>After rule replay</span>
+          <span>After symbolic rules</span>
           <b>{formatProbability(endValue)}</b>
         </div>
         <div className="sjc-summary-stat sjc-summary-stat--change">
-          <span>Illustrative net change</span>
+          <span>Symbolic net change</span>
           <b className={`sjc-summary-net ${netChange >= 0 ? 'is-up' : 'is-down'}`}>
             <span aria-hidden="true">{netChange >= 0 ? '▲' : '▼'}</span> {formatPoints(netChange)}
           </b>
         </div>
         <div className="sjc-summary-stat sjc-summary-stat--final">
-          <span>Final {trackedLabel}</span>
-          <b>{formatProbability(finalScores[tracked])}</b>
+          <span>Final symbolic {trackedLabel}</span>
+          <b>{formatProbability(endValue)}</b>
         </div>
       </div>
       <p className="sjc-empty">
-        Illustrative replay of weighted rule evidence over the neural scores. It does not change the
-        reported symbolic or final scores.
+        Each point is the symbolic layer’s actual score after applying that clue. The last point
+        matches the symbolic scores in the breakdown.
       </p>
 
       <div className="sjc-plot">
@@ -487,7 +416,7 @@ export function ScoreChangeChart({
           >
             <title id="score-chart-title">{trackedLabel} score at each step</title>
             <desc id="score-chart-description">
-              {`Neural layer starts at ${formatProbability(startValue)}. ` +
+              {`Symbolic scores start at ${formatProbability(startValue)} for ${trackedLabel}. ` +
                 journey
                   .slice(1)
                   .map((item, index) => `${item.cue} moves it to ${formatProbability(values[index + 1])}.`)
@@ -529,7 +458,7 @@ export function ScoreChangeChart({
               const ink = emotionInk[tracked];
               const delta = isStart ? undefined : point.value - points[index - 1].value;
               const journeyStep = journey[index];
-              const full = isStart ? 'Neural baseline' : journeyStep.cue;
+              const full = isStart ? 'Symbolic baseline' : journeyStep.cue;
               const shown = full.length > 13 ? `${full.slice(0, 12)}…` : full;
               const isActive = index === open;
               return (
@@ -540,7 +469,7 @@ export function ScoreChangeChart({
                   role="button"
                   tabIndex={0}
                   aria-haspopup="dialog"
-                  aria-label={`${isStart ? `Neural baseline, ${trackedLabel}` : full}: ${formatProbability(point.value)}${
+                  aria-label={`${isStart ? `Symbolic baseline, ${trackedLabel}` : full}: ${formatProbability(point.value)}${
                     delta === undefined ? '' : `, ${formatPoints(delta)}`
                   }. Show explanation.`}
                   onClick={(event) => openAt(index, event.currentTarget)}
