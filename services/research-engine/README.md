@@ -17,7 +17,7 @@ vendored runtime includes:
 Whisper `large-v3-turbo` is the default ASR model. Override `ASR_MODEL` when a
 different locally supported Whisper checkpoint is required. The preliminary
 rule weights default to `1.00` and the neural/symbolic fusion coefficients
-default to `0.40` and `0.60`; these are demonstration values and not final
+default to `0.30` and `0.70`; these are demonstration values and not final
 validated thesis settings. When no emotion-bearing symbolic rules contribute
 evidence, the symbolic layer uses a neutral-leaning prior: `0.70` neutral and
 `0.10` for each other emotion. When positive symbolic evidence supports only
