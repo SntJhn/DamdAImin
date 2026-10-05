@@ -48,6 +48,46 @@ const classificationLabels: Record<EmotionClassification, string> = {
   sadness: 'Sad',
 };
 
+const classifications = ['happiness', 'sadness', 'anger', 'neutrality'] as const;
+type EmotionScores = Readonly<Record<EmotionClassification, number>>;
+
+export function getLeadingClassifications(scores: EmotionScores): EmotionClassification[] {
+  const highest = Math.max(...classifications.map((classification) => scores[classification]));
+  return classifications.filter((classification) => scores[classification] === highest);
+}
+
+export function describeLayerScores(layer: string, scores: EmotionScores): string {
+  const leaders = getLeadingClassifications(scores);
+  const probability = formatProbability(scores[leaders[0]]);
+  if (leaders.length === classifications.length) {
+    return `${layer} gave all four emotions equal scores (${probability} each).`;
+  }
+  if (leaders.length > 1) {
+    const labels = new Intl.ListFormat('en', { type: 'conjunction' }).format(
+      leaders.map(formatClassification),
+    );
+    return `${layer} tied ${labels} at ${probability}.`;
+  }
+  return `${layer} leaned ${formatClassification(leaders[0])} (${probability}).`;
+}
+
+export function describeScoreAdjustment(
+  reason: string,
+  emotion: EmotionClassification,
+  delta: number,
+): string {
+  const lexicalCue = reason.match(
+    /^LEXICAL_[A-Z_]+ detected ['"](.+?)['"] and reported an? (increase|decrease)/i,
+  );
+  if (lexicalCue) {
+    return `The word or phrase “${lexicalCue[1]}” ${lexicalCue[2] === 'increase' ? 'raised' : 'lowered'} the ${formatClassification(emotion)} score.`;
+  }
+  if (/agreement adjustment was added/i.test(reason)) {
+    return `The neural model and supporting rules agreed, which ${delta >= 0 ? 'raised' : 'lowered'} the ${formatClassification(emotion)} score.`;
+  }
+  return reason;
+}
+
 export function getAnalysisLanguagePresentation(
   language: AnalysisLanguage,
 ): AnalysisLanguagePresentation {

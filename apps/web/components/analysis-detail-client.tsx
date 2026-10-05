@@ -23,12 +23,15 @@ import type { AnalysisResource, AnalysisResult, EmotionClassification } from '@d
 
 import { authClient, getAuthToken } from '../lib/auth-client';
 import {
+  describeLayerScores,
+  describeScoreAdjustment,
   formatClassification,
   formatProbability,
   formatProbabilityDistribution,
   formatScoreDelta,
   getAnalysisLanguagePresentation,
   getAnalysisOutcomePresentation,
+  getLeadingClassifications,
 } from '../lib/analysis-result';
 
 const apiBaseUrl = (process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:4000/api/v2').replace(
@@ -46,7 +49,6 @@ const emotionArtwork: Record<EmotionClassification, string> = {
 
 type EmotionScores = Record<EmotionClassification, number>;
 type CueSpan = AnalysisResult['technicalTrace']['cueSpans'][number];
-type SourceAudioStatus = 'available' | 'unavailable';
 
 export function AnalysisDetailClient({ analysisId }: { analysisId: string }) {
   const router = useRouter();
@@ -774,8 +776,8 @@ function LayerComparison({
         />
         <LayerColumn
           title="Symbolic Layer"
-          tag="Text"
-          description="Reads your words using research rules."
+          tag="Rules"
+          description="Checks voice and language clues against research rules."
           scores={symbolic}
           order={order}
         />
@@ -873,25 +875,23 @@ function WhyThisResult({
       (span, index, spans) =>
         spans.findIndex((candidate) => candidate.value === span.value) === index,
     );
-  const audioTop = rankEmotions(neural)[0];
-  const textTop = symbolic ? rankEmotions(symbolic)[0] : undefined;
+  const audioLeaders = getLeadingClassifications(neural);
+  const symbolicLeaders = symbolic ? getLeadingClassifications(symbolic) : [];
 
   let suggestion: string;
   if (!classification) {
-    suggestion = 'We couldn’t find clear voice or word patterns pointing to one emotion.';
+    suggestion = 'The Research System marked this result inconclusive.';
   } else {
     suggestion = `The combined result leans ${formatClassification(classification)} (${formatProbability(combined[classification])}).`;
   }
   const scoreContext = classification
     ? [
-        `The audio model leaned ${formatClassification(audioTop.classification)} (${formatProbability(audioTop.probability)}).`,
-        ...(textTop
-          ? [
-              `The text-and-rule layer leaned ${formatClassification(textTop.classification)} (${formatProbability(textTop.probability)}).`,
-            ]
-          : []),
+        describeLayerScores('The audio model', neural),
+        ...(symbolic ? [describeLayerScores('The symbolic layer', symbolic)] : []),
         'These scores are combined to produce the result for this recording.',
-        ...(textTop && audioTop.classification !== textTop.classification
+        ...(audioLeaders.length === 1 &&
+        symbolicLeaders.length === 1 &&
+        audioLeaders[0] !== symbolicLeaders[0]
           ? [
               'The layers leaned toward different emotions, so read the combined result with some care.',
             ]
@@ -933,11 +933,11 @@ function WhyThisResult({
 
       {wordCues.length ? (
         <div className="analysis-why-group">
-          <h4>Words flagged by the text layer</h4>
+          <h4>Language clues in this recording</h4>
           <ul className="analysis-why-cue-list">
             {wordCues.map((span, index) => (
               <li key={`${span.cue}-${span.value}-${index}`}>
-                <strong>“{span.value}”</strong>
+                <strong>{span.value}</strong>
                 <span>{humanizeCue(span.cue)} cue</span>
               </li>
             ))}
@@ -947,128 +947,6 @@ function WhyThisResult({
           </p>
         </div>
       ) : null}
-    </section>
-  );
-}
-
-/* ---------- Source audio playback ---------- */
-
-type PlaybackState = 'loading' | 'ready' | 'missing' | 'error';
-
-function RecordingPlayback({
-  analysisId,
-  status,
-}: {
-  analysisId: string;
-  status?: SourceAudioStatus;
-}) {
-  const [state, setState] = useState<PlaybackState>('loading');
-  const [src, setSrc] = useState<string | null>(null);
-  const [attempt, setAttempt] = useState(0);
-
-  useEffect(() => {
-    if (status !== 'available') return;
-
-    const controller = new AbortController();
-    let objectUrl: string | undefined;
-    setState('loading');
-    setSrc(null);
-
-    async function loadAudio() {
-      try {
-        // A native <audio src> can't send an Authorization header, so fetch the
-        // recording with the bearer token and play it from a local object URL.
-        const token = await getAuthToken();
-        if (!token) {
-          setState('error');
-          return;
-        }
-
-        const response = await fetch(`${apiBaseUrl}/analyses/${analysisId}/source-audio`, {
-          headers: { authorization: `Bearer ${token}` },
-          cache: 'no-store',
-          signal: controller.signal,
-        });
-        if (response.status === 404) {
-          setState('missing');
-          return;
-        }
-        if (!response.ok) throw new Error('Source audio unavailable');
-
-        const blob = await response.blob();
-        if (controller.signal.aborted) return;
-        objectUrl = URL.createObjectURL(blob);
-        setSrc(objectUrl);
-        setState('ready');
-      } catch {
-        if (!controller.signal.aborted) setState('error');
-      }
-    }
-
-    void loadAudio();
-    return () => {
-      controller.abort();
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
-  }, [analysisId, status, attempt]);
-
-  let content: React.ReactNode;
-  if (status !== 'available' && status !== 'unavailable') {
-    content = (
-      <p className="analysis-recording-note">
-        This recording wasn’t saved. Turn on “Keep source audio” on your next analysis to listen
-        again here.
-      </p>
-    );
-  } else if (status === 'unavailable' || state === 'missing') {
-    content = (
-      <p className="analysis-recording-note">
-        This recording is no longer available. Saved recordings are removed after the retention
-        period.
-      </p>
-    );
-  } else if (state === 'error') {
-    content = (
-      <div className="analysis-recording-note" role="alert">
-        <p>We couldn’t load your recording. Check your connection and try again.</p>
-        <button
-          className="analysis-result-button analysis-result-button-secondary"
-          type="button"
-          onClick={() => setAttempt((current) => current + 1)}
-        >
-          Try again
-        </button>
-      </div>
-    );
-  } else if (state === 'ready' && src) {
-    content = (
-      <>
-        <audio controls preload="metadata" src={src} aria-label="Play your recording">
-          Your browser can’t play this recording.
-        </audio>
-        <p className="analysis-recording-hint">Only you can listen to this recording.</p>
-      </>
-    );
-  } else {
-    content = (
-      <p className="analysis-recording-note" role="status">
-        Loading your recording…
-      </p>
-    );
-  }
-
-  return (
-    <section
-      className="analysis-result-panel analysis-recording"
-      aria-labelledby="recording-heading"
-    >
-      <div className="analysis-result-panel-heading">
-        <div>
-          <p className="dashboard-card-kicker">Playback</p>
-          <h3 id="recording-heading">Your recording</h3>
-        </div>
-      </div>
-      {content}
     </section>
   );
 }
@@ -1098,13 +976,13 @@ function TechnicalTraceView({
       ? 'The evidence did not favor one emotion clearly enough.'
       : `Audio layer: ${formatProbability(audioScore)}. Combined: ${formatProbability(finalScore)}.`;
   const beforeProbabilities = formatProbabilityDistribution(
-    classificationKeys.map((probabilityClassification) =>
-      trace.probabilities.before[probabilityClassification],
+    classificationKeys.map(
+      (probabilityClassification) => trace.probabilities.before[probabilityClassification],
     ),
   );
   const afterProbabilities = formatProbabilityDistribution(
-    classificationKeys.map((probabilityClassification) =>
-      trace.probabilities.after[probabilityClassification],
+    classificationKeys.map(
+      (probabilityClassification) => trace.probabilities.after[probabilityClassification],
     ),
   );
 
@@ -1413,95 +1291,21 @@ function humanizeCue(cue: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-function describeResearchRule(id: string, fallback: string): { title: string; detail: string } {
-  const ruleId = id.toUpperCase();
-  if (ruleId.includes('LEXICAL_NEGATION')) {
-    return {
-      title: 'Negation near an emotion-related phrase',
-      detail:
-        'Checks for a negation phrase (such as “not” or “hindi naman”) within three words before an emotion-related phrase. If found, it reduces that phrase’s contribution to its emotion score.',
-    };
-  }
-  if (ruleId.includes('LEXICAL_MODIFIER')) {
-    return {
-      title: 'Intensity word near an emotion-related phrase',
-      detail:
-        'Checks for an intensifier (such as “very” or “sobrang”) shortly before an emotion-related phrase and increases that phrase’s contribution.',
-    };
-  }
-  if (ruleId.includes('LEXICAL_PROFANITY')) {
-    return {
-      title: 'Profanity cue',
-      detail:
-        'Checks for profanity in the transcript and adds a small signal to the anger score. Profanity alone does not prove anger.',
-    };
-  }
-  if (ruleId.includes('LEXICAL_POLITENESS')) {
-    return {
-      title: 'Polite-language cue',
-      detail: 'Checks for recognized politeness words and slightly reduces the anger score.',
-    };
-  }
-  if (ruleId.includes('LEXICAL_EMOTION')) {
-    return {
-      title: 'Emotion-related word or phrase',
-      detail:
-        'Checks transcript words and phrases against the emotion lexicon, then adds or reduces support for the associated emotion.',
-    };
-  }
-  if (ruleId.includes('CODE_SWITCH_TOKEN_LID')) {
-    return {
-      title: 'Filipino-English code-switching',
-      detail:
-        'Checks whether neighboring words switch between Filipino and English. This can add a small amount of support to an emotion already indicated by word clues.',
-    };
-  }
-  if (ruleId.includes('PROSODIC_ENERGY_RATE')) {
-    return {
-      title: 'Voice energy and speaking rate',
-      detail:
-        'Checks the recording’s loudness and number of words spoken per second. These are broad voice cues and do not identify a specific feeling on their own.',
-    };
-  }
-  if (ruleId.includes('CONTRAST_POST_CLAUSE')) {
-    return {
-      title: 'Emotion after a contrast word',
-      detail:
-        'When a contrast marker appears, gives more attention to emotion-related words that follow it.',
-    };
-  }
-  if (ruleId.includes('CONTRADICTION_RECALIBRATION')) {
-    return {
-      title: 'Audio and text results disagree',
-      detail:
-        'When the audio model and text rules choose different leading emotions, slightly reduces support for the text layer’s leading emotion.',
-    };
-  }
-  if (ruleId.includes('NEURAL_RULE_AGREEMENT')) {
-    return {
-      title: 'Audio and text clues agree',
-      detail:
-        'Adds support when the audio model’s leading emotion also has positive support from a text or voice rule.',
-    };
-  }
-  return { title: fallback, detail: 'This description was returned by the analysis system.' };
-}
-
-function describeScoreAdjustment(
-  reason: string,
-  emotion: EmotionClassification,
-  delta: number,
-): string {
-  const detectedCue = reason.match(
-    /detected ['"](.+?)['"] and reported a[n]? (increase|decrease)/i,
-  );
-  if (detectedCue) {
-    return `The word or phrase “${detectedCue[1]}” ${detectedCue[2] === 'increase' ? 'raised' : 'lowered'} the ${formatClassification(emotion)} score.`;
-  }
-  if (/agreement adjustment was added/i.test(reason)) {
-    return `The audio and text clues agreed, which ${delta >= 0 ? 'raised' : 'lowered'} the ${formatClassification(emotion)} score.`;
-  }
-  return reason;
+function describeResearchRule(id: string, description: string): { title: string; detail: string } {
+  const titles: Record<string, string> = {
+    LEXICAL_NEGATION: 'Negation near an emotion-related phrase',
+    LEXICAL_MODIFIER: 'Intensity word near an emotion-related phrase',
+    LEXICAL_PROFANITY: 'Profanity cue',
+    LEXICAL_POLITENESS: 'Polite-language cue',
+    LEXICAL_EMOTION: 'Emotion-related word or phrase',
+    CODE_SWITCH_TOKEN_LID: 'Filipino-English code-switching',
+    PROSODIC_ENERGY_RATE: 'Voice energy and speaking rate',
+    CONTRAST_POST_CLAUSE: 'Emotion after a contrast word',
+    CONTRADICTION_RECALIBRATION: 'Neural and symbolic results disagree',
+    NEURAL_RULE_AGREEMENT: 'Neural prediction and rule evidence agree',
+  };
+  const title = Object.entries(titles).find(([prefix]) => id.toUpperCase().startsWith(prefix))?.[1];
+  return { title: title ?? id, detail: description };
 }
 
 function formatSeconds(milliseconds: number): string {
