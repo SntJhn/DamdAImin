@@ -47,10 +47,10 @@ from audio_windows import infer_recording_probabilities  # noqa: E402
 
 EMOTION_LABELS = ["angry", "happy", "neutral", "sad"]
 NO_RULE_SYMBOLIC_PRIOR = {
-    "angry": 0.20,
-    "happy": 0.20,
-    "neutral": 0.40,
-    "sad": 0.20,
+    "angry": 0.10,
+    "happy": 0.10,
+    "neutral": 0.70,
+    "sad": 0.10,
 }
 NEUTRAL_RULE_SYMBOLIC_MIN_PROBABILITY = 0.65
 CONTRACT_EMOTION = {
