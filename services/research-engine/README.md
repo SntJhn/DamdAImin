@@ -17,8 +17,13 @@ vendored runtime includes:
 Whisper `large-v3-turbo` is the default ASR model. Override `ASR_MODEL` when a
 different locally supported Whisper checkpoint is required. The preliminary
 rule weights default to `1.00` and the neural/symbolic fusion coefficients
-default to `0.80` and `0.20`; these are demonstration values and not final
-validated thesis settings.
+default to `0.60` and `0.40`; these are demonstration values and not final
+validated thesis settings. When no emotion-bearing symbolic rules contribute
+evidence, the symbolic layer uses a neutral-leaning prior: `0.70` neutral and
+`0.10` for each other emotion. When positive symbolic evidence supports only
+neutral, neutral receives at least `0.65` of the symbolic probability before
+fusion. Emotion matching checks exact lexicon forms first, then allows a
+bounded shared-stem match for single-word Filipino emotion entries.
 
 Set `HF_TOKEN` in the repository `.env` file to authenticate Whisper downloads
 against the Hugging Face Hub. The token is passed only to the local research
@@ -52,3 +57,10 @@ The first build installs Python dependencies and the first engine startup
 downloads the ASR checkpoint when it is not already cached. The model-backed service is available at
 `http://localhost:4100/healthz`. The deterministic contract fake remains
 available at `http://localhost:4101` for contract-only testing.
+
+## Neural inference windows
+
+Neural inference covers the full recording in non-overlapping five-second
+windows. Window probabilities are averaged by valid audio duration, with
+additional weight for speech timed by ASR. Duration weighting still gives each
+window a contribution when ASR misses speech or no ASR timings are available.

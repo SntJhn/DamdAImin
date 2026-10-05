@@ -426,7 +426,7 @@ export function AnalysisSubmitClient() {
                     Say what you mean.
                   </h3>
                   <p style={{ margin: 0 }}>
-                    One utterance is enough. Keep it natural and under 20 seconds.
+                    One utterance is enough. Keep it natural and under 60 seconds.
                   </p>
                 </div>
 
@@ -534,7 +534,7 @@ export function AnalysisSubmitClient() {
                   <p className="analysis-panel-kicker">BEFORE YOU SUBMIT</p>
                   <ul>
                     <li>One Analysis contains one utterance.</li>
-                    <li>Maximum recording length is 20 seconds.</li>
+                    <li>Maximum recording length is 60 seconds.</li>
                     <li>Long audio is not segmented into multiple Analyses.</li>
                     <li>There is no arbitrary minimum duration.</li>
                   </ul>

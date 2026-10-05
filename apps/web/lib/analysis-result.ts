@@ -68,6 +68,26 @@ export function formatProbability(probability: number): string {
   return `${Math.round(probability * 100)}%`;
 }
 
+export function formatProbabilityDistribution(probabilities: readonly number[]): string[] {
+  const total = probabilities.reduce((sum, probability) => sum + probability, 0);
+  if (total <= 0) {
+    return probabilities.map(formatProbability);
+  }
+
+  const exactPercentages = probabilities.map((probability) => (probability / total) * 100);
+  const roundedPercentages = exactPercentages.map(Math.floor);
+  const remainingPoints = 100 - roundedPercentages.reduce((sum, value) => sum + value, 0);
+  const remainderOrder = exactPercentages
+    .map((value, index) => ({ index, remainder: value - roundedPercentages[index] }))
+    .sort((left, right) => right.remainder - left.remainder || left.index - right.index);
+
+  for (let index = 0; index < remainingPoints; index += 1) {
+    roundedPercentages[remainderOrder[index].index] += 1;
+  }
+
+  return roundedPercentages.map((percentage) => `${percentage}%`);
+}
+
 export function formatScoreDelta(delta: number): string {
   const percentage = Math.round(delta * 100);
   return `${percentage > 0 ? '+' : ''}${percentage}%`;

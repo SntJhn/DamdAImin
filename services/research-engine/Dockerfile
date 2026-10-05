@@ -20,6 +20,7 @@ RUN pip install --upgrade pip \
     && pip install -r requirements.txt
 
 COPY main.py ./
+COPY audio_windows.py ./
 COPY vendor ./vendor
 
 EXPOSE 4100

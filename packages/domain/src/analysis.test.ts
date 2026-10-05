@@ -51,7 +51,7 @@ describe('WAV input boundary', () => {
     );
   });
 
-  it('rejects audio over the provisional maximum', () => {
-    expect(() => inspectWavAudio(createPcmWav(21))).toThrow('20-second maximum');
+  it('rejects audio over the 60-second maximum', () => {
+    expect(() => inspectWavAudio(createPcmWav(61))).toThrow('60-second maximum');
   });
 });

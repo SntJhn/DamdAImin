@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+import soundfile as sf
 from faster_whisper import WhisperModel
 
 
@@ -35,10 +36,23 @@ TSERA_SOURCE_DIR = Path(os.getenv("TSERA_SOURCE_DIR", "/app/vendor/tsera/src"))
 if str(TSERA_SOURCE_DIR) not in sys.path:
     sys.path.insert(0, str(TSERA_SOURCE_DIR))
 
-from app.tsera_inference import LoadedModel, load_checkpoint, predict_audio_file  # noqa: E402
+from app.tsera_inference import (  # noqa: E402
+    DEFAULT_CONFIG,
+    LoadedModel,
+    load_checkpoint,
+    predict_audio_file,
+)
+from audio_windows import infer_recording_probabilities  # noqa: E402
 
 
 EMOTION_LABELS = ["angry", "happy", "neutral", "sad"]
+NO_RULE_SYMBOLIC_PRIOR = {
+    "angry": 0.10,
+    "happy": 0.10,
+    "neutral": 0.70,
+    "sad": 0.10,
+}
+NEUTRAL_RULE_SYMBOLIC_MIN_PROBABILITY = 0.65
 CONTRACT_EMOTION = {
     "angry": "anger",
     "happy": "happiness",
@@ -74,8 +88,8 @@ RULE_WEIGHTS = {
 }
 
 SAMPLE_RATE = 16_000
-NEURAL_FUSION_WEIGHT = float(os.getenv("NEURAL_FUSION_WEIGHT", "0.80"))
-SYMBOLIC_FUSION_WEIGHT = float(os.getenv("SYMBOLIC_FUSION_WEIGHT", "0.20"))
+NEURAL_FUSION_WEIGHT = float(os.getenv("NEURAL_FUSION_WEIGHT", "0.60"))
+SYMBOLIC_FUSION_WEIGHT = float(os.getenv("SYMBOLIC_FUSION_WEIGHT", "0.40"))
 MODEL_VERSION = os.getenv("MODEL_VERSION", "tsera-finetuned-baseline")
 ASR_MODEL_NAME = os.getenv("ASR_MODEL", "large-v3-turbo")
 ASR_LANGUAGE = os.getenv("ASR_LANGUAGE", "auto").strip().casefold()
@@ -99,6 +113,9 @@ def normalize_text(value: Any) -> str:
 
 
 TOKEN_RE = re.compile(r"[^\W_]+(?:['-][^\W_]+)*", flags=re.UNICODE)
+FILIPINO_STEM_INDEX_KEY = "__filipino_stems__"
+FILIPINO_STEM_MIN_LENGTH = 5
+FILIPINO_STEM_MAX_LENGTH_DIFFERENCE = 6
 
 
 def tokenize(text: str) -> list[str]:
@@ -191,13 +208,32 @@ def make_entries(
     return entries
 
 
-def index_entries(entries: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+def index_entries(
+    entries: list[dict[str, Any]],
+    include_filipino_stems: bool = False,
+) -> dict[str, list[dict[str, Any]]]:
     indexed: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for entry in entries:
         indexed[entry["tokens"][0]].append(entry)
+        if include_filipino_stems and len(entry["tokens"]) == 1:
+            language_values = normalize_text(entry["row"].get("language", "")).split("/")
+            languages = {
+                language.strip() for language in language_values
+            }
+            if "filipino" in languages:
+                indexed[FILIPINO_STEM_INDEX_KEY].append(entry)
     for token in indexed:
         indexed[token].sort(key=lambda item: len(item["tokens"]), reverse=True)
     return indexed
+
+
+def is_filipino_stem_variant(transcript_token: str, lexicon_token: str) -> bool:
+    shorter, longer = sorted((transcript_token, lexicon_token), key=len)
+    return (
+        len(shorter) >= FILIPINO_STEM_MIN_LENGTH
+        and len(longer) - len(shorter) <= FILIPINO_STEM_MAX_LENGTH_DIFFERENCE
+        and shorter in longer
+    )
 
 
 def find_matches(
@@ -206,15 +242,37 @@ def find_matches(
 ) -> list[dict[str, Any]]:
     candidates: list[dict[str, Any]] = []
     for start, token in enumerate(tokens):
+        exact_matches = []
         for entry in indexed_entries.get(token, []):
             length = len(entry["tokens"])
             if tuple(tokens[start : start + length]) == entry["tokens"]:
                 match = dict(entry)
                 match["start"] = start
                 match["end"] = start + length - 1
+                exact_matches.append(match)
+
+        if exact_matches:
+            candidates.extend(exact_matches)
+            continue
+
+        for entry in indexed_entries.get(FILIPINO_STEM_INDEX_KEY, []):
+            lexicon_token = entry["tokens"][0]
+            if is_filipino_stem_variant(token, lexicon_token):
+                match = dict(entry)
+                match["text"] = token
+                match["match_type"] = "shared_stem"
+                match["stem_length_difference"] = abs(len(token) - len(lexicon_token))
+                match["start"] = start
+                match["end"] = start
                 candidates.append(match)
 
-    candidates.sort(key=lambda item: (item["start"], -(item["end"] - item["start"] + 1)))
+    candidates.sort(
+        key=lambda item: (
+            item["start"],
+            -(item["end"] - item["start"] + 1),
+            item.get("stem_length_difference", 0),
+        )
+    )
     selected: list[dict[str, Any]] = []
     occupied: set[int] = set()
     for match in candidates:
@@ -252,7 +310,10 @@ class SymbolicReasoner:
             if entry["targets"]:
                 emotion_entries.append(entry)
 
-        self.emotion_index = index_entries(emotion_entries)
+        self.emotion_index = index_entries(
+            emotion_entries,
+            include_filipino_stems=True,
+        )
         self.intensifier_index = index_entries(
             make_entries(intensifier_rows, "intensifier", "intensifier_or_downtoner")
         )
@@ -608,6 +669,19 @@ class SymbolicReasoner:
                 }
             )
 
+        has_rule_evidence = any(np.any(components[name] != 0) for name in RULE_NAMES)
+        positive_rule_targets = {
+            label
+            for trace in traces
+            if trace.get("activated")
+            and trace.get("rule_category") not in {"agreement", "contradiction"}
+            and float(trace.get("reported_adjustment", 0.0)) > 0
+            for label in trace.get("target_emotion", [])
+        }
+        neutral_only_rule_support = (
+            "neutral" in positive_rule_targets
+            and positive_rule_targets <= {"neutral"}
+        )
         weighted_scores = sum(
             (
                 self.rule_weights[name] * values
@@ -615,11 +689,28 @@ class SymbolicReasoner:
             ),
             start=np.zeros(4, dtype=np.float32),
         )
-        symbolic_probabilities = (
-            softmax(weighted_scores)
-            if np.any(weighted_scores != 0)
-            else np.full(4, 0.25, dtype=np.float32)
-        )
+        if has_rule_evidence:
+            symbolic_probabilities = softmax(weighted_scores)
+            if neutral_only_rule_support:
+                neutral_index = EMOTION_LABELS.index("neutral")
+                other_emotions = np.arange(len(EMOTION_LABELS)) != neutral_index
+                other_probability = float(symbolic_probabilities[other_emotions].sum())
+                if (
+                    symbolic_probabilities[neutral_index]
+                    < NEUTRAL_RULE_SYMBOLIC_MIN_PROBABILITY
+                ):
+                    symbolic_probabilities[other_emotions] *= (
+                        (1.0 - NEUTRAL_RULE_SYMBOLIC_MIN_PROBABILITY)
+                        / max(other_probability, 1e-8)
+                    )
+                    symbolic_probabilities[neutral_index] = (
+                        NEUTRAL_RULE_SYMBOLIC_MIN_PROBABILITY
+                    )
+        else:
+            symbolic_probabilities = np.array(
+                [NO_RULE_SYMBOLIC_PRIOR[label] for label in EMOTION_LABELS],
+                dtype=np.float32,
+            )
         return {
             "symbolic_probabilities": symbolic_probabilities,
             "traces": traces,
@@ -708,13 +799,40 @@ class ResearchRuntime:
             else:
                 transcript, asr_segments = transcript_override, []
             prediction = predict_audio_file(temporary_path, loaded=self.loaded_model)
+            resampled_waveform = prediction.resampled_waveform.numpy()
+
+            def predict_window(window: np.ndarray) -> dict[str, float]:
+                with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as handle:
+                    window_path = Path(handle.name)
+                try:
+                    sf.write(
+                        window_path,
+                        window,
+                        DEFAULT_CONFIG.sample_rate,
+                        subtype="PCM_16",
+                    )
+                    return predict_audio_file(
+                        window_path,
+                        loaded=self.loaded_model,
+                    ).emotion_probabilities
+                finally:
+                    window_path.unlink(missing_ok=True)
+
+            neural_probability_map, neural_window_count = infer_recording_probabilities(
+                waveform=resampled_waveform,
+                sample_rate=DEFAULT_CONFIG.sample_rate,
+                window_samples=DEFAULT_CONFIG.target_samples,
+                first_window_probabilities=prediction.emotion_probabilities,
+                speech_segments=asr_segments,
+                predict_window=predict_window,
+            )
             neural_probabilities = np.array(
-                [prediction.emotion_probabilities[label] for label in EMOTION_LABELS],
+                [neural_probability_map[label] for label in EMOTION_LABELS],
                 dtype=np.float32,
             )
             symbolic = self.reasoner.analyze(
                 transcript,
-                prediction.resampled_waveform.numpy(),
+                resampled_waveform,
                 SAMPLE_RATE,
                 neural_probabilities,
             )
@@ -808,8 +926,9 @@ class ResearchRuntime:
                 else f"Transcript generated by {ASR_MODEL_NAME}."
             )
             explanation = (
-                f"{transcript_description} The fine-tuned neural model "
-                f"predicted {EMOTION_LABELS[int(np.argmax(neural_probabilities))]}; "
+                f"{transcript_description} The fine-tuned neural model analyzed the full recording "
+                f"in {neural_window_count} five-second window(s) and favored "
+                f"{EMOTION_LABELS[int(np.argmax(neural_probabilities))]}; "
                 f"the preliminary symbolic layer activated {activated_names or 'no rules'} "
                 f"and produced the fused classification."
             )
@@ -836,8 +955,8 @@ class ResearchRuntime:
                     if transcript_override is not None
                     else f"{MODEL_VERSION}+asr-{ASR_MODEL_NAME}"
                 ),
-                "preprocessingVersion": "tsera-16khz-5s-logmel-delta-v1",
-                "ruleSetVersion": "preliminary-five-tier-rules-v3-neural-agreement-lexicon",
+                "preprocessingVersion": "tsera-16khz-windowed-5s-logmel-delta-v2",
+                "ruleSetVersion": "preliminary-five-tier-rules-v6-filipino-stem-match",
             }
         finally:
             temporary_path.unlink(missing_ok=True)
@@ -871,7 +990,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         try:
             content_length = int(self.headers.get("content-length", "0"))
-            if content_length <= 0 or content_length > 20 * 1024 * 1024:
+            if content_length <= 0 or content_length > 32 * 1024 * 1024:
                 raise ValueError("Request body is missing or too large")
             request = json.loads(self.rfile.read(content_length))
             encoded_audio = str(request["audioBase64"])

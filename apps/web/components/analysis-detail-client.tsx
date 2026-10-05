@@ -25,6 +25,7 @@ import { authClient, getAuthToken } from '../lib/auth-client';
 import {
   formatClassification,
   formatProbability,
+  formatProbabilityDistribution,
   formatScoreDelta,
   getAnalysisLanguagePresentation,
   getAnalysisOutcomePresentation,
@@ -806,6 +807,10 @@ function LayerColumn({
   order: EmotionClassification[];
   highlighted?: boolean;
 }) {
+  const displayedProbabilities = scores
+    ? formatProbabilityDistribution(order.map((classification) => scores[classification]))
+    : [];
+
   return (
     <section
       className={`analysis-result-confidence-model${highlighted ? ` analysis-result-confidence-model--final analysis-result-confidence-model--${order[0]}` : ''}`}
@@ -818,14 +823,14 @@ function LayerColumn({
       <p className="analysis-layer-description">{description}</p>
       {scores ? (
         <ul className="analysis-result-confidence-list">
-          {order.map((classification) => (
+          {order.map((classification, index) => (
             <li
               className={`analysis-result-confidence-row analysis-result-confidence-row--${classification}`}
               key={classification}
             >
               <div className="analysis-result-confidence-label">
                 <span>{formatClassification(classification)}</span>
-                <strong>{formatProbability(scores[classification])}</strong>
+                <strong>{displayedProbabilities[index]}</strong>
               </div>
               <meter
                 min="0"
@@ -1092,6 +1097,16 @@ function TechnicalTraceView({
     audioScore === undefined || finalScore === undefined || classification === undefined
       ? 'The evidence did not favor one emotion clearly enough.'
       : `Audio layer: ${formatProbability(audioScore)}. Combined: ${formatProbability(finalScore)}.`;
+  const beforeProbabilities = formatProbabilityDistribution(
+    classificationKeys.map((probabilityClassification) =>
+      trace.probabilities.before[probabilityClassification],
+    ),
+  );
+  const afterProbabilities = formatProbabilityDistribution(
+    classificationKeys.map((probabilityClassification) =>
+      trace.probabilities.after[probabilityClassification],
+    ),
+  );
 
   return (
     <div className="analysis-trace-body">
@@ -1252,14 +1267,14 @@ function TechnicalTraceView({
                   </tr>
                 </thead>
                 <tbody>
-                  {classificationKeys.map((probabilityClassification) => {
+                  {classificationKeys.map((probabilityClassification, index) => {
                     const before = trace.probabilities.before[probabilityClassification];
                     const after = trace.probabilities.after[probabilityClassification];
                     return (
                       <tr key={probabilityClassification}>
                         <th scope="row">{formatClassification(probabilityClassification)}</th>
-                        <td>{formatProbability(before)}</td>
-                        <td>{formatProbability(after)}</td>
+                        <td>{beforeProbabilities[index]}</td>
+                        <td>{afterProbabilities[index]}</td>
                         <td>{formatScoreDelta(after - before)}</td>
                       </tr>
                     );

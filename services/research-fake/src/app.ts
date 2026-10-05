@@ -20,7 +20,7 @@ export interface ResearchFakeOptions {
   validateResponses?: boolean;
 }
 
-const researchRequestBodyLimitBytes = 8 * 1024 * 1024;
+const researchRequestBodyLimitBytes = 32 * 1024 * 1024;
 
 export function buildResearchFake(options: ResearchFakeOptions = {}): FastifyInstance {
   const application = Fastify({
