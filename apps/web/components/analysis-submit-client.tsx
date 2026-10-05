@@ -3,6 +3,18 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useEffect, useState } from 'react';
+import {
+  ArrowUpRight,
+  FileAudio,
+  History,
+  LayoutDashboard,
+  LoaderCircle,
+  LogOut,
+  Mic2,
+  Search,
+  Upload,
+  X,
+} from 'lucide-react';
 
 import type { CreateAnalysisUploadResponse, AcceptedAnalysisResponse } from '@damdai/contracts';
 
@@ -253,6 +265,23 @@ export function AnalysisSubmitClient() {
 
   return (
     <main className="dashboard-page analysis-workspace-page">
+      {busy && !reviewingTranscript ? (
+        <div className="analysis-loading-backdrop">
+          <section
+            className="analysis-loading-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="transcription-loading-title"
+            aria-describedby="transcription-loading-description"
+          >
+            <LoaderCircle className="analysis-loading-spinner" size={32} aria-hidden="true" />
+            <h2 id="transcription-loading-title">Preparing your transcript</h2>
+            <p id="transcription-loading-description">
+              Your recording is being uploaded and transcribed. This may take a little while.
+            </p>
+          </section>
+        </div>
+      ) : null}
       <aside className="dashboard-sidebar" aria-label="Analysis navigation">
         <Link className="dashboard-brand" href="/" aria-label="DamdAImin home">
           <span>
@@ -275,22 +304,22 @@ export function AnalysisSubmitClient() {
           <div className="dashboard-nav-group">
             <p>General</p>
             <Link className="dashboard-nav-item" href="/history">
-              <span className="dashboard-nav-icon dashboard-nav-icon-grid" aria-hidden="true" />
+              <LayoutDashboard className="dashboard-nav-icon" aria-hidden="true" />
               Dashboard
             </Link>
             <Link className="dashboard-nav-item dashboard-nav-item-active" href="/analyze">
-              <span className="dashboard-nav-icon dashboard-nav-icon-mic" aria-hidden="true" />
+              <Mic2 className="dashboard-nav-icon" aria-hidden="true" />
               New Analysis
             </Link>
             <Link className="dashboard-nav-item" href="/history#recent-analyses">
-              <span className="dashboard-nav-icon dashboard-nav-icon-bars" aria-hidden="true" />
+              <History className="dashboard-nav-icon" aria-hidden="true" />
               Analysis History
             </Link>
           </div>
           <div className="dashboard-nav-group dashboard-nav-tools">
             <p>Workspace</p>
             <button className="dashboard-nav-item" type="button" onClick={signOut}>
-              <span className="dashboard-nav-icon dashboard-nav-icon-exit" aria-hidden="true" />
+              <LogOut className="dashboard-nav-icon" aria-hidden="true" />
               Sign out
             </button>
           </div>
@@ -311,41 +340,30 @@ export function AnalysisSubmitClient() {
           >
             <span className="dashboard-search-field">
               <span className="dashboard-search-icon" aria-hidden="true">
-                ⌕
+                <Search size={19} strokeWidth={2} />
               </span>
               <span>Search recordings, transcripts, emotions…</span>
             </span>
             <span className="dashboard-search-submit" aria-hidden="true">
-              ↗
+              <ArrowUpRight size={18} />
             </span>
           </Link>
           <span className="dashboard-toolbar-account">{accountEmail || 'Private account'}</span>
         </header>
 
         <div className="analysis-workspace-content">
-          <div className="analysis-workspace-heading">
-            <p className="eyebrow">New Analysis</p>
-            <h1 id="analysis-title">
-              Start an <span>emotion analysis.</span>
-            </h1>
-            <p>
-              Turn one Taglish speech recording into a clear, explainable signal. Record directly or
-              bring a WAV file from your device.
-            </p>
-          </div>
 
           <form className="analysis-intake-card" onSubmit={submit} noValidate>
             <header className="analysis-intake-header">
               <div>
-                <p className="dashboard-card-kicker">VOICE INPUT</p>
-                <h2>Give the model one honest moment.</h2>
+                <h2>Start an Emotion Analysis.</h2>
                 <p>
                   Speak naturally. We’ll listen for the acoustic and linguistic cues that shape the
                   emotion in your words.
                 </p>
               </div>
               <Link className="analysis-close-link" href="/history" aria-label="Back to dashboard">
-                ×
+                <X size={20} aria-hidden="true" />
               </Link>
             </header>
 
@@ -401,9 +419,15 @@ export function AnalysisSubmitClient() {
                   </div>
                 ) : null}
                 <div className="analysis-capture-copy">
-                  <p className="analysis-panel-kicker">YOUR RECORDING</p>
-                  <h3 id="capture-title">Say what you mean.</h3>
-                  <p>One utterance is enough. Keep it natural and under 60 seconds.</p>
+                  <p className="analysis-panel-kicker" style={{ marginBottom: '4px' }}>
+                    YOUR RECORDING
+                  </p>
+                  <h3 id="capture-title" style={{ margin: '0 0 6px' }}>
+                    Say what you mean.
+                  </h3>
+                  <p style={{ margin: 0 }}>
+                    One utterance is enough. Keep it natural and under 60 seconds.
+                  </p>
                 </div>
 
                 <fieldset className="analysis-mode-switch">
@@ -416,10 +440,9 @@ export function AnalysisSubmitClient() {
                       checked={inputMethod === 'microphone'}
                       onChange={() => chooseInputMethod('microphone')}
                     />
-                    <span
-                      className="analysis-mode-icon analysis-mode-icon-mic"
-                      aria-hidden="true"
-                    />
+                    <span className="analysis-mode-icon" aria-hidden="true">
+                      <Mic2 size={18} />
+                    </span>
                     <span>
                       <strong>Record with microphone</strong>
                       <small>Use your voice</small>
@@ -433,11 +456,8 @@ export function AnalysisSubmitClient() {
                       checked={inputMethod === 'upload'}
                       onChange={() => chooseInputMethod('upload')}
                     />
-                    <span
-                      className="analysis-mode-icon analysis-mode-icon-upload"
-                      aria-hidden="true"
-                    >
-                      ↑
+                    <span className="analysis-mode-icon" aria-hidden="true">
+                      <Upload size={18} />
                     </span>
                     <span>
                       <strong>Upload a WAV</strong>
@@ -455,7 +475,7 @@ export function AnalysisSubmitClient() {
                 ) : (
                   <label className="analysis-upload-field" htmlFor="analysis-file">
                     <span className="analysis-upload-icon" aria-hidden="true">
-                      ↑
+                      <FileAudio size={20} />
                     </span>
                     <span className="analysis-upload-copy">
                       <strong>{file?.name ?? 'Choose a WAV recording'}</strong>
@@ -546,7 +566,7 @@ export function AnalysisSubmitClient() {
                   : reviewingTranscript
                     ? 'Run analysis'
                     : 'Generate transcript'}
-                <span aria-hidden="true">↗</span>
+                <ArrowUpRight size={18} aria-hidden="true" />
               </button>
             </footer>
           </form>

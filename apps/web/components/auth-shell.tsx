@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { AudioLines } from 'lucide-react';
 
 interface AuthShellProps {
   children: React.ReactNode;
@@ -23,11 +24,7 @@ export function AuthShell({ children, description, eyebrow, title }: AuthShellPr
           <p className="intro-description">{description}</p>
         </div>
         <div className="signal-note">
-          <span className="signal-mark" aria-hidden="true">
-            <span />
-            <span />
-            <span />
-          </span>
+          <AudioLines className="signal-mark" aria-hidden="true" />
           <p>
             A private workspace for understanding how one utterance is classified. Your account owns
             the records it creates.

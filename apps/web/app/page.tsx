@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { ArrowUpRight, Sparkles } from 'lucide-react';
 
 type ProcessStep = {
   title: string;
@@ -157,7 +158,7 @@ export default function HomePage() {
               href="/auth/sign-up"
             >
               Start Analysis
-              <img src="/landing/arrow-circle.svg" alt="" aria-hidden="true" />
+              <ArrowUpRight size={20} aria-hidden="true" />
             </Link>
           </div>
           <div className="thesis-marquee" aria-label="DamdAImin capabilities">
@@ -165,13 +166,13 @@ export default function HomePage() {
               {[0, 1].map((group) => (
                 <span className="thesis-marquee-group" key={group} aria-hidden={group === 1}>
                   <span>Taglish Speech Analysis</span>
-                  <img src="/landing/star.svg" alt="" />
+                  ✦
                   <span>Emotion Classification</span>
-                  <img src="/landing/star.svg" alt="" />
+                  ✦
                   <span>Neuro-Symbolic AI</span>
-                  <img src="/landing/star.svg" alt="" />
+                  ✦
                   <span>Explainable AI</span>
-                  <img src="/landing/star.svg" alt="" />
+                  ✦
                 </span>
               ))}
             </div>
