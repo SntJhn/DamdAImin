@@ -52,3 +52,10 @@ The first build installs Python dependencies and the first engine startup
 downloads the ASR checkpoint when it is not already cached. The model-backed service is available at
 `http://localhost:4100/healthz`. The deterministic contract fake remains
 available at `http://localhost:4101` for contract-only testing.
+
+## Neural inference windows
+
+Neural inference covers the full recording in non-overlapping five-second
+windows. Window probabilities are averaged by valid audio duration, with
+additional weight for speech timed by ASR. Duration weighting still gives each
+window a contribution when ASR misses speech or no ASR timings are available.
