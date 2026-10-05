@@ -46,6 +46,13 @@ from audio_windows import infer_recording_probabilities  # noqa: E402
 
 
 EMOTION_LABELS = ["angry", "happy", "neutral", "sad"]
+NO_RULE_SYMBOLIC_PRIOR = {
+    "angry": 0.20,
+    "happy": 0.20,
+    "neutral": 0.40,
+    "sad": 0.20,
+}
+NEUTRAL_RULE_SYMBOLIC_MIN_PROBABILITY = 0.65
 CONTRACT_EMOTION = {
     "angry": "anger",
     "happy": "happiness",
@@ -81,8 +88,8 @@ RULE_WEIGHTS = {
 }
 
 SAMPLE_RATE = 16_000
-NEURAL_FUSION_WEIGHT = float(os.getenv("NEURAL_FUSION_WEIGHT", "0.80"))
-SYMBOLIC_FUSION_WEIGHT = float(os.getenv("SYMBOLIC_FUSION_WEIGHT", "0.20"))
+NEURAL_FUSION_WEIGHT = float(os.getenv("NEURAL_FUSION_WEIGHT", "0.60"))
+SYMBOLIC_FUSION_WEIGHT = float(os.getenv("SYMBOLIC_FUSION_WEIGHT", "0.40"))
 MODEL_VERSION = os.getenv("MODEL_VERSION", "tsera-finetuned-baseline")
 ASR_MODEL_NAME = os.getenv("ASR_MODEL", "large-v3-turbo")
 ASR_LANGUAGE = os.getenv("ASR_LANGUAGE", "auto").strip().casefold()
@@ -615,6 +622,19 @@ class SymbolicReasoner:
                 }
             )
 
+        has_rule_evidence = any(np.any(components[name] != 0) for name in RULE_NAMES)
+        positive_rule_targets = {
+            label
+            for trace in traces
+            if trace.get("activated")
+            and trace.get("rule_category") not in {"agreement", "contradiction"}
+            and float(trace.get("reported_adjustment", 0.0)) > 0
+            for label in trace.get("target_emotion", [])
+        }
+        neutral_only_rule_support = (
+            "neutral" in positive_rule_targets
+            and positive_rule_targets <= {"neutral"}
+        )
         weighted_scores = sum(
             (
                 self.rule_weights[name] * values
@@ -622,11 +642,28 @@ class SymbolicReasoner:
             ),
             start=np.zeros(4, dtype=np.float32),
         )
-        symbolic_probabilities = (
-            softmax(weighted_scores)
-            if np.any(weighted_scores != 0)
-            else np.full(4, 0.25, dtype=np.float32)
-        )
+        if has_rule_evidence:
+            symbolic_probabilities = softmax(weighted_scores)
+            if neutral_only_rule_support:
+                neutral_index = EMOTION_LABELS.index("neutral")
+                other_emotions = np.arange(len(EMOTION_LABELS)) != neutral_index
+                other_probability = float(symbolic_probabilities[other_emotions].sum())
+                if (
+                    symbolic_probabilities[neutral_index]
+                    < NEUTRAL_RULE_SYMBOLIC_MIN_PROBABILITY
+                ):
+                    symbolic_probabilities[other_emotions] *= (
+                        (1.0 - NEUTRAL_RULE_SYMBOLIC_MIN_PROBABILITY)
+                        / max(other_probability, 1e-8)
+                    )
+                    symbolic_probabilities[neutral_index] = (
+                        NEUTRAL_RULE_SYMBOLIC_MIN_PROBABILITY
+                    )
+        else:
+            symbolic_probabilities = np.array(
+                [NO_RULE_SYMBOLIC_PRIOR[label] for label in EMOTION_LABELS],
+                dtype=np.float32,
+            )
         return {
             "symbolic_probabilities": symbolic_probabilities,
             "traces": traces,
@@ -872,7 +909,7 @@ class ResearchRuntime:
                     else f"{MODEL_VERSION}+asr-{ASR_MODEL_NAME}"
                 ),
                 "preprocessingVersion": "tsera-16khz-windowed-5s-logmel-delta-v2",
-                "ruleSetVersion": "preliminary-five-tier-rules-v3-neural-agreement-lexicon",
+                "ruleSetVersion": "preliminary-five-tier-rules-v5-neutral-evidence",
             }
         finally:
             temporary_path.unlink(missing_ok=True)

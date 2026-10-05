@@ -17,8 +17,12 @@ vendored runtime includes:
 Whisper `large-v3-turbo` is the default ASR model. Override `ASR_MODEL` when a
 different locally supported Whisper checkpoint is required. The preliminary
 rule weights default to `1.00` and the neural/symbolic fusion coefficients
-default to `0.80` and `0.20`; these are demonstration values and not final
-validated thesis settings.
+default to `0.60` and `0.40`; these are demonstration values and not final
+validated thesis settings. When no emotion-bearing symbolic rules contribute
+evidence, the symbolic layer uses a neutral-leaning prior: `0.40` neutral and
+`0.20` for each other emotion. When positive symbolic evidence supports only
+neutral, neutral receives at least `0.65` of the symbolic probability before
+fusion.
 
 Set `HF_TOKEN` in the repository `.env` file to authenticate Whisper downloads
 against the Hugging Face Hub. The token is passed only to the local research

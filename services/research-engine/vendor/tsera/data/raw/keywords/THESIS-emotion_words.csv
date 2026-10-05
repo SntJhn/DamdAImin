@@ -48,7 +48,7 @@ EMO-0046,hopeful,Taglish,happy,medium/high,explicit emotion,hope;hopeful ako
 EMO-0047,umaasa,Filipino,happy,medium/high,stance/emotion,asa
 EMO-0048,pag-asa,Filipino,happy,medium/high,emotion noun,asa
 EMO-0049,confident,Taglish,happy,medium/high,state,confidence;confident ako
-EMO-0050,kalma,Filipino,neutral,medium,state,kalma lang
+EMO-0050,kalma,Filipino,neutral,medium,state,kalma lang;kalmado
 EMO-0051,relax,Taglish,neutral,medium,state,relaxed;relaxing
 EMO-0052,relaxed,Taglish,neutral,medium,state,relax
 EMO-0053,malungkot,Filipino,sad,high,explicit emotion,malungkot na malungkot
