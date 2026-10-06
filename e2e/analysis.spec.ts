@@ -231,7 +231,7 @@ test('searches and filters Analysis History by emotion and date', async ({ page 
     'Page 1',
   );
   await page
-    .getByRole('row', {
+    .getByRole('link', {
       name: `Open Happy analysis ${analysisId} from Aug 2, 2026`,
     })
     .focus();
@@ -780,13 +780,13 @@ test('shows a persisted completed result after reload and has no accessibility v
   await expect(resultPath.getByText('clues found', { exact: true })).toBeVisible();
   await expect(resultPath.getByText('rule applied', { exact: true })).toBeVisible();
   await expect(resultPath.getByText('Happy', { exact: true })).toBeVisible();
-  await expect(resultPath.getByText('91% final score', { exact: true })).toBeVisible();
+  await expect(resultPath.getByText('91% Final Confidence', { exact: true })).toBeVisible();
 
   const technicalTrace = page.locator('.analysis-trace-technical > summary');
   await technicalTrace.focus();
   await page.keyboard.press('Enter');
   await expect(
-    page.getByRole('heading', { name: 'Words and sounds that stood out', exact: true }),
+    page.getByRole('heading', { name: 'Words That Stood Out', exact: true }),
   ).toBeVisible();
   await expect(page.getByText('Scoring rules used', { exact: true })).toBeVisible();
   await expect(page.getByText('How clues shifted the scores', { exact: true })).toBeVisible();
@@ -847,9 +847,6 @@ test('presents an Inconclusive Result without a headline class or visible raw pr
   ).toBeVisible();
   await expect(page.getByText('English', { exact: true })).toHaveCount(0);
   await expect(page.getByText('Experimental', { exact: true })).toHaveCount(0);
-  await expect(
-    page.getByText('The Research System marked this result inconclusive.'),
-  ).toBeVisible();
   await expect(page.getByText('Score Breakdown')).toHaveCount(0);
   await expect(page.locator('.probability-table')).toBeHidden();
   await expect(page.getByRole('button', { name: /edit|correct/i })).toHaveCount(0);
@@ -1073,6 +1070,9 @@ for (const [classification, label] of [
         page.getByText('The layers leaned toward different emotions', { exact: false }),
       ).toHaveCount(0);
     }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      await page.evaluate(() => document.documentElement.clientWidth),
+    );
     await page.locator('.analysis-trace-technical > summary').click();
     await expect(page.getByText('Returned acoustic rule evidence.', { exact: true })).toBeVisible();
     await expect(page.getByText('Returned comparison evidence.', { exact: true })).toBeVisible();

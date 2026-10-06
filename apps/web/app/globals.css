@@ -2766,7 +2766,9 @@ select {
   --dashboard-surface: #f4f4f4;
   --dashboard-white: #fff;
   --dashboard-ink: #2a2a2a;
-  --dashboard-muted: #757575;
+  --dashboard-muted: #666;
+  --dashboard-accent-ink: #a53108;
+  --dashboard-on-accent: #202020;
   --dashboard-orange: #fd5113;
   --dashboard-amber: #fb9600;
   display: grid;
@@ -2814,7 +2816,7 @@ select {
 }
 
 .dashboard-brand-accent {
-  background: linear-gradient(180deg, var(--dashboard-orange), var(--dashboard-amber));
+  background: linear-gradient(180deg, #a53108, #945000);
   background-clip: text;
   color: transparent;
 }
@@ -2844,7 +2846,7 @@ select {
   place-items: center;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--dashboard-orange), var(--dashboard-amber));
-  color: var(--dashboard-white);
+  color: var(--dashboard-on-accent);
   font-size: 1.15rem;
   font-weight: 700;
   box-shadow: inset 0 0.2rem 0.4rem rgba(255, 255, 255, 0.35);
@@ -2887,7 +2889,7 @@ select {
 .dashboard-nav-group > p,
 .dashboard-card-kicker {
   margin: 0 0 0.3rem;
-  color: var(--dashboard-orange);
+  color: var(--dashboard-accent-ink);
   font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -2911,7 +2913,7 @@ select {
   border: 0;
   border-radius: 0.7rem;
   background: transparent;
-  color: var(--dashboard-orange);
+  color: var(--dashboard-accent-ink);
   cursor: pointer;
   font: inherit;
   font-size: 0.85rem;
@@ -2931,7 +2933,7 @@ select {
 .dashboard-nav-item-active {
   background: linear-gradient(180deg, var(--dashboard-orange), var(--dashboard-amber));
   box-shadow: inset 0 0.2rem 0.35rem rgba(255, 255, 255, 0.35);
-  color: var(--dashboard-white);
+  color: var(--dashboard-on-accent);
   font-weight: 700;
 }
 
@@ -2957,7 +2959,7 @@ select {
 }
 
 .dashboard-sidebar-footer span:first-child {
-  color: var(--dashboard-orange);
+  color: var(--dashboard-accent-ink);
   font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.16em;
@@ -2995,7 +2997,7 @@ select {
   flex: 1;
   align-items: center;
   gap: 0.7rem;
-  color: var(--dashboard-orange);
+  color: var(--dashboard-accent-ink);
 }
 
 .dashboard-search-icon {
@@ -3035,7 +3037,7 @@ select {
   border: 0;
   border-radius: 0.6rem;
   background: var(--dashboard-surface);
-  color: var(--dashboard-orange);
+  color: var(--dashboard-accent-ink);
   cursor: pointer;
   font: inherit;
   text-decoration: none;
@@ -3071,7 +3073,7 @@ select {
 }
 
 .dashboard-heading .eyebrow {
-  color: var(--dashboard-orange);
+  color: var(--dashboard-accent-ink);
 }
 
 .dashboard-heading h1 {
@@ -3117,7 +3119,7 @@ select {
   border-radius: 1.25rem;
   background: linear-gradient(135deg, var(--dashboard-orange), var(--dashboard-amber));
   box-shadow: inset 0 0.25rem 4rem rgba(255, 255, 255, 0.18);
-  color: var(--dashboard-white);
+  color: var(--dashboard-on-accent);
   isolation: isolate;
 }
 
@@ -3150,7 +3152,7 @@ select {
   align-items: center;
   gap: 0.45rem;
   margin-top: 1.2rem;
-  color: var(--dashboard-white);
+  color: var(--dashboard-on-accent);
   font-size: 0.78rem;
   font-weight: 700;
   text-decoration: underline;
@@ -3188,7 +3190,7 @@ select {
   border-radius: 50%;
   background: var(--dashboard-white);
   box-shadow: 0 0.6rem 1.2rem rgba(42, 42, 42, 0.12);
-  color: var(--dashboard-orange);
+  color: var(--dashboard-accent-ink);
   stroke-width: 1.7;
 }
 
@@ -3212,7 +3214,7 @@ select {
   padding: 0.65rem 1rem;
   border: 1px solid var(--dashboard-orange);
   border-radius: 0.6rem;
-  color: var(--dashboard-orange);
+  color: var(--dashboard-accent-ink);
   font-size: 0.86rem;
   font-weight: 700;
   text-decoration: none;
@@ -3229,7 +3231,7 @@ select {
 .dashboard-quick-action-primary {
   background: linear-gradient(180deg, var(--dashboard-orange), var(--dashboard-amber));
   box-shadow: inset 0 0.2rem 0.3rem rgba(255, 255, 255, 0.32);
-  color: var(--dashboard-white);
+  color: var(--dashboard-on-accent);
 }
 
 .dashboard-quick-icon {
@@ -3239,7 +3241,7 @@ select {
   place-items: center;
   border-radius: 0.35rem;
   background: transparent;
-  color: var(--dashboard-orange);
+  color: var(--dashboard-accent-ink);
 }
 
 .dashboard-quick-action-primary .dashboard-quick-icon {
@@ -3247,7 +3249,7 @@ select {
 }
 
 .dashboard-quick-icon-file {
-  color: var(--dashboard-orange);
+  color: var(--dashboard-accent-ink);
 }
 
 .dashboard-recordings {
@@ -3309,7 +3311,7 @@ select {
   justify-content: space-between;
   gap: 1rem;
   min-height: 2.8rem;
-  color: var(--dashboard-orange);
+  color: var(--dashboard-accent-ink);
   cursor: pointer;
   font-size: 0.76rem;
   font-weight: 700;
@@ -3329,7 +3331,7 @@ select {
 .dashboard-filter-drawer summary b {
   display: inline-block;
   margin-left: 0.35rem;
-  color: var(--dashboard-orange);
+  color: var(--dashboard-accent-ink);
   font-size: 1rem;
   transition: transform 160ms ease;
 }
@@ -3365,7 +3367,7 @@ select {
 
 .dashboard-filter-grid input:focus,
 .dashboard-filter-grid select:focus {
-  border-color: var(--dashboard-orange);
+  border-color: var(--dashboard-accent-ink);
   outline: 3px solid rgba(253, 81, 19, 0.16);
   outline-offset: 0;
 }
@@ -3404,7 +3406,7 @@ select {
 .dashboard-empty-history .secondary-button {
   border: 1px solid var(--dashboard-orange);
   background: var(--dashboard-white);
-  color: var(--dashboard-orange);
+  color: var(--dashboard-accent-ink);
 }
 
 .dashboard-bounded-note {
@@ -3471,7 +3473,7 @@ select {
   border: 1px solid var(--dashboard-orange);
   border-radius: 999px;
   background: var(--dashboard-white);
-  color: var(--dashboard-orange);
+  color: var(--dashboard-accent-ink);
   cursor: pointer;
   font-size: 0.75rem;
 }
@@ -3707,7 +3709,7 @@ select {
   height: 1.5rem;
   place-items: center;
   border-radius: 0.4rem;
-  color: var(--dashboard-orange);
+  color: var(--dashboard-accent-ink);
 }
 
 .dashboard-empty-history {
@@ -3903,7 +3905,7 @@ select {
 
 .dashboard-quick-action-primary .dashboard-quick-icon {
   background: #fff;
-  color: var(--dashboard-orange);
+  color: var(--dashboard-accent-ink);
 }
 
 .dashboard-card-corner {
@@ -3940,7 +3942,7 @@ select {
 }
 
 .analysis-workspace-heading .eyebrow {
-  color: var(--dashboard-orange);
+  color: var(--dashboard-accent-ink);
 }
 
 .analysis-workspace-heading h1 {
@@ -4016,7 +4018,7 @@ select {
   border: 1px solid rgba(255, 255, 255, 0.32);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.16);
-  color: #fff;
+  color: var(--dashboard-on-accent);
   font-size: 0.65rem;
   font-weight: 800;
   letter-spacing: 0.1em;
@@ -4025,7 +4027,7 @@ select {
 
 .analysis-intake-header h1 {
   margin: 0.15rem 0 0;
-  color: #fff;
+  color: var(--dashboard-on-accent);
   font-family: 'Google Sans', sans-serif;
   font-size: clamp(1.8rem, 3.5vw, 2.65rem);
   letter-spacing: -0.075em;
@@ -4040,7 +4042,7 @@ select {
 .analysis-intake-header .analysis-intake-description {
   max-width: 42rem;
   margin: 0;
-  color: rgba(255, 255, 255, 0.94);
+  color: var(--dashboard-on-accent);
   font-size: 0.9rem;
   line-height: 1.55;
 }
@@ -4054,7 +4056,7 @@ select {
   border-radius: 50%;
   border: 1px solid rgba(255, 255, 255, 0.28);
   background: rgba(255, 255, 255, 0.16);
-  color: #fff;
+  color: var(--dashboard-on-accent);
   font-size: 1.55rem;
   font-weight: 400;
   line-height: 1;
@@ -4067,7 +4069,7 @@ select {
 
 .analysis-close-link:hover {
   background: rgba(255, 255, 255, 0.28);
-  color: #fff;
+  color: var(--dashboard-on-accent);
   transform: rotate(8deg);
 }
 
@@ -4149,14 +4151,14 @@ select {
 
 .analysis-panel-kicker {
   margin: 0;
-  color: var(--dashboard-orange);
+  color: var(--dashboard-accent-ink);
   font-size: 0.66rem;
   font-weight: 700;
   letter-spacing: 0.13em;
   text-transform: uppercase;
 }
 
-.analysis-capture-copy h3 {
+.analysis-capture-copy h2 {
   color: var(--dashboard-ink);
   font-family: 'Google Sans', sans-serif;
   font-size: clamp(1.35rem, 2.4vw, 1.8rem);
@@ -4204,12 +4206,12 @@ select {
 }
 
 .analysis-mode-switch label:hover {
-  border-color: var(--dashboard-orange);
+  border-color: var(--dashboard-accent-ink);
   transform: translateY(-2px);
 }
 
 .analysis-mode-switch label.is-selected {
-  border-color: var(--dashboard-orange);
+  border-color: var(--dashboard-accent-ink);
   background: rgba(253, 81, 19, 0.06);
   box-shadow: inset 0 -3px 0 var(--dashboard-orange);
 }
@@ -4322,7 +4324,7 @@ select {
 }
 
 .analysis-capture-panel .recorder-indicator {
-  border-color: var(--dashboard-orange);
+  border-color: var(--dashboard-accent-ink);
   background: var(--dashboard-surface);
 }
 
@@ -4354,7 +4356,7 @@ select {
 }
 
 .analysis-capture-panel .recorder-actions .text-button {
-  color: var(--dashboard-orange);
+  color: var(--dashboard-accent-ink);
 }
 
 .analysis-upload-field {
@@ -4377,7 +4379,7 @@ select {
 
 .analysis-upload-field:hover,
 .analysis-upload-field:focus-within {
-  border-color: var(--dashboard-orange);
+  border-color: var(--dashboard-accent-ink);
   background: rgba(253, 81, 19, 0.06);
   transform: translateY(-2px);
 }
@@ -4454,7 +4456,7 @@ select {
 }
 
 .analysis-option-field select:focus {
-  border-color: var(--dashboard-orange);
+  border-color: var(--dashboard-accent-ink);
   outline: 3px solid rgba(253, 81, 19, 0.16);
   outline-offset: 0;
 }
@@ -4473,7 +4475,7 @@ select {
   height: 1.05rem;
   flex: 0 0 auto;
   margin-top: 0.08rem;
-  accent-color: var(--dashboard-orange);
+  accent-color: var(--dashboard-accent-ink);
 }
 
 .analysis-retention-field > span {
@@ -4532,7 +4534,7 @@ select {
   place-items: center;
   border-radius: 0.75rem;
   background: rgba(253, 81, 19, 0.1);
-  color: var(--dashboard-orange);
+  color: var(--dashboard-accent-ink);
 }
 
 .analysis-audio-preview-copy {
@@ -4568,7 +4570,7 @@ select {
   padding: clamp(1.35rem, 3vw, 2.5rem);
 }
 
-.analysis-transcript-review h3 {
+.analysis-transcript-review h2 {
   margin: 0;
   color: var(--dashboard-ink);
   font-family: 'Google Sans', sans-serif;
@@ -4595,7 +4597,7 @@ select {
   border: 1px solid rgba(42, 42, 42, 0.07);
   border-radius: 0.8rem;
   background: rgba(244, 244, 244, 0.72);
-  color: var(--dashboard-orange);
+  color: var(--dashboard-accent-ink);
 }
 
 .analysis-transcript-context svg {
@@ -4640,7 +4642,7 @@ select {
 }
 
 .analysis-transcript-field textarea:focus {
-  border-color: var(--dashboard-orange);
+  border-color: var(--dashboard-accent-ink);
   outline: none;
   box-shadow: 0 0 0 3px rgba(253, 81, 19, 0.14);
 }
@@ -4696,7 +4698,7 @@ select {
   border-radius: 0.75rem;
   background: linear-gradient(180deg, var(--dashboard-orange), var(--dashboard-amber));
   box-shadow: inset 0 0.18rem 0.3rem rgba(255, 255, 255, 0.32);
-  color: var(--dashboard-white);
+  color: var(--dashboard-on-accent);
   cursor: pointer;
 }
 
@@ -4731,7 +4733,7 @@ select {
 }
 
 .analysis-loading-spinner {
-  color: var(--dashboard-orange);
+  color: var(--dashboard-accent-ink);
   animation: analysis-loading-spin 1s linear infinite;
 }
 
@@ -4850,16 +4852,16 @@ select {
 }
 
 .analysis-result-breadcrumb:hover {
-  color: var(--dashboard-orange);
+  color: var(--dashboard-accent-ink);
 }
 
 .analysis-result-breadcrumb span {
-  color: var(--dashboard-orange);
+  color: var(--dashboard-accent-ink);
 }
 
 .analysis-result-heading .eyebrow {
   margin-top: 0.8rem;
-  color: var(--dashboard-orange);
+  color: var(--dashboard-accent-ink);
 }
 
 .analysis-result-heading h1 {
@@ -4976,7 +4978,7 @@ select {
 
 .analysis-result-history-link {
   gap: 0.45rem;
-  color: var(--dashboard-orange);
+  color: var(--dashboard-accent-ink);
   font-weight: 700;
   text-decoration: none;
 }
@@ -5164,7 +5166,7 @@ select {
 }
 
 .analysis-result-meta-label {
-  color: var(--dashboard-orange);
+  color: var(--dashboard-accent-ink);
   font-size: 0.66rem;
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -5313,7 +5315,7 @@ select {
 }
 
 .analysis-result-confidence-row--anger {
-  --emotion-score-color: #fd5113;
+  --emotion-score-color: #a53108;
 }
 
 .analysis-result-confidence-row--neutrality {
@@ -5329,7 +5331,7 @@ select {
 }
 
 .analysis-result-confidence-model--anger {
-  --emotion-score-color: #fd5113;
+  --emotion-score-color: #a53108;
 }
 
 .analysis-result-confidence-model--neutrality {
@@ -5374,7 +5376,7 @@ select {
 }
 
 .analysis-result-trace .dashboard-card-kicker {
-  color: var(--dashboard-orange);
+  color: var(--dashboard-accent-ink);
 }
 
 .analysis-result-trace--happiness {
@@ -5571,7 +5573,7 @@ select {
 }
 
 .analysis-trace-technical > summary strong {
-  color: var(--dashboard-orange);
+  color: var(--dashboard-accent-ink);
   font-size: 0.78rem;
 }
 
@@ -5759,7 +5761,7 @@ select {
   justify-content: space-between;
   gap: 1rem;
   padding: 0.85rem 0 0;
-  color: var(--dashboard-orange);
+  color: var(--dashboard-accent-ink);
   cursor: pointer;
   font-size: 0.72rem;
   font-weight: 700;
@@ -6012,14 +6014,14 @@ select {
 }
 
 .analysis-stage-step--complete .analysis-stage-marker {
-  border-color: var(--dashboard-orange);
+  border-color: var(--dashboard-accent-ink);
   background: var(--dashboard-orange);
-  color: var(--dashboard-white);
+  color: var(--dashboard-on-accent);
 }
 
 .analysis-stage-step--current .analysis-stage-marker {
-  border-color: var(--dashboard-orange);
-  color: var(--dashboard-orange);
+  border-color: var(--dashboard-accent-ink);
+  color: var(--dashboard-accent-ink);
   box-shadow: 0 0 0 0.32rem rgba(253, 81, 19, 0.1);
 }
 
@@ -6191,13 +6193,13 @@ select {
 .analysis-result-button-primary {
   border: 0;
   background: linear-gradient(180deg, var(--dashboard-orange), var(--dashboard-amber));
-  color: var(--dashboard-white);
+  color: var(--dashboard-on-accent);
 }
 
 .analysis-result-button-secondary {
   border: 1px solid var(--dashboard-orange);
   background: var(--dashboard-white);
-  color: var(--dashboard-orange);
+  color: var(--dashboard-accent-ink);
 }
 
 .analysis-result-button:hover {
@@ -6410,7 +6412,7 @@ select {
   gap: 0.7rem;
   margin-right: 0.8rem;
   border-radius: 1.25rem;
-  color: var(--dashboard-white);
+  color: var(--dashboard-on-accent);
   text-align: center;
   text-decoration: none;
 }
@@ -6870,8 +6872,9 @@ select {
 
 /* Score changes: compact, matches the other evidence cards. */
 .sjc {
+  min-width: 0;
   --sjc-ink-main: var(--dashboard-ink, #2a2a2a);
-  --sjc-muted: var(--dashboard-muted, #757575);
+  --sjc-muted: var(--dashboard-muted, #666);
   --sjc-line: rgba(42, 42, 42, 0.09);
   --sjc-surface: var(--dashboard-surface, #f4f4f4);
   margin-top: 1.25rem;
@@ -7047,10 +7050,11 @@ select {
   align-items: center;
   gap: 0.4rem;
   margin: 0;
-  color: var(--dashboard-orange);
+  color: var(--dashboard-accent-ink);
 }
 
 .sjc-breakdown {
+  min-width: 0;
   margin-top: 1.1rem;
   padding: 1.1rem;
   border: 1px solid rgba(42, 42, 42, 0.08);
@@ -7758,7 +7762,7 @@ select {
   border: 0;
   border-radius: 50%;
   background: #f4f4f4;
-  color: #757575;
+  color: #666;
   cursor: pointer;
   font-size: 1.1rem;
   line-height: 1;
@@ -7766,7 +7770,7 @@ select {
 
 .sjc-modal-close:hover {
   background: rgba(253, 81, 19, 0.12);
-  color: #fd5113;
+  color: #a53108;
 }
 
 .sjc-modal h4 {
@@ -7782,7 +7786,7 @@ select {
   align-items: baseline;
   gap: 0.35rem 0.5rem;
   margin-top: 0.6rem;
-  color: #757575;
+  color: #666;
   font-size: 0.8rem;
   font-variant-numeric: tabular-nums;
 }
@@ -7859,7 +7863,7 @@ select {
 }
 
 .sjc-modal-rule span {
-  color: #757575;
+  color: #666;
   font-size: 0.6rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -7870,7 +7874,7 @@ select {
   padding: 0.35rem 0.5rem;
   border-radius: 0.4rem;
   background: rgba(42, 42, 42, 0.05);
-  color: #757575;
+  color: #666;
   font-family: monospace;
   font-size: 0.62rem;
   line-height: 1.45;
@@ -7888,7 +7892,7 @@ select {
 }
 
 .sjc-modal-nav span {
-  color: #757575;
+  color: #666;
   font-size: 0.66rem;
 }
 
@@ -7905,8 +7909,8 @@ select {
 }
 
 .sjc-modal-nav button:hover:not(:disabled) {
-  border-color: #fd5113;
-  color: #fd5113;
+  border-color: #a53108;
+  color: #a53108;
 }
 
 .sjc-modal-nav button:disabled {
@@ -7981,6 +7985,7 @@ select {
   }
 
   .sjc-breakdown {
+    min-width: 0;
     padding: 0.85rem;
   }
 
@@ -8017,4 +8022,8 @@ select {
   content: '';
   position: absolute;
   inset: 0;
+}
+
+.analysis-result-confidence-model--happiness .analysis-layer-tag {
+  color: var(--dashboard-on-accent);
 }

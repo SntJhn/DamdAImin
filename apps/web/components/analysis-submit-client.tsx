@@ -395,7 +395,7 @@ export function AnalysisSubmitClient() {
               <p className="analysis-panel-kicker">
                 {asrTranscriptGenerated ? 'ASR TRANSCRIPT' : 'TRANSCRIPT ENTRY'}
               </p>
-              <h3 id="transcript-review-title">Check the words before analysis.</h3>
+              <h2 id="transcript-review-title">Check the words before analysis.</h2>
               <p className="analysis-transcript-guidance">
                 Review the transcript and fix names, Taglish spelling, or anything Whisper missed.
               </p>
@@ -451,9 +451,9 @@ export function AnalysisSubmitClient() {
                   <p className="analysis-panel-kicker" style={{ marginBottom: '4px' }}>
                     YOUR RECORDING
                   </p>
-                  <h3 id="capture-title" style={{ margin: '0 0 6px' }}>
+                  <h2 id="capture-title" style={{ margin: '0 0 6px' }}>
                     Say what you mean.
-                  </h3>
+                  </h2>
                   <p style={{ margin: 0 }}>
                     One utterance is enough. Keep it natural and under {MAX_RECORDING_SECONDS}{' '}
                     seconds.
