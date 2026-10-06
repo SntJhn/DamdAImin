@@ -1,5 +1,5 @@
 emotion_lexicon_id,term,language,emotion_class,strength,emotion_word_type,common_variants
-EMO-0001,masaya,Filipino,happy,high,explicit emotion,masayang;masayang-masaya
+EMO-0001,masaya,Filipino,happy,high,explicit emotion,masayang;masayang-masaya;wow
 EMO-0002,saya,Filipino,happy,high,emotion noun,kasiyahan
 EMO-0003,maligaya,Filipino,happy,high,explicit emotion,kaligayahan
 EMO-0004,kaligayahan,Filipino,happy,high,emotion noun,ligaya

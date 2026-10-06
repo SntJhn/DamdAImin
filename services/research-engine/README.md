@@ -16,14 +16,24 @@ vendored runtime includes:
 
 Whisper `large-v3-turbo` is the default ASR model. Override `ASR_MODEL` when a
 different locally supported Whisper checkpoint is required. The preliminary
-rule weights default to `1.00` and the neural/symbolic fusion coefficients
-default to `0.30` and `0.70`; these are demonstration values and not final
-validated thesis settings. When no emotion-bearing symbolic rules contribute
-evidence, the symbolic layer uses a neutral-leaning prior: `0.70` neutral and
-`0.10` for each other emotion. When positive symbolic evidence supports only
-neutral, neutral receives at least `0.65` of the symbolic probability before
-fusion. Emotion matching checks exact lexicon forms first, then allows a
-bounded shared-stem match for single-word Filipino emotion entries.
+rule weights default to `1.00`. Fusion starts with `0.60` neural and `0.40`
+symbolic weighting, then adjusts per recording. Normalized neural entropy can
+raise symbolic influence by up to `0.15`; disagreement from lexical or contrast
+emotion evidence can raise it further, up to a maximum symbolic weight of
+`0.90` when the evidence is strong. Supporting context can add up to `0.05`.
+Prosodic energy and
+code-switch detection do not count as strong contextual evidence, so loudness
+alone cannot make the symbolic layer overrule the neural model.
+
+When no emotion-bearing symbolic rules contribute evidence, the symbolic layer
+uses a neutral-leaning prior: `0.70` neutral and `0.10` for each other emotion.
+That prior may influence uncertain neural predictions but is not treated as
+contextual evidence. The response explanation reports the effective weights
+and reason for the adjustment. These are heuristic defaults, not calibrated
+thesis settings. When positive symbolic evidence supports only neutral, neutral
+receives at least `0.65` of the symbolic probability before fusion. Emotion
+matching checks exact lexicon forms first, then allows a bounded shared-stem
+match for single-word Filipino emotion entries.
 
 Set `HF_TOKEN` in the repository `.env` file to authenticate Whisper downloads
 against the Hugging Face Hub. The token is passed only to the local research
