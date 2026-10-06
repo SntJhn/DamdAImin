@@ -3498,6 +3498,7 @@ select {
 }
 
 .dashboard-table-record {
+  position: relative;
   min-height: 3.5rem;
   padding: 0.55rem 0.85rem;
   border-top: 1px solid rgba(42, 42, 42, 0.08);
@@ -6452,7 +6453,7 @@ select {
 }
 
 /* Table rows: show keyboard focus like hover */
-.dashboard-table-record:focus-visible {
+.dashboard-table-record:focus-within {
   border-radius: 0.6rem;
   background: var(--dashboard-surface);
   outline: 3px solid rgba(253, 81, 19, 0.28);
@@ -8010,4 +8011,10 @@ select {
   .sjc-pulse {
     display: none;
   }
+}
+
+.dashboard-record-link::after {
+  content: '';
+  position: absolute;
+  inset: 0;
 }
