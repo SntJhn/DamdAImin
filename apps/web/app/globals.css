@@ -5071,23 +5071,6 @@ select {
   background: rgba(42, 42, 42, 0.1);
 }
 
-.analysis-result-hero-mark::before,
-.analysis-result-hero-mark::after {
-  position: absolute;
-  width: 9rem;
-  height: 9rem;
-  border: 1px solid rgba(255, 255, 255, 0.38);
-  border-radius: 2rem;
-  content: '';
-  transform: rotate(45deg);
-}
-
-.analysis-result-hero-mark::after {
-  width: 5rem;
-  height: 5rem;
-  border-color: rgba(255, 255, 255, 0.54);
-}
-
 .analysis-result-hero-mark span {
   position: relative;
   z-index: 1;
@@ -5794,7 +5777,7 @@ select {
 
 .analysis-trace-versions dl {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 0.7rem;
   margin: 1rem 0 0;
 }
