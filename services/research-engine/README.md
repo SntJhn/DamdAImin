@@ -12,7 +12,8 @@ vendored runtime includes:
 
 - the fine-tuned neural checkpoint;
 - the TSERA audio preprocessing/inference module; and
-- the five symbolic keyword tables.
+- the five symbolic rule tables and an English vocabulary table for
+  code-switch detection.
 
 Whisper `large-v3-turbo` is the default ASR model. Override `ASR_MODEL` when a
 different locally supported Whisper checkpoint is required. The preliminary
@@ -74,3 +75,17 @@ Neural inference covers the full recording in non-overlapping five-second
 windows. Window probabilities are averaged by valid audio duration, with
 additional weight for speech timed by ASR. Duration weighting still gives each
 window a contribution when ASR misses speech or no ASR timings are available.
+
+## Symbolic lexicon sources
+
+The six keyword tables under `vendor/tsera/data/raw/keywords` combine the local
+entries with [Symbolic-Rules](https://github.com/reilala/Symbolic-Rules/tree/023446c5f7c2e052f7943626efa7b881cad5e061)
+at commit `023446c5f7c2e052f7943626efa7b881cad5e061`. Exact duplicate rows are
+removed, and variants are combined for otherwise matching rows. Local emotion
+labels, strengths, and additions such as `wow` and `hinayang` are preserved.
+
+`THESIS-english_words.csv` provides 4,008 English vocabulary entries for
+token language detection. It does not assign emotions or introduce a new
+emotion-scoring rule. Shared English and Filipino tokens retain the existing
+`mixed` language treatment. Custom `SYMBOLIC_KEYWORD_DIR` directories must
+include all six tables.

@@ -396,6 +396,7 @@ class SymbolicReasoner:
     def __init__(self) -> None:
         self.rule_weights = dict(RULE_WEIGHTS)
         emotion_rows = read_rows(["THESIS-emotion_words.csv"])
+        english_rows = read_rows(["THESIS-english_words.csv"])
         intensifier_rows = read_rows(["THESIS-intensifier_words.csv"])
         negation_rows = read_rows(["THESIS-negation_words.csv"])
         profanity_rows = read_rows(
@@ -448,6 +449,8 @@ class SymbolicReasoner:
             "at", "ito", "iyon", "yung", "ko", "mo", "niya", "para", "may", "lang",
             "eh", "po", "opo",
         }
+        for row in english_rows:
+            self.english_tokens.update(tokenize(row.get("term", "")))
         for rows in (
             emotion_rows,
             intensifier_rows,
