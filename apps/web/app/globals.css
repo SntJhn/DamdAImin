@@ -3340,7 +3340,7 @@ select {
 
 .dashboard-filter-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.8rem;
   padding: 0.4rem 0 1rem;
 }
@@ -3411,6 +3411,41 @@ select {
   margin: 1rem 0 0;
   color: var(--dashboard-muted);
   font-size: 0.7rem;
+}
+
+.dashboard-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+  color: var(--dashboard-muted);
+  font-size: 0.75rem;
+}
+
+.dashboard-pagination p {
+  margin: 0;
+}
+
+.dashboard-pagination-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.dashboard-pagination .secondary-button {
+  min-height: 2.5rem;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--dashboard-orange);
+  border-radius: 999px;
+  background: var(--dashboard-white);
+  color: #b83a09;
+  font-size: 0.75rem;
+}
+
+.dashboard-pagination .secondary-button:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 .dashboard-state {
@@ -5759,7 +5794,7 @@ select {
 
 .analysis-trace-versions dl {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.7rem;
   margin: 1rem 0 0;
 }

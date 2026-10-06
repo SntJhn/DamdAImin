@@ -146,20 +146,20 @@ async function startAndStopVirtualRecording(page: Page) {
   await page.getByRole('button', { name: 'Stop recording' }).click();
 }
 
-test('searches and filters the authenticated Analysis History accessibly', async ({ page }) => {
+test('searches and filters Analysis History by emotion and date', async ({ page }) => {
   await mockVerifiedSession(page);
   const requests: string[] = [];
 
   await page.route('**/api/v2/analyses**', async (route) => {
     const url = new URL(route.request().url());
     requests.push(url.search);
-    const inconclusive = url.searchParams.get('result') === 'inconclusive';
+    const sad = url.searchParams.get('result') === 'sadness';
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
         hasMore: false,
-        analyses: inconclusive
+        analyses: sad
           ? [
               {
                 id: 'a0ad9a3f-26b2-4014-8f51-ec7d67bb4f1a',
@@ -167,7 +167,8 @@ test('searches and filters the authenticated Analysis History accessibly', async
                 language: 'english',
                 createdAt: '2026-08-02T00:01:00.000Z',
                 result: {
-                  outcome: 'inconclusive',
+                  outcome: 'definitive',
+                  emotionClassification: 'sadness',
                   transcript: 'Hindi malinaw ang sample.',
                 },
               },
@@ -205,18 +206,109 @@ test('searches and filters the authenticated Analysis History accessibly', async
 
   await page.getByRole('searchbox', { name: 'Search your analyses' }).fill('Hindi');
   await page.getByText('Filter history', { exact: true }).click();
-  await page.getByRole('combobox', { name: 'Result' }).selectOption('inconclusive');
+  await expect(page.getByRole('combobox', { name: 'Lifecycle state' })).toHaveCount(0);
+  await expect(page.getByRole('combobox', { name: 'Analysis language' })).toHaveCount(0);
+  await page.getByRole('combobox', { name: 'Emotion', exact: true }).selectOption('sadness');
+  await page.getByLabel('From date', { exact: true }).fill('2026-08-01');
+  await page.getByLabel('To date', { exact: true }).fill('2026-08-02');
   await page.getByRole('button', { name: 'Apply filters' }).click();
-  await expect(page.locator('.dashboard-emotion', { hasText: 'Inconclusive' })).toBeVisible();
+  await expect(page.locator('.dashboard-emotion', { hasText: 'Sad' })).toBeVisible();
   await expect(
     page.locator('.dashboard-transcript-cell', { hasText: 'Hindi malinaw ang sample.' }),
   ).toBeVisible();
   expect(requests.at(-1)).toContain('search=Hindi');
-  expect(requests.at(-1)).toContain('result=inconclusive');
-  await expect(new AxeBuilder({ page }).analyze()).resolves.toMatchObject({ violations: [] });
-  await page.getByRole('link', { name: 'Open Inconclusive analysis from Aug 2, 2026' }).focus();
+  expect(requests.at(-1)).toContain('result=sadness');
+  expect(requests.at(-1)).toContain('from=2026-08-01');
+  expect(requests.at(-1)).toContain('to=2026-08-02');
+  expect(requests.at(-1)).not.toMatch(/status=|language=/);
+  await expect(
+    new AxeBuilder({ page }).include('.dashboard-filter-grid').analyze(),
+  ).resolves.toMatchObject({ violations: [] });
+  await page.getByRole('button', { name: 'Clear filters' }).click();
+  await expect(page.locator('.dashboard-emotion', { hasText: 'Happy' })).toBeVisible();
+  expect(requests.at(-1)).toBe('');
+  await expect(page.getByRole('navigation', { name: 'Analysis list pagination' })).toContainText(
+    'Page 1',
+  );
+  await page
+    .getByRole('row', {
+      name: `Open Happy analysis ${analysisId} from Aug 2, 2026`,
+    })
+    .focus();
   await page.keyboard.press('Enter');
-  await expect(page).toHaveURL('/analyses/a0ad9a3f-26b2-4014-8f51-ec7d67bb4f1a');
+  await expect(page).toHaveURL(`/analyses/${analysisId}`);
+});
+
+test('paginates loaded analysis history locally and resets the page when searching', async ({
+  page,
+}) => {
+  await mockVerifiedSession(page);
+  const requests: URL[] = [];
+  const records = Array.from({ length: 23 }, (_, index) => ({
+    id: `00000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
+    status: 'completed',
+    language: 'taglish',
+    createdAt: '2026-08-02T00:00:00.000Z',
+    result: {
+      outcome: 'definitive',
+      emotionClassification: 'sadness',
+      transcript: `Sad sample ${index + 1}`,
+    },
+  }));
+  await page.route('**/api/v2/analyses**', async (route) => {
+    const url = new URL(route.request().url());
+    requests.push(url);
+    const search = url.searchParams.get('search');
+    const filtered = search
+      ? records.filter((record) => record.result.transcript.includes(search))
+      : records;
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        analyses: filtered,
+        hasMore: false,
+      }),
+    });
+  });
+
+  await page.goto('/history');
+  const rows = page.locator('.dashboard-table-record');
+  const pagination = page.getByRole('navigation', { name: 'Analysis list pagination' });
+  const previous = pagination.getByRole('button', { name: 'Previous' });
+  const next = pagination.getByRole('button', { name: 'Next' });
+  await expect(rows).toHaveCount(10);
+  await expect(pagination).toContainText('Page 1');
+  await expect(previous).toBeDisabled();
+  const initialRequestCount = requests.length;
+  await next.click();
+  await expect(rows).toHaveCount(10);
+  await expect(rows.first()).toContainText('Sad sample 11');
+  await expect(pagination).toContainText('Showing 11–20');
+  await next.click();
+  await expect(rows).toHaveCount(3);
+  await expect(pagination).toContainText('Page 3');
+  await expect(next).toBeDisabled();
+  await previous.click();
+  await expect(rows.first()).toContainText('Sad sample 11');
+  expect(requests).toHaveLength(initialRequestCount);
+  await expect(
+    new AxeBuilder({ page }).include('.dashboard-pagination').analyze(),
+  ).resolves.toMatchObject({ violations: [] });
+  await page.getByRole('searchbox', { name: 'Search your analyses' }).fill('Sad sample 2');
+  await page.getByRole('button', { name: 'Search', exact: true }).click();
+  await expect(rows).toHaveCount(5);
+  await expect(pagination).toContainText('Page 1');
+  await expect(previous).toBeDisabled();
+  await expect(next).toBeDisabled();
+  expect(requests.every((url) => !url.searchParams.has('offset'))).toBe(true);
+  expect(requests.every((url) => !url.searchParams.has('limit'))).toBe(true);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+    await page.evaluate(() => document.documentElement.clientWidth),
+  );
+  await expect(
+    new AxeBuilder({ page }).include('.dashboard-pagination').analyze(),
+  ).resolves.toMatchObject({ violations: [] });
 });
 
 test('communicates empty, filtered-empty, and API-error History states', async ({ page }) => {
