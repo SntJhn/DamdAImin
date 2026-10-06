@@ -4022,7 +4022,7 @@ select {
   text-transform: uppercase;
 }
 
-.analysis-intake-header h2 {
+.analysis-intake-header h1 {
   margin: 0.15rem 0 0;
   color: #fff;
   font-family: 'Google Sans', sans-serif;
@@ -4793,7 +4793,7 @@ select {
     padding: 1.35rem;
   }
 
-  .analysis-intake-header h2 {
+  .analysis-intake-header h1 {
     font-size: 1.8rem;
   }
 

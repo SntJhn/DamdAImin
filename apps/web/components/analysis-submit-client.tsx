@@ -20,6 +20,7 @@ import {
 import type { CreateAnalysisUploadResponse, AcceptedAnalysisResponse } from '@damdai/contracts';
 
 import { authClient, getAuthToken } from '../lib/auth-client';
+import { MAX_RECORDING_SECONDS } from '../lib/recording-audio';
 import { MicrophoneRecorder } from './microphone-recorder';
 
 const apiBaseUrl = (process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:4000/api/v2').replace(
@@ -30,7 +31,6 @@ const apiBaseUrl = (process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:40
 export function AnalysisSubmitClient() {
   const router = useRouter();
   const [accountEmail, setAccountEmail] = useState('');
-  const [language, setLanguage] = useState<'taglish' | 'english' | 'tagalog'>('taglish');
   const [inputMethod, setInputMethod] = useState<'microphone' | 'upload'>('microphone');
   const [retainSourceAudio, setRetainSourceAudio] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -163,7 +163,7 @@ export function AnalysisSubmitClient() {
           'content-type': 'application/json',
         },
         body: JSON.stringify({
-          language,
+          language: 'taglish',
           contractVersion: 'taglish-v2',
           retainSourceAudio,
         }),
@@ -348,7 +348,7 @@ export function AnalysisSubmitClient() {
         </p>
       </aside>
 
-      <section className="dashboard-main" aria-labelledby="analysis-title">
+      <section className="dashboard-main" aria-labelledby="analysis-intake-title">
         <header className="dashboard-toolbar">
           <Link
             className="dashboard-search analysis-search-link"
@@ -376,7 +376,7 @@ export function AnalysisSubmitClient() {
                   <AudioLines size={15} aria-hidden="true" />
                   Voice + text analysis
                 </p>
-                <h2>Start an Emotion Analysis.</h2>
+                <h1 id="analysis-intake-title">Start an Emotion Analysis.</h1>
                 <p className="analysis-intake-description">
                   Speak naturally. We’ll listen for the acoustic and linguistic cues that shape the
                   emotion in your words.
@@ -455,7 +455,8 @@ export function AnalysisSubmitClient() {
                     Say what you mean.
                   </h3>
                   <p style={{ margin: 0 }}>
-                    One utterance is enough. Keep it natural and under 20 seconds.
+                    One utterance is enough. Keep it natural and under {MAX_RECORDING_SECONDS}{' '}
+                    seconds.
                   </p>
                 </div>
 
@@ -529,20 +530,8 @@ export function AnalysisSubmitClient() {
               <aside className="analysis-options-panel" aria-label="Analysis options">
                 <div className="analysis-option-heading">
                   <p className="analysis-panel-kicker">ANALYSIS OPTIONS</p>
-                  <p>Set the context before you send your recording.</p>
+                  <p>Choose whether to keep your recording after processing.</p>
                 </div>
-                <label className="analysis-option-field" htmlFor="analysis-language">
-                  <span>Analysis language</span>
-                  <select
-                    id="analysis-language"
-                    value={language}
-                    onChange={(event) => setLanguage(event.target.value as typeof language)}
-                  >
-                    <option value="taglish">Taglish — validated</option>
-                    <option value="english">English — experimental</option>
-                    <option value="tagalog">Tagalog — experimental</option>
-                  </select>
-                </label>
                 <label className="analysis-retention-field" htmlFor="retain-source-audio">
                   <input
                     id="retain-source-audio"
@@ -563,7 +552,7 @@ export function AnalysisSubmitClient() {
                   <p className="analysis-panel-kicker">BEFORE YOU SUBMIT</p>
                   <ul>
                     <li>One Analysis contains one utterance.</li>
-                    <li>Maximum recording length is 20 seconds.</li>
+                    <li>Maximum recording length is {MAX_RECORDING_SECONDS} seconds.</li>
                     <li>Long audio is not segmented into multiple Analyses.</li>
                     <li>There is no arbitrary minimum duration.</li>
                   </ul>

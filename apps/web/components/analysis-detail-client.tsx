@@ -26,7 +26,6 @@ import {
   formatClassification,
   formatProbability,
   formatScoreDelta,
-  getAnalysisLanguagePresentation,
   getAnalysisOutcomePresentation,
 } from '../lib/analysis-result';
 import { ScoreChangeChart } from './score-change-chart';
@@ -353,11 +352,7 @@ export function AnalysisDetailClient({ analysisId }: { analysisId: string }) {
           {analysis ? (
             <div aria-live="polite">
               {analysis.status === 'completed' && analysis.result ? (
-                <AnalysisRecord
-                  result={analysis.result}
-                  language={analysis.language}
-                  createdAt={analysis.createdAt}
-                />
+                <AnalysisRecord result={analysis.result} createdAt={analysis.createdAt} />
               ) : (
                 <AnalysisLifecycleState
                   analysis={analysis}
@@ -610,16 +605,7 @@ function AnalysisLifecycleState({
   );
 }
 
-function AnalysisRecord({
-  result,
-  language,
-  createdAt,
-}: {
-  result: AnalysisResult;
-  language: AnalysisResource['language'];
-  createdAt: string;
-}) {
-  const languagePresentation = getAnalysisLanguagePresentation(language);
+function AnalysisRecord({ result, createdAt }: { result: AnalysisResult; createdAt: string }) {
   const outcomePresentation = getAnalysisOutcomePresentation(result.outcome);
   const classification = result.outcome === 'definitive' ? result.emotionClassification : undefined;
   const classificationProbability = classification ? result.confidence[classification] : undefined;
@@ -656,10 +642,6 @@ function AnalysisRecord({
             </div>
           ) : null}
           <div className="analysis-result-hero-tags">
-            <span>{languagePresentation.label}</span>
-            <span title={languagePresentation.qualificationDescription}>
-              {languagePresentation.qualification}
-            </span>
             <span>{formatAnalysisDate(createdAt)}</span>
           </div>
         </div>
@@ -1256,11 +1238,9 @@ function CueScoreChanges({
   return (
     <div className="cue-score-changes">
       {Object.entries(combinedChanges).map(([emotion, scoreChange]) => (
-        <span
-          className={`cue-score-change cue-score-change--${emotion}`}
-          key={emotion}
-        >
-          {formatClassification(emotion as EmotionClassification)} {formatEvidence(scoreChange ?? 0)}
+        <span className={`cue-score-change cue-score-change--${emotion}`} key={emotion}>
+          {formatClassification(emotion as EmotionClassification)}{' '}
+          {formatEvidence(scoreChange ?? 0)}
         </span>
       ))}
     </div>

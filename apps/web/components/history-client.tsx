@@ -25,6 +25,7 @@ import type {
 
 import { authClient, getAuthToken } from '../lib/auth-client';
 import { formatClassification } from '../lib/analysis-result';
+import { MAX_RECORDING_SECONDS } from '../lib/recording-audio';
 
 const apiBaseUrl = (process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:4000/api/v2').replace(
   /\/$/,
@@ -261,7 +262,7 @@ export function HistoryClient() {
 
                 <span className="dashboard-microphone-label">
                   <strong>Tap to record</strong>
-                  <small>Up to 20 seconds</small>
+                  <small>Up to {MAX_RECORDING_SECONDS} seconds</small>
                 </span>
               </Link>
             </section>

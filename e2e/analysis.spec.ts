@@ -140,7 +140,7 @@ async function mockVirtualMicrophone(page: Page) {
 }
 
 async function startAndStopVirtualRecording(page: Page) {
-  await page.getByRole('button', { name: 'Grant access and record' }).click();
+  await page.getByRole('button', { name: 'Record Audio' }).click();
   await expect(page.getByText(/Recording — .* seconds elapsed/)).toBeVisible();
   await page.waitForTimeout(350);
   await page.getByRole('button', { name: 'Stop recording' }).click();
@@ -406,7 +406,8 @@ test('reviews the ASR transcript before submitting one WAV utterance', async ({ 
   await expect(page.getByText('There is no arbitrary minimum duration.')).toBeVisible();
   await expect(page.getByText('Long audio is not segmented into multiple Analyses.')).toBeVisible();
 
-  await page.getByRole('radio', { name: /Upload a WAV/ }).check();
+  await page.getByText('Upload a WAV', { exact: true }).click();
+  await expect(page.getByRole('radio', { name: /Upload a WAV/ })).toBeChecked();
   await page.locator('#analysis-file').setInputFiles({
     name: 'synthetic.wav',
     mimeType: 'audio/wav',
@@ -529,10 +530,8 @@ test('records virtual synthetic media, replaces it locally, and submits the conv
 
   await page.goto('/analyze');
   await expect(page.getByText('verified@example.test')).toHaveText('verified@example.test');
-  await page.locator('#analysis-language').focus();
-  await page.keyboard.press('ArrowDown');
 
-  const start = page.getByRole('button', { name: 'Grant access and record' });
+  const start = page.getByRole('button', { name: 'Record Audio' });
   await start.focus();
   await page.keyboard.press('Enter');
   await expect(page.getByText(/Recording — .* seconds elapsed/)).toBeVisible();
@@ -618,7 +617,7 @@ test('reports denied microphone permission without creating an Analysis', async 
 
   await page.goto('/analyze');
   await expect(page.getByText('verified@example.test')).toHaveText('verified@example.test');
-  await page.getByRole('button', { name: 'Grant access and record' }).click();
+  await page.getByRole('button', { name: 'Record Audio' }).click();
 
   await expect(page.getByText(/Microphone permission was denied/)).toBeVisible();
   expect(calls).toEqual({ uploadOperations: 0, analysisCreations: 0 });
@@ -641,7 +640,7 @@ test('reports unavailable microphone hardware without creating an Analysis', asy
 
   await page.goto('/analyze');
   await expect(page.getByText('verified@example.test')).toHaveText('verified@example.test');
-  await page.getByRole('button', { name: 'Grant access and record' }).click();
+  await page.getByRole('button', { name: 'Record Audio' }).click();
 
   await expect(page.getByText(/No microphone is available/)).toBeVisible();
   expect(calls).toEqual({ uploadOperations: 0, analysisCreations: 0 });
@@ -725,7 +724,7 @@ test('stops an over-limit capture without creating an Analysis', async ({ page }
   await page.goto('/analyze');
   await expect(page.getByText('verified@example.test')).toHaveText('verified@example.test');
   await page.clock.install();
-  await page.getByRole('button', { name: 'Grant access and record' }).click();
+  await page.getByRole('button', { name: 'Record Audio' }).click();
   await expect(page.getByText(/Recording — .* seconds elapsed/)).toBeVisible();
   await page.clock.fastForward(60_200);
 
@@ -846,8 +845,8 @@ test('presents an Inconclusive Result without a headline class or visible raw pr
       'The Research System did not return a sufficiently reliable classification for this speech sample.',
     ),
   ).toBeVisible();
-  await expect(page.getByText('English', { exact: true })).toBeVisible();
-  await expect(page.getByText('Experimental', { exact: true })).toBeVisible();
+  await expect(page.getByText('English', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('Experimental', { exact: true })).toHaveCount(0);
   await expect(
     page.getByText('The Research System marked this result inconclusive.'),
   ).toBeVisible();
