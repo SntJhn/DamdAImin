@@ -47,6 +47,8 @@ export const ActivatedRuleSchema = Type.Object({
 });
 
 export const ScoreAdjustmentSchema = Type.Object({
+  cue: Type.Optional(Type.String({ minLength: 1 })),
+  ruleId: Type.Optional(Type.String({ minLength: 1 })),
   emotionClassification: EmotionClassificationSchema,
   delta: Type.Number(),
   reason: Type.String({ minLength: 1 }),

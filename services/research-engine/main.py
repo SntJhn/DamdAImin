@@ -358,6 +358,38 @@ def build_symbolic_score_journey(traces: list[dict[str, Any]]) -> list[dict[str,
     return journey
 
 
+def build_score_adjustments(traces: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Export actual weighted contributions, retaining cue and rule attribution."""
+    adjustments = []
+    for trace in traces:
+        if not trace.get("activated"):
+            continue
+        category = str(trace["rule_category"])
+        cue = str(trace.get("cue", trace["rule_id"]))
+        for target, contribution in trace.get("score_contribution", {}).items():
+            if target not in CONTRACT_EMOTION or not contribution:
+                continue
+            adjustments.append(
+                {
+                    "cue": cue,
+                    "ruleId": str(trace["rule_id"]),
+                    "emotionClassification": to_contract_emotion(target),
+                    "delta": float(contribution * RULE_WEIGHTS.get(category, 1.0)),
+                    "reason": (
+                        "The neural model and "
+                        f"{', '.join(trace.get('supporting_rules', [])) or 'active rule evidence'} "
+                        f"both support {target}; an agreement adjustment was added."
+                        if category == "agreement"
+                        else (
+                            f"{trace['rule_id']} detected {cue!r} and reported a "
+                            f"{trace.get('direction', 'support')} adjustment."
+                        )
+                    ),
+                }
+            )
+    return adjustments
+
+
 class SymbolicReasoner:
     """Preliminary five-tier symbolic layer for the local demonstration."""
 
@@ -1080,7 +1112,7 @@ class ResearchRuntime:
 
             cue_spans = []
             activated_rules = []
-            score_adjustments = []
+            score_adjustments = build_score_adjustments(symbolic["traces"])
             for trace_index, trace in enumerate(symbolic["traces"]):
                 if not trace.get("activated"):
                     continue
@@ -1107,28 +1139,6 @@ class ResearchRuntime:
                         ) + f" Preliminary rule weight: {rule_weight:.2f}.",
                     }
                 )
-                targets = trace.get("target_emotion", [])
-                if targets:
-                    target = str(targets[0])
-                    if target in CONTRACT_EMOTION:
-                        score_adjustments.append(
-                            {
-                                "emotionClassification": to_contract_emotion(target),
-                                "delta": float(
-                                    trace.get("reported_adjustment", 0.0) * rule_weight
-                                ),
-                                "reason": (
-                                    "The neural model and "
-                                    f"{', '.join(trace.get('supporting_rules', [])) or 'active rule evidence'} "
-                                    f"both support {target}; an agreement adjustment was added."
-                                    if category == "agreement"
-                                    else (
-                                        f"{trace['rule_id']} detected {cue!r} and reported a "
-                                        f"{trace.get('direction', 'support')} adjustment."
-                                    )
-                                ),
-                            }
-                        )
 
             if transcript_override is not None:
                 cue_spans.append(

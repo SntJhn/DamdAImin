@@ -727,6 +727,14 @@
                                           "reason"
                                         ],
                                         "properties": {
+                                          "cue": {
+                                            "minLength": 1,
+                                            "type": "string"
+                                          },
+                                          "ruleId": {
+                                            "minLength": 1,
+                                            "type": "string"
+                                          },
                                           "emotionClassification": {
                                             "anyOf": [
                                               {
@@ -1145,6 +1153,14 @@
                                           "reason"
                                         ],
                                         "properties": {
+                                          "cue": {
+                                            "minLength": 1,
+                                            "type": "string"
+                                          },
+                                          "ruleId": {
+                                            "minLength": 1,
+                                            "type": "string"
+                                          },
                                           "emotionClassification": {
                                             "anyOf": [
                                               {
@@ -2079,6 +2095,14 @@
                                       "reason"
                                     ],
                                     "properties": {
+                                      "cue": {
+                                        "minLength": 1,
+                                        "type": "string"
+                                      },
+                                      "ruleId": {
+                                        "minLength": 1,
+                                        "type": "string"
+                                      },
                                       "emotionClassification": {
                                         "anyOf": [
                                           {
@@ -2497,6 +2521,14 @@
                                       "reason"
                                     ],
                                     "properties": {
+                                      "cue": {
+                                        "minLength": 1,
+                                        "type": "string"
+                                      },
+                                      "ruleId": {
+                                        "minLength": 1,
+                                        "type": "string"
+                                      },
                                       "emotionClassification": {
                                         "anyOf": [
                                           {
@@ -3111,6 +3143,14 @@
                                           "reason"
                                         ],
                                         "properties": {
+                                          "cue": {
+                                            "minLength": 1,
+                                            "type": "string"
+                                          },
+                                          "ruleId": {
+                                            "minLength": 1,
+                                            "type": "string"
+                                          },
                                           "emotionClassification": {
                                             "anyOf": [
                                               {
@@ -3529,6 +3569,14 @@
                                           "reason"
                                         ],
                                         "properties": {
+                                          "cue": {
+                                            "minLength": 1,
+                                            "type": "string"
+                                          },
+                                          "ruleId": {
+                                            "minLength": 1,
+                                            "type": "string"
+                                          },
                                           "emotionClassification": {
                                             "anyOf": [
                                               {
@@ -4142,6 +4190,14 @@
                                       "reason"
                                     ],
                                     "properties": {
+                                      "cue": {
+                                        "minLength": 1,
+                                        "type": "string"
+                                      },
+                                      "ruleId": {
+                                        "minLength": 1,
+                                        "type": "string"
+                                      },
                                       "emotionClassification": {
                                         "anyOf": [
                                           {
@@ -4560,6 +4616,14 @@
                                       "reason"
                                     ],
                                     "properties": {
+                                      "cue": {
+                                        "minLength": 1,
+                                        "type": "string"
+                                      },
+                                      "ruleId": {
+                                        "minLength": 1,
+                                        "type": "string"
+                                      },
                                       "emotionClassification": {
                                         "anyOf": [
                                           {

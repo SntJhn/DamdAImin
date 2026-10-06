@@ -43,6 +43,8 @@ export interface ActivatedRule {
 }
 
 export interface ScoreAdjustment {
+  cue?: string;
+  ruleId?: string;
   emotionClassification: EmotionClassification;
   delta: number;
   reason: string;
