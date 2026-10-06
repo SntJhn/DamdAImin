@@ -83,10 +83,10 @@ export function ScoreChangeChart({
   const lastIndex = journey.length - 1;
 
   // Open on the symbolic layer's strongest emotion.
-  const [tracked, setTracked] = useState<EmotionClassification>(
-    () => trace.probabilities.symbolic
+  const [tracked, setTracked] = useState<EmotionClassification>(() =>
+    trace.probabilities.symbolic
       ? topEmotion(trace.probabilities.symbolic)
-      : classification ?? topEmotion(trace.probabilities.before),
+      : (classification ?? topEmotion(trace.probabilities.before)),
   );
   const [mode, setMode] = useState<ScaleMode>('full');
   const [open, setOpen] = useState<number | null>(null);
@@ -252,7 +252,14 @@ export function ScoreChangeChart({
       ink,
       title,
       body,
-      layer: journeyStep.source === 'baseline' ? 'Symbolic baseline' : journeyStep.source === 'acoustic' ? 'Acoustic clue' : journeyStep.source === 'system' ? 'System adjustment' : 'Linguistic clue',
+      layer:
+        journeyStep.source === 'baseline'
+          ? 'Symbolic baseline'
+          : journeyStep.source === 'acoustic'
+            ? 'Acoustic clue'
+            : journeyStep.source === 'system'
+              ? 'System adjustment'
+              : 'Linguistic clue',
     };
   }
 
@@ -419,7 +426,10 @@ export function ScoreChangeChart({
               {`Symbolic scores start at ${formatProbability(startValue)} for ${trackedLabel}. ` +
                 journey
                   .slice(1)
-                  .map((item, index) => `${item.cue} moves it to ${formatProbability(values[index + 1])}.`)
+                  .map(
+                    (item, index) =>
+                      `${item.cue} moves it to ${formatProbability(values[index + 1])}.`,
+                  )
                   .join(' ')}
             </desc>
             <defs>

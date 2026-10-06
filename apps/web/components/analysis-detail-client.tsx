@@ -23,8 +23,10 @@ import type { AnalysisResource, AnalysisResult, EmotionClassification } from '@d
 
 import { authClient, getAuthToken } from '../lib/auth-client';
 import {
+  describeLayerScores,
   formatClassification,
   formatProbability,
+  formatProbabilityDistribution,
   formatScoreDelta,
   getAnalysisOutcomePresentation,
 } from '../lib/analysis-result';
@@ -45,7 +47,6 @@ const emotionArtwork: Record<EmotionClassification, string> = {
 
 type EmotionScores = Record<EmotionClassification, number>;
 type CueSpan = AnalysisResult['technicalTrace']['cueSpans'][number];
-type SourceAudioStatus = 'available' | 'unavailable';
 
 export function AnalysisDetailClient({ analysisId }: { analysisId: string }) {
   const router = useRouter();
@@ -703,15 +704,19 @@ function AnalysisRecord({ result, createdAt }: { result: AnalysisResult; created
         />
       </section>
 
-      <ScoreChangeChart
-        key={createdAt}
-        trace={result.technicalTrace}
-        classification={classification}
-      >
-        <EmotionScoreBreakdown trace={result.technicalTrace} finalScores={result.confidence} />
-      </ScoreChangeChart>
+      {classification ? (
+        <ScoreChangeChart
+          key={createdAt}
+          trace={result.technicalTrace}
+          classification={classification}
+        >
+          <EmotionScoreBreakdown trace={result.technicalTrace} finalScores={result.confidence} />
+        </ScoreChangeChart>
+      ) : null}
       <TechnicalDetails
         trace={result.technicalTrace}
+        explanation={result.explanation}
+        inconclusiveScores={classification ? undefined : result.confidence}
         versions={{
           contractVersion: result.contractVersion,
           schemaVersion: result.schemaVersion,
@@ -773,6 +778,11 @@ function LayerComparison({
           highlighted
         />
       </div>
+      {symbolic ? (
+        <p className="analysis-layer-description">
+          {describeLayerScores('The symbolic layer', symbolic)}
+        </p>
+      ) : null}
     </section>
   );
 }
@@ -792,6 +802,9 @@ function LayerColumn({
   order: EmotionClassification[];
   highlighted?: boolean;
 }) {
+  const formattedScores = scores
+    ? formatProbabilityDistribution(order.map((classification) => scores[classification]))
+    : [];
   return (
     <section
       className={`analysis-result-confidence-model${highlighted ? ` analysis-result-confidence-model--final analysis-result-confidence-model--${order[0]}` : ''}`}
@@ -804,14 +817,14 @@ function LayerColumn({
       <p className="analysis-layer-description">{description}</p>
       {scores ? (
         <ul className="analysis-result-confidence-list">
-          {order.map((classification) => (
+          {order.map((classification, index) => (
             <li
               className={`analysis-result-confidence-row analysis-result-confidence-row--${classification}`}
               key={classification}
             >
               <div className="analysis-result-confidence-label">
                 <span>{formatClassification(classification)}</span>
-                <strong>{formatProbability(scores[classification])}</strong>
+                <strong>{formattedScores[index]}</strong>
               </div>
               <meter
                 min="0"
@@ -827,128 +840,6 @@ function LayerColumn({
           Scores for this layer weren’t recorded for this analysis.
         </p>
       )}
-    </section>
-  );
-}
-
-/* ---------- Source audio playback ---------- */
-
-type PlaybackState = 'loading' | 'ready' | 'missing' | 'error';
-
-function RecordingPlayback({
-  analysisId,
-  status,
-}: {
-  analysisId: string;
-  status?: SourceAudioStatus;
-}) {
-  const [state, setState] = useState<PlaybackState>('loading');
-  const [src, setSrc] = useState<string | null>(null);
-  const [attempt, setAttempt] = useState(0);
-
-  useEffect(() => {
-    if (status !== 'available') return;
-
-    const controller = new AbortController();
-    let objectUrl: string | undefined;
-    setState('loading');
-    setSrc(null);
-
-    async function loadAudio() {
-      try {
-        // A native <audio src> can't send an Authorization header, so fetch the
-        // recording with the bearer token and play it from a local object URL.
-        const token = await getAuthToken();
-        if (!token) {
-          setState('error');
-          return;
-        }
-
-        const response = await fetch(`${apiBaseUrl}/analyses/${analysisId}/source-audio`, {
-          headers: { authorization: `Bearer ${token}` },
-          cache: 'no-store',
-          signal: controller.signal,
-        });
-        if (response.status === 404) {
-          setState('missing');
-          return;
-        }
-        if (!response.ok) throw new Error('Source audio unavailable');
-
-        const blob = await response.blob();
-        if (controller.signal.aborted) return;
-        objectUrl = URL.createObjectURL(blob);
-        setSrc(objectUrl);
-        setState('ready');
-      } catch {
-        if (!controller.signal.aborted) setState('error');
-      }
-    }
-
-    void loadAudio();
-    return () => {
-      controller.abort();
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
-  }, [analysisId, status, attempt]);
-
-  let content: React.ReactNode;
-  if (status !== 'available' && status !== 'unavailable') {
-    content = (
-      <p className="analysis-recording-note">
-        This recording wasn’t saved. Turn on “Keep source audio” on your next analysis to listen
-        again here.
-      </p>
-    );
-  } else if (status === 'unavailable' || state === 'missing') {
-    content = (
-      <p className="analysis-recording-note">
-        This recording is no longer available. Saved recordings are removed after the retention
-        period.
-      </p>
-    );
-  } else if (state === 'error') {
-    content = (
-      <div className="analysis-recording-note" role="alert">
-        <p>We couldn’t load your recording. Check your connection and try again.</p>
-        <button
-          className="analysis-result-button analysis-result-button-secondary"
-          type="button"
-          onClick={() => setAttempt((current) => current + 1)}
-        >
-          Try again
-        </button>
-      </div>
-    );
-  } else if (state === 'ready' && src) {
-    content = (
-      <>
-        <audio controls preload="metadata" src={src} aria-label="Play your recording">
-          Your browser can’t play this recording.
-        </audio>
-        <p className="analysis-recording-hint">Only you can listen to this recording.</p>
-      </>
-    );
-  } else {
-    content = (
-      <p className="analysis-recording-note" role="status">
-        Loading your recording…
-      </p>
-    );
-  }
-
-  return (
-    <section
-      className="analysis-result-panel analysis-recording"
-      aria-labelledby="recording-heading"
-    >
-      <div className="analysis-result-panel-heading">
-        <div>
-          <p className="dashboard-card-kicker">Playback</p>
-          <h3 id="recording-heading">Your recording</h3>
-        </div>
-      </div>
-      {content}
     </section>
   );
 }
@@ -970,9 +861,9 @@ function TechnicalTraceView({
   const symbolicScore = classification ? trace.probabilities.symbolic?.[classification] : undefined;
   const finalScore = classification ? finalScores[classification] : undefined;
   const resultCopy =
-    audioScore === undefined || symbolicScore === undefined || classification === undefined
+    audioScore === undefined || classification === undefined
       ? 'The evidence did not favor one emotion clearly enough.'
-      : `Audio layer: ${formatProbability(audioScore)}. Symbolic: ${formatProbability(symbolicScore)}.`;
+      : `Audio layer: ${formatProbability(audioScore)}. ${symbolicScore === undefined ? `Combined: ${formatProbability(finalScore ?? audioScore)}.` : `Symbolic: ${formatProbability(symbolicScore)}.`}`;
 
   return (
     <div className="analysis-trace-body">
@@ -1026,11 +917,7 @@ function TechnicalTraceView({
         </li>
       </ol>
 
-      <CueTable
-        cueSpans={trace.cueSpans}
-        scoreAdjustments={trace.scoreAdjustments}
-        scoreChanges={trace.scoreAdjustments.map((adjustment) => adjustment.delta)}
-      />
+      <CueTable cueSpans={trace.cueSpans} scoreAdjustments={trace.scoreAdjustments} />
     </div>
   );
 }
@@ -1084,9 +971,13 @@ function EmotionScoreBreakdown({
 
 function TechnicalDetails({
   trace,
+  explanation,
+  inconclusiveScores,
   versions,
 }: {
   trace: AnalysisResult['technicalTrace'];
+  explanation: string;
+  inconclusiveScores?: EmotionScores;
   versions: Pick<
     AnalysisResult,
     'contractVersion' | 'schemaVersion' | 'modelVersion' | 'preprocessingVersion' | 'ruleSetVersion'
@@ -1100,7 +991,44 @@ function TechnicalDetails({
       </summary>
 
       <div className="analysis-trace-technical-body">
+        <section className="analysis-trace-card" aria-labelledby="original-explanation-heading">
+          <div className="analysis-trace-card-heading">
+            <h3 id="original-explanation-heading">What the system reported</h3>
+          </div>
+          <details>
+            <summary>Show the original explanation</summary>
+            <p>{explanation}</p>
+          </details>
+        </section>
         <RuleSignalSummary trace={trace} />
+        <section className="analysis-trace-card" aria-labelledby="activated-rules-heading">
+          <h3 id="activated-rules-heading">Scoring rules used</h3>
+          <ul className="analysis-trace-list">
+            {trace.activatedRules.map((rule) => (
+              <li key={rule.id}>
+                <strong>{rule.id}</strong>
+                <p>{rule.description}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
+        <section className="analysis-trace-card" aria-labelledby="score-adjustments-heading">
+          <h3 id="score-adjustments-heading">How clues shifted the scores</h3>
+          <ul className="analysis-trace-list">
+            {trace.scoreAdjustments.map((adjustment, index) => (
+              <li key={index}>
+                <strong>
+                  {formatClassification(adjustment.emotionClassification)}{' '}
+                  {formatEvidence(adjustment.delta)}
+                </strong>
+                <p>{adjustment.reason}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
+        {inconclusiveScores ? (
+          <EmotionScoreBreakdown trace={trace} finalScores={inconclusiveScores} />
+        ) : null}
 
         <details className="analysis-trace-versions">
           <summary>
@@ -1138,11 +1066,9 @@ function TechnicalDetails({
 function CueTable({
   cueSpans,
   scoreAdjustments,
-  scoreChanges,
 }: {
   cueSpans: CueSpan[];
   scoreAdjustments: AnalysisResult['technicalTrace']['scoreAdjustments'];
-  scoreChanges: number[];
 }) {
   const transcriptCues = new Set(['asr_transcript', 'user_reviewed_transcript']);
   const sorted = cueSpans
@@ -1189,8 +1115,8 @@ function CueTable({
                   <td>
                     <CueScoreChanges
                       cue={span.value}
+                      ruleId={span.cue}
                       scoreAdjustments={scoreAdjustments}
-                      scoreChanges={scoreChanges}
                     />
                   </td>
                 </tr>
@@ -1207,40 +1133,31 @@ function CueTable({
 
 function CueScoreChanges({
   cue,
+  ruleId,
   scoreAdjustments,
-  scoreChanges,
 }: {
   cue: string;
+  ruleId: string;
   scoreAdjustments: AnalysisResult['technicalTrace']['scoreAdjustments'];
-  scoreChanges: number[];
 }) {
-  const matchingAdjustments = scoreAdjustments
-    .map((adjustment, index) => ({ adjustment, scoreChange: scoreChanges[index] }))
-    .filter(({ adjustment }) => {
-      const detectedCue = adjustment.reason.match(
-        /detected ['"](.+?)['"] and reported a[n]? (?:increase|decrease)/i,
-      )?.[1];
-      return detectedCue?.toLowerCase() === cue.toLowerCase();
-    });
+  const matchingAdjustments = scoreAdjustments.filter(
+    (adjustment) =>
+      adjustment.cue?.toLowerCase() === cue.toLowerCase() && adjustment.ruleId === ruleId,
+  );
 
   if (!matchingAdjustments.length) {
-    return <span className="cue-score-empty">No direct score change</span>;
+    return <span className="cue-score-empty">Context cue or per-cue evidence unavailable</span>;
   }
-
-  const combinedChanges = matchingAdjustments.reduce<
-    Partial<Record<EmotionClassification, number>>
-  >((totals, { adjustment, scoreChange }) => {
-    const emotion = adjustment.emotionClassification;
-    totals[emotion] = (totals[emotion] ?? 0) + scoreChange;
-    return totals;
-  }, {});
 
   return (
     <div className="cue-score-changes">
-      {Object.entries(combinedChanges).map(([emotion, scoreChange]) => (
-        <span className={`cue-score-change cue-score-change--${emotion}`} key={emotion}>
-          {formatClassification(emotion as EmotionClassification)}{' '}
-          {formatEvidence(scoreChange ?? 0)}
+      {matchingAdjustments.map((adjustment, index) => (
+        <span
+          className={`cue-score-change cue-score-change--${adjustment.emotionClassification}`}
+          key={index}
+        >
+          {formatClassification(adjustment.emotionClassification)}{' '}
+          {formatEvidence(adjustment.delta)}
         </span>
       ))}
     </div>
@@ -1326,9 +1243,7 @@ function RuleSignalSummary({ trace }: { trace: AnalysisResult['technicalTrace'] 
                   <ul className="analysis-rule-signal-values">
                     {cues.map((span, index) => {
                       const adjustment = adjustments.find(
-                        (item) =>
-                          extractScoreAdjustmentCue(item.reason)?.toLowerCase() ===
-                          span.value.toLowerCase(),
+                        (item) => item.cue?.toLowerCase() === span.value.toLowerCase(),
                       );
                       return (
                         <li className="analysis-rule-signal-value" key={`${span.value}-${index}`}>
@@ -1369,10 +1284,6 @@ function RuleSignalSummary({ trace }: { trace: AnalysisResult['technicalTrace'] 
       </dl>
     </section>
   );
-}
-
-function extractScoreAdjustmentCue(reason: string): string | undefined {
-  return reason.match(/detected ['"](.+?)['"] and reported a[n]? (?:increase|decrease)/i)?.[1];
 }
 
 /* ---------- Helpers ---------- */

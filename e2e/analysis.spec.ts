@@ -1084,3 +1084,111 @@ for (const [classification, label] of [
     await expect(new AxeBuilder({ page }).analyze()).resolves.toMatchObject({ violations: [] });
   });
 }
+
+test('shows normalized layer totals, authoritative cue effects, and keyboard-accessible symbolic replay', async ({
+  page,
+}) => {
+  await mockVerifiedSession(page);
+  const scores = { happiness: 0.118, sadness: 0.118, anger: 0.118, neutrality: 0.646 };
+  const explanation = 'Adaptive fusion assigned 15% weight to audio and 85% to symbolic evidence.';
+  await page.route(`**/api/v2/analyses/${analysisId}`, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: analysisId,
+        status: 'completed',
+        stage: 'completed',
+        language: 'taglish',
+        createdAt: '2026-08-02T00:00:00.000Z',
+        result: {
+          outcome: 'definitive',
+          emotionClassification: 'neutrality',
+          confidence: scores,
+          transcript: 'masaya ako pero hindi masaya ngayon',
+          explanation,
+          technicalTrace: {
+            cueSpans: [
+              {
+                source: 'linguistic',
+                startMs: 0,
+                endMs: 1000,
+                cue: 'LEXICAL_EMOTION',
+                value: 'masaya',
+              },
+              {
+                source: 'linguistic',
+                startMs: 1000,
+                endMs: 2000,
+                cue: 'LEXICAL_NEGATION',
+                value: 'hindi',
+              },
+            ],
+            activatedRules: [{ id: 'LEXICAL_EMOTION-1', description: 'Emotion contribution.' }],
+            scoreAdjustments: [
+              {
+                cue: 'masaya',
+                ruleId: 'LEXICAL_EMOTION',
+                emotionClassification: 'happiness',
+                delta: 0.25,
+                reason: 'First occurrence.',
+              },
+              {
+                cue: 'masaya',
+                ruleId: 'LEXICAL_EMOTION',
+                emotionClassification: 'happiness',
+                delta: -0.125,
+                reason: 'Negated occurrence.',
+              },
+            ],
+            scoreJourney: [
+              {
+                cue: 'Starting symbolic scores',
+                ruleId: 'BASELINE',
+                source: 'baseline',
+                scores: { happiness: 0.25, sadness: 0.25, anger: 0.25, neutrality: 0.25 },
+              },
+              { cue: 'hindi masaya', ruleId: 'LEXICAL_EMOTION', source: 'linguistic', scores },
+            ],
+            probabilities: { before: scores, symbolic: scores, after: scores },
+          },
+          contractVersion: 'taglish-v2',
+          schemaVersion: 'research-response-v2',
+          modelVersion: 'fake-model-1',
+          preprocessingVersion: 'fake-preprocessing-1',
+          ruleSetVersion: 'fake-rules-1',
+        },
+      }),
+    });
+  });
+  await page.goto(`/analyses/${analysisId}`);
+  for (const layer of ['Neural Layer', 'Symbolic Layer', 'Combined Result']) {
+    const percentages = await page
+      .getByRole('region', { name: layer, exact: true })
+      .locator('.analysis-result-confidence-label strong')
+      .allTextContents();
+    expect(percentages.reduce((sum, value) => sum + Number.parseInt(value), 0)).toBe(100);
+  }
+  const cueRow = page.getByRole('row').filter({ hasText: '“masaya”' });
+  await expect(cueRow.getByText('Happy +0.25 evidence', { exact: true })).toBeVisible();
+  await expect(cueRow.getByText('Happy -0.13 evidence', { exact: true })).toBeVisible();
+  await expect(page.getByRole('row').filter({ hasText: '“hindi”' })).toContainText(
+    'Context cue or per-cue evidence unavailable',
+  );
+  const baseline = page.getByRole('button', { name: /Symbolic baseline, Neutral/ });
+  await baseline.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Close explanation' })).toBeFocused();
+  await page.keyboard.press('ArrowRight');
+  await expect(
+    page.getByRole('dialog').getByRole('heading', { name: 'hindi masaya' }),
+  ).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(baseline).toBeFocused();
+  await page.locator('.analysis-trace-technical > summary').click();
+  await page.getByText('Show the original explanation', { exact: true }).click();
+  await expect(page.getByText(explanation, { exact: true })).toBeVisible();
+  await expect(new AxeBuilder({ page }).analyze()).resolves.toMatchObject({ violations: [] });
+});
