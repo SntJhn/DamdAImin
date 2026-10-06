@@ -124,7 +124,11 @@ def normalize_text(value: Any) -> str:
     return re.sub(r"\s+", " ", value).strip()
 
 
-TOKEN_RE = re.compile(r"[^\W_]+(?:['-][^\W_]+)*", flags=re.UNICODE)
+
+TOKEN_RE = re.compile(
+    r"[^\W_]+(?:[$*@][^\W_]*)*(?:['-][^\W_]+(?:[$*@][^\W_]*)*)*",
+    flags=re.UNICODE,
+)
 FILIPINO_STEM_INDEX_KEY = "__filipino_stems__"
 FILIPINO_STEM_MIN_LENGTH = 5
 FILIPINO_STEM_MAX_LENGTH_DIFFERENCE = 6
