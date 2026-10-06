@@ -88,8 +88,20 @@ RULE_WEIGHTS = {
 }
 
 SAMPLE_RATE = 16_000
-NEURAL_FUSION_WEIGHT = float(os.getenv("NEURAL_FUSION_WEIGHT", "0.30"))
-SYMBOLIC_FUSION_WEIGHT = float(os.getenv("SYMBOLIC_FUSION_WEIGHT", "0.70"))
+NEURAL_FUSION_WEIGHT = float(os.getenv("NEURAL_FUSION_WEIGHT", "0.60"))
+SYMBOLIC_FUSION_WEIGHT = float(os.getenv("SYMBOLIC_FUSION_WEIGHT", "0.40"))
+FUSION_WEIGHT_TOTAL = NEURAL_FUSION_WEIGHT + SYMBOLIC_FUSION_WEIGHT
+if NEURAL_FUSION_WEIGHT < 0 or SYMBOLIC_FUSION_WEIGHT < 0 or FUSION_WEIGHT_TOTAL <= 0:
+    raise ValueError(
+        "Neural and symbolic fusion weights must be non-negative and sum to more than zero."
+    )
+BASE_SYMBOLIC_FUSION_WEIGHT = SYMBOLIC_FUSION_WEIGHT / FUSION_WEIGHT_TOTAL
+MAX_SYMBOLIC_FUSION_WEIGHT = 0.90
+UNCERTAINTY_SYMBOLIC_WEIGHT_BONUS = 0.15
+CONTEXT_SUPPORT_SYMBOLIC_WEIGHT_BONUS = 0.05
+CONTEXT_CONFLICT_SYMBOLIC_WEIGHT_BONUS = 0.60
+CONTEXT_EVIDENCE_SATURATION = 0.40
+CONTEXT_EVIDENCE_CATEGORIES = ("lexical", "contrast")
 MODEL_VERSION = os.getenv("MODEL_VERSION", "tsera-finetuned-baseline")
 ASR_MODEL_NAME = os.getenv("ASR_MODEL", "large-v3-turbo")
 ASR_LANGUAGE = os.getenv("ASR_LANGUAGE", "auto").strip().casefold()
@@ -615,6 +627,13 @@ class SymbolicReasoner:
             )
 
         neural_index = int(np.argmax(neural_probabilities))
+        context_scores = sum(
+            (
+                self.rule_weights[name] * components[name]
+                for name in CONTEXT_EVIDENCE_CATEGORIES
+            ),
+            start=np.zeros(4, dtype=np.float32),
+        )
         symbolic_scores = sum(
             (
                 self.rule_weights[name] * values
@@ -713,6 +732,7 @@ class SymbolicReasoner:
             )
         return {
             "symbolic_probabilities": symbolic_probabilities,
+            "context_scores": context_scores,
             "traces": traces,
             "recognized_lexical_cues": lexical_count,
             "contradiction_active": contradiction_active,
@@ -724,6 +744,100 @@ def probability_breakdown(probabilities: np.ndarray) -> dict[str, float]:
     return {
         CONTRACT_EMOTION[label]: float(probabilities[index])
         for index, label in enumerate(EMOTION_LABELS)
+    }
+
+
+def calculate_dynamic_fusion_weights(
+    neural_probabilities: np.ndarray,
+    context_scores: np.ndarray,
+) -> dict[str, Any]:
+    """Scale symbolic influence to neural uncertainty and emotion-bearing context."""
+    normalized_neural = np.asarray(neural_probabilities, dtype=np.float64).reshape(-1)
+    normalized_neural = np.clip(normalized_neural, 1e-8, None)
+    normalized_neural /= max(float(normalized_neural.sum()), 1e-8)
+    entropy = -float(np.sum(normalized_neural * np.log(normalized_neural)))
+    uncertainty = float(
+        np.clip(entropy / np.log(len(EMOTION_LABELS)), 0.0, 1.0)
+    )
+
+    positive_context_scores = np.maximum(
+        np.asarray(context_scores, dtype=np.float64).reshape(-1),
+        0.0,
+    )
+    total_context_support = float(positive_context_scores.sum())
+    context_index: int | None = None
+    context_strength = 0.0
+    if total_context_support > 0:
+        context_index = int(np.argmax(positive_context_scores))
+        ranked_scores = np.sort(positive_context_scores)
+        strongest_score = float(ranked_scores[-1])
+        second_score = float(ranked_scores[-2])
+        evidence_volume = min(
+            total_context_support / CONTEXT_EVIDENCE_SATURATION,
+            1.0,
+        )
+        evidence_clarity = max(strongest_score - second_score, 0.0) / max(
+            strongest_score,
+            1e-8,
+        )
+        context_strength = float(
+            np.clip(evidence_volume * evidence_clarity, 0.0, 1.0)
+        )
+
+    neural_index = int(np.argmax(normalized_neural))
+    context_emotion = (
+        EMOTION_LABELS[context_index]
+        if context_index is not None and context_strength > 0
+        else None
+    )
+    context_conflict = context_emotion is not None and context_index != neural_index
+    if context_emotion is None:
+        context_bonus = 0.0
+    elif context_conflict:
+        context_bonus = CONTEXT_CONFLICT_SYMBOLIC_WEIGHT_BONUS * context_strength
+    else:
+        context_bonus = CONTEXT_SUPPORT_SYMBOLIC_WEIGHT_BONUS * context_strength
+
+    symbolic_weight = min(
+        BASE_SYMBOLIC_FUSION_WEIGHT
+        + UNCERTAINTY_SYMBOLIC_WEIGHT_BONUS * uncertainty
+        + context_bonus,
+        MAX_SYMBOLIC_FUSION_WEIGHT,
+    )
+    neural_weight = 1.0 - symbolic_weight
+
+    if context_conflict:
+        if context_strength >= 0.60:
+            reason = (
+                f"strong contextual evidence for {context_emotion} conflicted "
+                "with the neural prediction"
+            )
+        else:
+            reason = (
+                f"contextual evidence for {context_emotion} conflicted "
+                "with the neural prediction"
+            )
+    elif context_emotion is not None:
+        reason = f"contextual evidence also supported {context_emotion}"
+    elif uncertainty >= 0.65:
+        reason = (
+            "neural probabilities were uncertain, so the neutral-leaning prior "
+            "had more influence"
+        )
+    else:
+        reason = (
+            "the neural prediction was relatively certain and contextual evidence "
+            "was limited"
+        )
+
+    return {
+        "neural_weight": neural_weight,
+        "symbolic_weight": symbolic_weight,
+        "neural_uncertainty": uncertainty,
+        "context_strength": context_strength,
+        "context_emotion": context_emotion,
+        "context_conflict": context_conflict,
+        "reason": reason,
     }
 
 
@@ -836,9 +950,13 @@ class ResearchRuntime:
                 SAMPLE_RATE,
                 neural_probabilities,
             )
+            fusion = calculate_dynamic_fusion_weights(
+                neural_probabilities,
+                symbolic["context_scores"],
+            )
             fused = (
-                NEURAL_FUSION_WEIGHT * neural_probabilities
-                + SYMBOLIC_FUSION_WEIGHT * symbolic["symbolic_probabilities"]
+                fusion["neural_weight"] * neural_probabilities
+                + fusion["symbolic_weight"] * symbolic["symbolic_probabilities"]
             )
             fused = fused / max(float(fused.sum()), 1e-8)
             predicted_index = int(np.argmax(fused))
@@ -930,7 +1048,10 @@ class ResearchRuntime:
                 f"in {neural_window_count} five-second window(s) and favored "
                 f"{EMOTION_LABELS[int(np.argmax(neural_probabilities))]}; "
                 f"the preliminary symbolic layer activated {activated_names or 'no rules'} "
-                f"and produced the fused classification."
+                f"and produced the fused classification. Adaptive fusion assigned "
+                f"{fusion['neural_weight']:.0%} weight to audio and "
+                f"{fusion['symbolic_weight']:.0%} to symbolic evidence because "
+                f"{fusion['reason']}."
             )
             return {
                 "outcome": "definitive",
@@ -956,7 +1077,7 @@ class ResearchRuntime:
                     else f"{MODEL_VERSION}+asr-{ASR_MODEL_NAME}"
                 ),
                 "preprocessingVersion": "tsera-16khz-windowed-5s-logmel-delta-v2",
-                "ruleSetVersion": "preliminary-five-tier-rules-v6-filipino-stem-match",
+                "ruleSetVersion": "preliminary-five-tier-rules-v7-adaptive-fusion",
             }
         finally:
             temporary_path.unlink(missing_ok=True)
