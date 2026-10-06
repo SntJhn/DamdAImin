@@ -52,7 +52,7 @@ const frameworkSteps: FrameworkStep[] = [
   {
     title: 'The Neural Analysis',
     description:
-      "The CNN-ABLSM model analyzes acoustic features such as pitch, energy, and speech patterns to identify emotional cues in the speaker's voice.",
+      "The CNN-ABLSTM model analyzes acoustic features such as pitch, energy, and speech patterns to identify emotional cues in the speaker's voice.",
     number: '1',
     asset: '/landing/neural.svg',
   },

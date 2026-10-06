@@ -16,6 +16,7 @@ export {
   FinalizeAnalysisRequestSchema,
   NotFoundResponseSchema,
   ScoreAdjustmentSchema,
+  SymbolicScoreJourneyStepSchema,
   TechnicalCueSpanSchema,
   TechnicalTraceSchema,
   TranscriptionPreviewParamsSchema,
@@ -34,6 +35,7 @@ export {
   type EmotionClassification,
   type FinalizeAnalysisRequest,
   type ScoreAdjustment,
+  type SymbolicScoreJourneyStep,
   type TechnicalCueSpan,
   type TechnicalTrace,
 } from './analysis.js';

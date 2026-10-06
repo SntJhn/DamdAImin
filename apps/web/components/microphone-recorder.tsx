@@ -311,7 +311,7 @@ export function MicrophoneRecorder({
             disabled={disabled}
             onClick={startRecording}
           >
-            Grant access and record
+            Record Audio
           </button>
         ) : null}
         {status === 'recording' ? (

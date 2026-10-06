@@ -47,15 +47,30 @@ export const ActivatedRuleSchema = Type.Object({
 });
 
 export const ScoreAdjustmentSchema = Type.Object({
+  cue: Type.Optional(Type.String({ minLength: 1 })),
+  ruleId: Type.Optional(Type.String({ minLength: 1 })),
   emotionClassification: EmotionClassificationSchema,
   delta: Type.Number(),
   reason: Type.String({ minLength: 1 }),
+});
+
+export const SymbolicScoreJourneyStepSchema = Type.Object({
+  cue: Type.String({ minLength: 1 }),
+  ruleId: Type.String({ minLength: 1 }),
+  source: Type.Union([
+    Type.Literal('baseline'),
+    Type.Literal('linguistic'),
+    Type.Literal('acoustic'),
+    Type.Literal('system'),
+  ]),
+  scores: ConfidenceBreakdownSchema,
 });
 
 export const TechnicalTraceSchema = Type.Object({
   cueSpans: Type.Array(TechnicalCueSpanSchema),
   activatedRules: Type.Array(ActivatedRuleSchema),
   scoreAdjustments: Type.Array(ScoreAdjustmentSchema),
+  scoreJourney: Type.Optional(Type.Array(SymbolicScoreJourneyStepSchema)),
   probabilities: Type.Object({
     before: ConfidenceBreakdownSchema,
     symbolic: Type.Optional(ConfidenceBreakdownSchema),
@@ -168,6 +183,7 @@ export type AnalysisOutcome = Static<typeof AnalysisOutcomeSchema>;
 export type EmotionClassification = Static<typeof EmotionClassificationSchema>;
 export type ActivatedRule = Static<typeof ActivatedRuleSchema>;
 export type ScoreAdjustment = Static<typeof ScoreAdjustmentSchema>;
+export type SymbolicScoreJourneyStep = Static<typeof SymbolicScoreJourneyStepSchema>;
 export type TechnicalCueSpan = Static<typeof TechnicalCueSpanSchema>;
 export type TechnicalTrace = Static<typeof TechnicalTraceSchema>;
 export type AnalysisResult = Static<typeof AnalysisResultSchema>;

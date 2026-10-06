@@ -16,6 +16,7 @@ export {
   type ConfidenceBreakdown,
   type EmotionClassification,
   type ScoreAdjustment,
+  type SymbolicScoreJourneyStep,
   type TechnicalCueSource,
   type TechnicalCueSpan,
   type TechnicalTrace,

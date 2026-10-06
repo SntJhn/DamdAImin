@@ -124,7 +124,11 @@ def normalize_text(value: Any) -> str:
     return re.sub(r"\s+", " ", value).strip()
 
 
-TOKEN_RE = re.compile(r"[^\W_]+(?:['-][^\W_]+)*", flags=re.UNICODE)
+
+TOKEN_RE = re.compile(
+    r"[^\W_]+(?:[$*@][^\W_]*)*(?:['-][^\W_]+(?:[$*@][^\W_]*)*)*",
+    flags=re.UNICODE,
+)
 FILIPINO_STEM_INDEX_KEY = "__filipino_stems__"
 FILIPINO_STEM_MIN_LENGTH = 5
 FILIPINO_STEM_MAX_LENGTH_DIFFERENCE = 6
@@ -303,6 +307,89 @@ def softmax(values: np.ndarray) -> np.ndarray:
     return (exp_values / exp_values.sum()).astype(np.float32)
 
 
+def build_symbolic_score_journey(traces: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """replay weighted rule contributions in transcript order for the UI."""
+    running = np.zeros(len(EMOTION_LABELS), dtype=np.float64)
+    journey = [
+        {
+            "cue": "Starting symbolic scores",
+            "ruleId": "BASELINE",
+            "source": "baseline",
+            "scores": probability_breakdown(
+                np.full(len(EMOTION_LABELS), 1.0 / len(EMOTION_LABELS), dtype=np.float32)
+            ),
+        }
+    ]
+    candidates = []
+    for index, trace in enumerate(traces):
+        contribution = trace.get("score_contribution")
+        if not contribution:
+            continue
+        category = str(trace["rule_category"])
+        vector = np.zeros(len(EMOTION_LABELS), dtype=np.float64)
+        for label, value in contribution.items():
+            if label in EMOTION_LABELS:
+                vector[EMOTION_LABELS.index(label)] += (
+                    float(value) * RULE_WEIGHTS.get(category, 1.0)
+                )
+        if not np.any(vector):
+            continue
+        cue_span = trace.get("cue_span")
+        order = trace.get(
+            "journey_position",
+            cue_span[0] if isinstance(cue_span, list) and cue_span else 10**9,
+        )
+        source = "acoustic" if category == "prosodic" else (
+            "system" if category in {"agreement", "contradiction"} else "linguistic"
+        )
+        candidates.append((order, index, trace, vector, source))
+
+    for _order, _index, trace, vector, source in sorted(candidates, key=lambda item: (item[0], item[1])):
+        running += vector
+        cue = str(trace.get("journey_cue", trace.get("cue", trace["rule_id"])))
+        journey.append(
+            {
+                "cue": cue,
+                "ruleId": str(trace["rule_id"]),
+                "source": source,
+                "scores": probability_breakdown(softmax(running)),
+            }
+        )
+    return journey
+
+
+def build_score_adjustments(traces: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Export actual weighted contributions, retaining cue and rule attribution."""
+    adjustments = []
+    for trace in traces:
+        if not trace.get("activated"):
+            continue
+        category = str(trace["rule_category"])
+        cue = str(trace.get("cue", trace["rule_id"]))
+        for target, contribution in trace.get("score_contribution", {}).items():
+            if target not in CONTRACT_EMOTION or not contribution:
+                continue
+            adjustments.append(
+                {
+                    "cue": cue,
+                    "ruleId": str(trace["rule_id"]),
+                    "emotionClassification": to_contract_emotion(target),
+                    "delta": float(contribution * RULE_WEIGHTS.get(category, 1.0)),
+                    "reason": (
+                        "The neural model and "
+                        f"{', '.join(trace.get('supporting_rules', [])) or 'active rule evidence'} "
+                        f"both support {target}; an agreement adjustment was added."
+                        if category == "agreement"
+                        else (
+                            f"{trace['rule_id']} detected {cue!r} and reported a "
+                            f"{trace.get('direction', 'support')} adjustment."
+                        )
+                    ),
+                }
+            )
+    return adjustments
+
+
 class SymbolicReasoner:
     """Preliminary five-tier symbolic layer for the local demonstration."""
 
@@ -421,18 +508,25 @@ class SymbolicReasoner:
                 for item in intensifier_matches
                 if 0 <= match["start"] - item["end"] <= 2
             ]
-            negated = any(
-                0 <= match["start"] - item["end"] <= 3
-                for item in negation_matches
+            negation = next(
+                (
+                    item
+                    for item in negation_matches
+                    if 0 <= match["start"] - item["end"] <= 3
+                ),
+                None,
             )
+            negated = negation is not None
             modifier_scale = 1.0 + 0.25 * max(
                 [item["strength"] for item in modifiers],
                 default=0.0,
             )
             sign = -0.5 if negated else 1.0
             evidence = float(0.20 * match["strength"] * modifier_scale * sign)
+            contribution = {}
             for label, share in targets.items():
                 components["lexical"][EMOTION_LABELS.index(label)] += evidence * share
+                contribution[label] = evidence * share
             lexical_count += 1
             traces.append(
                 {
@@ -443,6 +537,14 @@ class SymbolicReasoner:
                     "target_emotion": list(targets),
                     "direction": "decrease" if negated else "increase",
                     "reported_adjustment": evidence,
+                    "score_contribution": contribution,
+                    "journey_cue": " ".join(
+                        [item["text"] for item in sorted(
+                            [*modifiers, *([negation] if negation else [])],
+                            key=lambda item: item["start"],
+                        )]
+                        + [match["text"]]
+                    ),
                     "activated": True,
                 }
             )
@@ -503,6 +605,7 @@ class SymbolicReasoner:
                     "target_emotion": ["angry"],
                     "direction": "increase",
                     "reported_adjustment": evidence,
+                    "score_contribution": {"angry": evidence},
                     "activated": True,
                 }
             )
@@ -518,6 +621,7 @@ class SymbolicReasoner:
                         "target_emotion": ["angry"],
                         "direction": "decrease",
                         "reported_adjustment": -0.03,
+                        "score_contribution": {"angry": -0.03},
                         "activated": True,
                     }
                 )
@@ -550,6 +654,11 @@ class SymbolicReasoner:
                     ),
                     "direction": "support" if lexical_peak is not None else "none",
                     "reported_adjustment": 0.05 if lexical_peak is not None else 0.0,
+                    "score_contribution": (
+                        {EMOTION_LABELS[lexical_peak]: 0.05}
+                        if lexical_peak is not None
+                        else {}
+                    ),
                     "activated": True,
                     "language_tags": language_tags,
                 }
@@ -569,6 +678,7 @@ class SymbolicReasoner:
                     "target_emotion": ["angry"],
                     "direction": "increase",
                     "reported_adjustment": 0.05,
+                    "score_contribution": {"angry": 0.05},
                     "activated": True,
                     "features": {"rms": rms, "speech_rate_tokens_per_second": speech_rate},
                 }
@@ -583,6 +693,7 @@ class SymbolicReasoner:
                     "target_emotion": ["sad"],
                     "direction": "increase",
                     "reported_adjustment": 0.05,
+                    "score_contribution": {"sad": 0.05},
                     "activated": True,
                     "features": {"rms": rms, "speech_rate_tokens_per_second": speech_rate},
                 }
@@ -604,10 +715,12 @@ class SymbolicReasoner:
 
         for marker_index, affected in affected_by_marker.items():
             marker = contrast_matches[marker_index]
+            contribution = {}
             for item in affected:
                 base = 0.05 * item["strength"]
                 for label, share in item["targets"].items():
                     components["contrast"][EMOTION_LABELS.index(label)] += base * share
+                    contribution[label] = contribution.get(label, 0.0) + base * share
             traces.append(
                 {
                     "rule_id": "CONTRAST_POST_CLAUSE",
@@ -621,6 +734,11 @@ class SymbolicReasoner:
                     "reported_adjustment": float(
                         sum(0.05 * item["strength"] for item in affected)
                     ),
+                    "score_contribution": contribution,
+                    "journey_cue": f"{marker['text']} → " + ", ".join(
+                        item["text"] for item in affected
+                    ),
+                    "journey_position": min(item["start"] for item in affected),
                     "activated": True,
                     "scope": "post-contrast clause",
                 }
@@ -655,6 +773,7 @@ class SymbolicReasoner:
                         "target_emotion": [EMOTION_LABELS[symbolic_index]],
                         "direction": "decrease",
                         "reported_adjustment": -0.05,
+                        "score_contribution": {EMOTION_LABELS[symbolic_index]: -0.05},
                         "activated": True,
                     }
                 )
@@ -683,6 +802,7 @@ class SymbolicReasoner:
                     "target_emotion": [neural_emotion],
                     "direction": "increase",
                     "reported_adjustment": agreement_evidence,
+                    "score_contribution": {neural_emotion: agreement_evidence},
                     "activated": True,
                     "supporting_rules": supporting_rules,
                 }
@@ -730,10 +850,38 @@ class SymbolicReasoner:
                 [NO_RULE_SYMBOLIC_PRIOR[label] for label in EMOTION_LABELS],
                 dtype=np.float32,
             )
+        score_journey = build_symbolic_score_journey(traces)
+        symbolic_final = probability_breakdown(symbolic_probabilities)
+        if not has_rule_evidence:
+            score_journey = [
+                {
+                    "cue": "No symbolic clues matched",
+                    "ruleId": "BASELINE",
+                    "source": "baseline",
+                    "scores": symbolic_final,
+                }
+            ]
+        elif len(score_journey) > 1:
+            previous_scores = score_journey[-1]["scores"]
+            if any(
+                abs(previous_scores[key] - symbolic_final[key]) > 1e-6
+                for key in symbolic_final
+            ):
+                score_journey.append(
+                    {
+                        "cue": "Neutral-only score floor",
+                        "ruleId": "NEUTRAL_RULE_FLOOR",
+                        "source": "system",
+                        "scores": symbolic_final,
+                    }
+                )
+            else:
+                score_journey[-1]["scores"] = symbolic_final
         return {
             "symbolic_probabilities": symbolic_probabilities,
             "context_scores": context_scores,
             "traces": traces,
+            "score_journey": score_journey,
             "recognized_lexical_cues": lexical_count,
             "contradiction_active": contradiction_active,
             "tokens": tokens,
@@ -964,7 +1112,7 @@ class ResearchRuntime:
 
             cue_spans = []
             activated_rules = []
-            score_adjustments = []
+            score_adjustments = build_score_adjustments(symbolic["traces"])
             for trace_index, trace in enumerate(symbolic["traces"]):
                 if not trace.get("activated"):
                     continue
@@ -991,28 +1139,6 @@ class ResearchRuntime:
                         ) + f" Preliminary rule weight: {rule_weight:.2f}.",
                     }
                 )
-                targets = trace.get("target_emotion", [])
-                if targets:
-                    target = str(targets[0])
-                    if target in CONTRACT_EMOTION:
-                        score_adjustments.append(
-                            {
-                                "emotionClassification": to_contract_emotion(target),
-                                "delta": float(
-                                    trace.get("reported_adjustment", 0.0) * rule_weight
-                                ),
-                                "reason": (
-                                    "The neural model and "
-                                    f"{', '.join(trace.get('supporting_rules', [])) or 'active rule evidence'} "
-                                    f"both support {target}; an agreement adjustment was added."
-                                    if category == "agreement"
-                                    else (
-                                        f"{trace['rule_id']} detected {cue!r} and reported a "
-                                        f"{trace.get('direction', 'support')} adjustment."
-                                    )
-                                ),
-                            }
-                        )
 
             if transcript_override is not None:
                 cue_spans.append(
@@ -1063,6 +1189,7 @@ class ResearchRuntime:
                     "cueSpans": cue_spans,
                     "activatedRules": activated_rules,
                     "scoreAdjustments": score_adjustments,
+                    "scoreJourney": symbolic["score_journey"],
                     "probabilities": {
                         "before": before,
                         "symbolic": probability_breakdown(symbolic["symbolic_probabilities"]),

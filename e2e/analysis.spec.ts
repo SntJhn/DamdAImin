@@ -140,26 +140,26 @@ async function mockVirtualMicrophone(page: Page) {
 }
 
 async function startAndStopVirtualRecording(page: Page) {
-  await page.getByRole('button', { name: 'Grant access and record' }).click();
+  await page.getByRole('button', { name: 'Record Audio' }).click();
   await expect(page.getByText(/Recording — .* seconds elapsed/)).toBeVisible();
   await page.waitForTimeout(350);
   await page.getByRole('button', { name: 'Stop recording' }).click();
 }
 
-test('searches and filters the authenticated Analysis History accessibly', async ({ page }) => {
+test('searches and filters Analysis History by emotion and date', async ({ page }) => {
   await mockVerifiedSession(page);
   const requests: string[] = [];
 
   await page.route('**/api/v2/analyses**', async (route) => {
     const url = new URL(route.request().url());
     requests.push(url.search);
-    const inconclusive = url.searchParams.get('result') === 'inconclusive';
+    const sad = url.searchParams.get('result') === 'sadness';
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
         hasMore: false,
-        analyses: inconclusive
+        analyses: sad
           ? [
               {
                 id: 'a0ad9a3f-26b2-4014-8f51-ec7d67bb4f1a',
@@ -167,7 +167,8 @@ test('searches and filters the authenticated Analysis History accessibly', async
                 language: 'english',
                 createdAt: '2026-08-02T00:01:00.000Z',
                 result: {
-                  outcome: 'inconclusive',
+                  outcome: 'definitive',
+                  emotionClassification: 'sadness',
                   transcript: 'Hindi malinaw ang sample.',
                 },
               },
@@ -205,18 +206,109 @@ test('searches and filters the authenticated Analysis History accessibly', async
 
   await page.getByRole('searchbox', { name: 'Search your analyses' }).fill('Hindi');
   await page.getByText('Filter history', { exact: true }).click();
-  await page.getByRole('combobox', { name: 'Result' }).selectOption('inconclusive');
+  await expect(page.getByRole('combobox', { name: 'Lifecycle state' })).toHaveCount(0);
+  await expect(page.getByRole('combobox', { name: 'Analysis language' })).toHaveCount(0);
+  await page.getByRole('combobox', { name: 'Emotion', exact: true }).selectOption('sadness');
+  await page.getByLabel('From date', { exact: true }).fill('2026-08-01');
+  await page.getByLabel('To date', { exact: true }).fill('2026-08-02');
   await page.getByRole('button', { name: 'Apply filters' }).click();
-  await expect(page.locator('.dashboard-emotion', { hasText: 'Inconclusive' })).toBeVisible();
+  await expect(page.locator('.dashboard-emotion', { hasText: 'Sad' })).toBeVisible();
   await expect(
     page.locator('.dashboard-transcript-cell', { hasText: 'Hindi malinaw ang sample.' }),
   ).toBeVisible();
   expect(requests.at(-1)).toContain('search=Hindi');
-  expect(requests.at(-1)).toContain('result=inconclusive');
-  await expect(new AxeBuilder({ page }).analyze()).resolves.toMatchObject({ violations: [] });
-  await page.getByRole('link', { name: 'Open Inconclusive analysis from Aug 2, 2026' }).focus();
+  expect(requests.at(-1)).toContain('result=sadness');
+  expect(requests.at(-1)).toContain('from=2026-08-01');
+  expect(requests.at(-1)).toContain('to=2026-08-02');
+  expect(requests.at(-1)).not.toMatch(/status=|language=/);
+  await expect(
+    new AxeBuilder({ page }).include('.dashboard-filter-grid').analyze(),
+  ).resolves.toMatchObject({ violations: [] });
+  await page.getByRole('button', { name: 'Clear filters' }).click();
+  await expect(page.locator('.dashboard-emotion', { hasText: 'Happy' })).toBeVisible();
+  expect(requests.at(-1)).toBe('');
+  await expect(page.getByRole('navigation', { name: 'Analysis list pagination' })).toContainText(
+    'Page 1',
+  );
+  await page
+    .getByRole('link', {
+      name: `Open Happy analysis ${analysisId} from Aug 2, 2026`,
+    })
+    .focus();
   await page.keyboard.press('Enter');
-  await expect(page).toHaveURL('/analyses/a0ad9a3f-26b2-4014-8f51-ec7d67bb4f1a');
+  await expect(page).toHaveURL(`/analyses/${analysisId}`);
+});
+
+test('paginates loaded analysis history locally and resets the page when searching', async ({
+  page,
+}) => {
+  await mockVerifiedSession(page);
+  const requests: URL[] = [];
+  const records = Array.from({ length: 23 }, (_, index) => ({
+    id: `00000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
+    status: 'completed',
+    language: 'taglish',
+    createdAt: '2026-08-02T00:00:00.000Z',
+    result: {
+      outcome: 'definitive',
+      emotionClassification: 'sadness',
+      transcript: `Sad sample ${index + 1}`,
+    },
+  }));
+  await page.route('**/api/v2/analyses**', async (route) => {
+    const url = new URL(route.request().url());
+    requests.push(url);
+    const search = url.searchParams.get('search');
+    const filtered = search
+      ? records.filter((record) => record.result.transcript.includes(search))
+      : records;
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        analyses: filtered,
+        hasMore: false,
+      }),
+    });
+  });
+
+  await page.goto('/history');
+  const rows = page.locator('.dashboard-table-record');
+  const pagination = page.getByRole('navigation', { name: 'Analysis list pagination' });
+  const previous = pagination.getByRole('button', { name: 'Previous' });
+  const next = pagination.getByRole('button', { name: 'Next' });
+  await expect(rows).toHaveCount(10);
+  await expect(pagination).toContainText('Page 1');
+  await expect(previous).toBeDisabled();
+  const initialRequestCount = requests.length;
+  await next.click();
+  await expect(rows).toHaveCount(10);
+  await expect(rows.first()).toContainText('Sad sample 11');
+  await expect(pagination).toContainText('Showing 11–20');
+  await next.click();
+  await expect(rows).toHaveCount(3);
+  await expect(pagination).toContainText('Page 3');
+  await expect(next).toBeDisabled();
+  await previous.click();
+  await expect(rows.first()).toContainText('Sad sample 11');
+  expect(requests).toHaveLength(initialRequestCount);
+  await expect(
+    new AxeBuilder({ page }).include('.dashboard-pagination').analyze(),
+  ).resolves.toMatchObject({ violations: [] });
+  await page.getByRole('searchbox', { name: 'Search your analyses' }).fill('Sad sample 2');
+  await page.getByRole('button', { name: 'Search', exact: true }).click();
+  await expect(rows).toHaveCount(5);
+  await expect(pagination).toContainText('Page 1');
+  await expect(previous).toBeDisabled();
+  await expect(next).toBeDisabled();
+  expect(requests.every((url) => !url.searchParams.has('offset'))).toBe(true);
+  expect(requests.every((url) => !url.searchParams.has('limit'))).toBe(true);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+    await page.evaluate(() => document.documentElement.clientWidth),
+  );
+  await expect(
+    new AxeBuilder({ page }).include('.dashboard-pagination').analyze(),
+  ).resolves.toMatchObject({ violations: [] });
 });
 
 test('communicates empty, filtered-empty, and API-error History states', async ({ page }) => {
@@ -314,7 +406,8 @@ test('reviews the ASR transcript before submitting one WAV utterance', async ({ 
   await expect(page.getByText('There is no arbitrary minimum duration.')).toBeVisible();
   await expect(page.getByText('Long audio is not segmented into multiple Analyses.')).toBeVisible();
 
-  await page.getByRole('radio', { name: /Upload a WAV/ }).check();
+  await page.getByText('Upload a WAV', { exact: true }).click();
+  await expect(page.getByRole('radio', { name: /Upload a WAV/ })).toBeChecked();
   await page.locator('#analysis-file').setInputFiles({
     name: 'synthetic.wav',
     mimeType: 'audio/wav',
@@ -437,10 +530,8 @@ test('records virtual synthetic media, replaces it locally, and submits the conv
 
   await page.goto('/analyze');
   await expect(page.getByText('verified@example.test')).toHaveText('verified@example.test');
-  await page.locator('#analysis-language').focus();
-  await page.keyboard.press('ArrowDown');
 
-  const start = page.getByRole('button', { name: 'Grant access and record' });
+  const start = page.getByRole('button', { name: 'Record Audio' });
   await start.focus();
   await page.keyboard.press('Enter');
   await expect(page.getByText(/Recording — .* seconds elapsed/)).toBeVisible();
@@ -526,7 +617,7 @@ test('reports denied microphone permission without creating an Analysis', async 
 
   await page.goto('/analyze');
   await expect(page.getByText('verified@example.test')).toHaveText('verified@example.test');
-  await page.getByRole('button', { name: 'Grant access and record' }).click();
+  await page.getByRole('button', { name: 'Record Audio' }).click();
 
   await expect(page.getByText(/Microphone permission was denied/)).toBeVisible();
   expect(calls).toEqual({ uploadOperations: 0, analysisCreations: 0 });
@@ -549,7 +640,7 @@ test('reports unavailable microphone hardware without creating an Analysis', asy
 
   await page.goto('/analyze');
   await expect(page.getByText('verified@example.test')).toHaveText('verified@example.test');
-  await page.getByRole('button', { name: 'Grant access and record' }).click();
+  await page.getByRole('button', { name: 'Record Audio' }).click();
 
   await expect(page.getByText(/No microphone is available/)).toBeVisible();
   expect(calls).toEqual({ uploadOperations: 0, analysisCreations: 0 });
@@ -633,7 +724,7 @@ test('stops an over-limit capture without creating an Analysis', async ({ page }
   await page.goto('/analyze');
   await expect(page.getByText('verified@example.test')).toHaveText('verified@example.test');
   await page.clock.install();
-  await page.getByRole('button', { name: 'Grant access and record' }).click();
+  await page.getByRole('button', { name: 'Record Audio' }).click();
   await expect(page.getByText(/Recording — .* seconds elapsed/)).toBeVisible();
   await page.clock.fastForward(60_200);
 
@@ -689,13 +780,13 @@ test('shows a persisted completed result after reload and has no accessibility v
   await expect(resultPath.getByText('clues found', { exact: true })).toBeVisible();
   await expect(resultPath.getByText('rule applied', { exact: true })).toBeVisible();
   await expect(resultPath.getByText('Happy', { exact: true })).toBeVisible();
-  await expect(resultPath.getByText('91% final score', { exact: true })).toBeVisible();
+  await expect(resultPath.getByText('91% Final Confidence', { exact: true })).toBeVisible();
 
   const technicalTrace = page.locator('.analysis-trace-technical > summary');
   await technicalTrace.focus();
   await page.keyboard.press('Enter');
   await expect(
-    page.getByRole('heading', { name: 'Words and sounds that stood out', exact: true }),
+    page.getByRole('heading', { name: 'Words That Stood Out', exact: true }),
   ).toBeVisible();
   await expect(page.getByText('Scoring rules used', { exact: true })).toBeVisible();
   await expect(page.getByText('How clues shifted the scores', { exact: true })).toBeVisible();
@@ -754,11 +845,8 @@ test('presents an Inconclusive Result without a headline class or visible raw pr
       'The Research System did not return a sufficiently reliable classification for this speech sample.',
     ),
   ).toBeVisible();
-  await expect(page.getByText('English', { exact: true })).toBeVisible();
-  await expect(page.getByText('Experimental', { exact: true })).toBeVisible();
-  await expect(
-    page.getByText('The Research System marked this result inconclusive.'),
-  ).toBeVisible();
+  await expect(page.getByText('English', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('Experimental', { exact: true })).toHaveCount(0);
   await expect(page.getByText('Score Breakdown')).toHaveCount(0);
   await expect(page.locator('.probability-table')).toBeHidden();
   await expect(page.getByRole('button', { name: /edit|correct/i })).toHaveCount(0);
@@ -982,6 +1070,9 @@ for (const [classification, label] of [
         page.getByText('The layers leaned toward different emotions', { exact: false }),
       ).toHaveCount(0);
     }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      await page.evaluate(() => document.documentElement.clientWidth),
+    );
     await page.locator('.analysis-trace-technical > summary').click();
     await expect(page.getByText('Returned acoustic rule evidence.', { exact: true })).toBeVisible();
     await expect(page.getByText('Returned comparison evidence.', { exact: true })).toBeVisible();
@@ -993,3 +1084,111 @@ for (const [classification, label] of [
     await expect(new AxeBuilder({ page }).analyze()).resolves.toMatchObject({ violations: [] });
   });
 }
+
+test('shows normalized layer totals, authoritative cue effects, and keyboard-accessible symbolic replay', async ({
+  page,
+}) => {
+  await mockVerifiedSession(page);
+  const scores = { happiness: 0.118, sadness: 0.118, anger: 0.118, neutrality: 0.646 };
+  const explanation = 'Adaptive fusion assigned 15% weight to audio and 85% to symbolic evidence.';
+  await page.route(`**/api/v2/analyses/${analysisId}`, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: analysisId,
+        status: 'completed',
+        stage: 'completed',
+        language: 'taglish',
+        createdAt: '2026-08-02T00:00:00.000Z',
+        result: {
+          outcome: 'definitive',
+          emotionClassification: 'neutrality',
+          confidence: scores,
+          transcript: 'masaya ako pero hindi masaya ngayon',
+          explanation,
+          technicalTrace: {
+            cueSpans: [
+              {
+                source: 'linguistic',
+                startMs: 0,
+                endMs: 1000,
+                cue: 'LEXICAL_EMOTION',
+                value: 'masaya',
+              },
+              {
+                source: 'linguistic',
+                startMs: 1000,
+                endMs: 2000,
+                cue: 'LEXICAL_NEGATION',
+                value: 'hindi',
+              },
+            ],
+            activatedRules: [{ id: 'LEXICAL_EMOTION-1', description: 'Emotion contribution.' }],
+            scoreAdjustments: [
+              {
+                cue: 'masaya',
+                ruleId: 'LEXICAL_EMOTION',
+                emotionClassification: 'happiness',
+                delta: 0.25,
+                reason: 'First occurrence.',
+              },
+              {
+                cue: 'masaya',
+                ruleId: 'LEXICAL_EMOTION',
+                emotionClassification: 'happiness',
+                delta: -0.125,
+                reason: 'Negated occurrence.',
+              },
+            ],
+            scoreJourney: [
+              {
+                cue: 'Starting symbolic scores',
+                ruleId: 'BASELINE',
+                source: 'baseline',
+                scores: { happiness: 0.25, sadness: 0.25, anger: 0.25, neutrality: 0.25 },
+              },
+              { cue: 'hindi masaya', ruleId: 'LEXICAL_EMOTION', source: 'linguistic', scores },
+            ],
+            probabilities: { before: scores, symbolic: scores, after: scores },
+          },
+          contractVersion: 'taglish-v2',
+          schemaVersion: 'research-response-v2',
+          modelVersion: 'fake-model-1',
+          preprocessingVersion: 'fake-preprocessing-1',
+          ruleSetVersion: 'fake-rules-1',
+        },
+      }),
+    });
+  });
+  await page.goto(`/analyses/${analysisId}`);
+  for (const layer of ['Neural Layer', 'Symbolic Layer', 'Combined Result']) {
+    const percentages = await page
+      .getByRole('region', { name: layer, exact: true })
+      .locator('.analysis-result-confidence-label strong')
+      .allTextContents();
+    expect(percentages.reduce((sum, value) => sum + Number.parseInt(value), 0)).toBe(100);
+  }
+  const cueRow = page.getByRole('row').filter({ hasText: '“masaya”' });
+  await expect(cueRow.getByText('Happy +0.25 evidence', { exact: true })).toBeVisible();
+  await expect(cueRow.getByText('Happy -0.13 evidence', { exact: true })).toBeVisible();
+  await expect(page.getByRole('row').filter({ hasText: '“hindi”' })).toContainText(
+    'Context cue or per-cue evidence unavailable',
+  );
+  const baseline = page.getByRole('button', { name: /Symbolic baseline, Neutral/ });
+  await baseline.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Close explanation' })).toBeFocused();
+  await page.keyboard.press('ArrowRight');
+  await expect(
+    page.getByRole('dialog').getByRole('heading', { name: 'hindi masaya' }),
+  ).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(baseline).toBeFocused();
+  await page.locator('.analysis-trace-technical > summary').click();
+  await page.getByText('Show the original explanation', { exact: true }).click();
+  await expect(page.getByText(explanation, { exact: true })).toBeVisible();
+  await expect(new AxeBuilder({ page }).analyze()).resolves.toMatchObject({ violations: [] });
+});

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useEffect, useState } from 'react';
 import {
+  AudioLines,
   ArrowUpRight,
   FileAudio,
   History,
@@ -19,6 +20,7 @@ import {
 import type { CreateAnalysisUploadResponse, AcceptedAnalysisResponse } from '@damdai/contracts';
 
 import { authClient, getAuthToken } from '../lib/auth-client';
+import { MAX_RECORDING_SECONDS } from '../lib/recording-audio';
 import { MicrophoneRecorder } from './microphone-recorder';
 
 const apiBaseUrl = (process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:4000/api/v2').replace(
@@ -29,7 +31,6 @@ const apiBaseUrl = (process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:40
 export function AnalysisSubmitClient() {
   const router = useRouter();
   const [accountEmail, setAccountEmail] = useState('');
-  const [language, setLanguage] = useState<'taglish' | 'english' | 'tagalog'>('taglish');
   const [inputMethod, setInputMethod] = useState<'microphone' | 'upload'>('microphone');
   const [retainSourceAudio, setRetainSourceAudio] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -162,7 +163,7 @@ export function AnalysisSubmitClient() {
           'content-type': 'application/json',
         },
         body: JSON.stringify({
-          language,
+          language: 'taglish',
           contractVersion: 'taglish-v2',
           retainSourceAudio,
         }),
@@ -195,10 +196,26 @@ export function AnalysisSubmitClient() {
 
       setPendingUploadId(uploadBody.uploadId);
       try {
-        const previewResponse = await fetch(
-          `${apiBaseUrl}/analysis-uploads/${uploadBody.uploadId}/transcription-preview`,
-          { method: 'POST', headers: { authorization: `Bearer ${token}` } },
-        );
+        const previewUrl = `${apiBaseUrl}/analysis-uploads/${uploadBody.uploadId}/transcription-preview`;
+        let previewToken = await getAuthToken();
+        if (!previewToken) {
+          router.replace('/auth/sign-in?next=/analyze');
+          return;
+        }
+
+        let previewResponse = await fetch(previewUrl, {
+          method: 'POST',
+          headers: { authorization: `Bearer ${previewToken}` },
+        });
+        if (previewResponse.status === 401) {
+          previewToken = await getAuthToken();
+          if (previewToken) {
+            previewResponse = await fetch(previewUrl, {
+              method: 'POST',
+              headers: { authorization: `Bearer ${previewToken}` },
+            });
+          }
+        }
         if (previewResponse.status === 401) {
           router.replace('/auth/sign-in?next=/analyze');
           return;
@@ -214,7 +231,7 @@ export function AnalysisSubmitClient() {
         setTranscriptDraft(previewBody.transcript);
         setAsrTranscriptGenerated(true);
         setTranscriptionNotice(
-          'Check names, slang, and code-switched words. You can correct the transcript before analysis.',
+          'Check names, slang, and code-switched words. You can only correct the transcript before analysis.',
         );
       } catch {
         setTranscriptDraft('');
@@ -269,8 +286,8 @@ export function AnalysisSubmitClient() {
         <div className="analysis-loading-backdrop">
           <section
             className="analysis-loading-modal"
-            role="status"
-            aria-live="polite"
+            role="dialog"
+            aria-modal="true"
             aria-labelledby="transcription-loading-title"
             aria-describedby="transcription-loading-description"
           >
@@ -331,7 +348,7 @@ export function AnalysisSubmitClient() {
         </p>
       </aside>
 
-      <section className="dashboard-main" aria-labelledby="analysis-title">
+      <section className="dashboard-main" aria-labelledby="analysis-intake-title">
         <header className="dashboard-toolbar">
           <Link
             className="dashboard-search analysis-search-link"
@@ -355,8 +372,12 @@ export function AnalysisSubmitClient() {
           <form className="analysis-intake-card" onSubmit={submit} noValidate>
             <header className="analysis-intake-header">
               <div>
-                <h1 id="analysis-title">Start an Emotion Analysis.</h1>
-                <p>
+                <p className="analysis-intake-eyebrow">
+                  <AudioLines size={15} aria-hidden="true" />
+                  Voice + text analysis
+                </p>
+                <h1 id="analysis-intake-title">Start an Emotion Analysis.</h1>
+                <p className="analysis-intake-description">
                   Speak naturally. We’ll listen for the acoustic and linguistic cues that shape the
                   emotion in your words.
                 </p>
@@ -376,9 +397,15 @@ export function AnalysisSubmitClient() {
               </p>
               <h2 id="transcript-review-title">Check the words before analysis.</h2>
               <p className="analysis-transcript-guidance">
-                Correct names, Taglish spelling, and anything Whisper missed. The neural model reads
-                the audio; this transcript is used by the symbolic language rules.
+                Review the transcript and fix names, Taglish spelling, or anything Whisper missed.
               </p>
+              <div className="analysis-transcript-context">
+                <AudioLines size={17} aria-hidden="true" />
+                <p>
+                  Your voice is analyzed for acoustic emotion. The transcript helps the language
+                  rules understand the words you said.
+                </p>
+              </div>
               {file && audioPreviewUrl ? (
                 <AudioPreview fileName={file.name} src={audioPreviewUrl} />
               ) : null}
@@ -397,6 +424,9 @@ export function AnalysisSubmitClient() {
                   rows={6}
                   onChange={(event) => setTranscriptDraft(event.target.value)}
                 />
+                <span className="analysis-transcript-count" aria-live="polite">
+                  {transcriptDraft.length.toLocaleString()} / 4,000 characters
+                </span>
               </label>
               <p className="analysis-transcription-notice" role="status">
                 {transcriptionNotice}
@@ -425,7 +455,8 @@ export function AnalysisSubmitClient() {
                     Say what you mean.
                   </h2>
                   <p style={{ margin: 0 }}>
-                    One utterance is enough. Keep it natural and under 60 seconds.
+                    One utterance is enough. Keep it natural and under {MAX_RECORDING_SECONDS}{' '}
+                    seconds.
                   </p>
                 </div>
 
@@ -499,20 +530,8 @@ export function AnalysisSubmitClient() {
               <aside className="analysis-options-panel" aria-label="Analysis options">
                 <div className="analysis-option-heading">
                   <p className="analysis-panel-kicker">ANALYSIS OPTIONS</p>
-                  <p>Set the context before you send your recording.</p>
+                  <p>Choose whether to keep your recording after processing.</p>
                 </div>
-                <label className="analysis-option-field" htmlFor="analysis-language">
-                  <span>Analysis language</span>
-                  <select
-                    id="analysis-language"
-                    value={language}
-                    onChange={(event) => setLanguage(event.target.value as typeof language)}
-                  >
-                    <option value="taglish">Taglish — validated</option>
-                    <option value="english">English — experimental</option>
-                    <option value="tagalog">Tagalog — experimental</option>
-                  </select>
-                </label>
                 <label className="analysis-retention-field" htmlFor="retain-source-audio">
                   <input
                     id="retain-source-audio"
@@ -533,7 +552,7 @@ export function AnalysisSubmitClient() {
                   <p className="analysis-panel-kicker">BEFORE YOU SUBMIT</p>
                   <ul>
                     <li>One Analysis contains one utterance.</li>
-                    <li>Maximum recording length is 60 seconds.</li>
+                    <li>Maximum recording length is {MAX_RECORDING_SECONDS} seconds.</li>
                     <li>Long audio is not segmented into multiple Analyses.</li>
                     <li>There is no arbitrary minimum duration.</li>
                   </ul>
@@ -579,8 +598,13 @@ function AudioPreview({ fileName, src }: { fileName: string; src: string }) {
   return (
     <section className="analysis-audio-preview" aria-label="Audio preview">
       <div className="analysis-audio-preview-heading">
-        <p className="analysis-panel-kicker">AUDIO PREVIEW</p>
-        <span>{fileName}</span>
+        <span className="analysis-audio-preview-icon" aria-hidden="true">
+          <FileAudio size={18} />
+        </span>
+        <div className="analysis-audio-preview-copy">
+          <p className="analysis-panel-kicker">Audio preview</p>
+          <span title={fileName}>{fileName}</span>
+        </div>
       </div>
       <audio controls preload="metadata" src={src} aria-label="Play the selected recording">
         Audio playback is not supported in this browser.

@@ -9,11 +9,11 @@ import {
   ArrowUpRight,
   AudioLines,
   BarChart3,
+  ChevronDown,
   CircleCheck,
   FileText,
   History,
   LayoutDashboard,
-  Lightbulb,
   ListChecks,
   LogOut,
   Mic2,
@@ -24,15 +24,13 @@ import type { AnalysisResource, AnalysisResult, EmotionClassification } from '@d
 import { authClient, getAuthToken } from '../lib/auth-client';
 import {
   describeLayerScores,
-  describeScoreAdjustment,
   formatClassification,
   formatProbability,
   formatProbabilityDistribution,
   formatScoreDelta,
-  getAnalysisLanguagePresentation,
   getAnalysisOutcomePresentation,
-  getLeadingClassifications,
 } from '../lib/analysis-result';
+import { ScoreChangeChart } from './score-change-chart';
 
 const apiBaseUrl = (process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:4000/api/v2').replace(
   /\/$/,
@@ -355,11 +353,7 @@ export function AnalysisDetailClient({ analysisId }: { analysisId: string }) {
           {analysis ? (
             <div aria-live="polite">
               {analysis.status === 'completed' && analysis.result ? (
-                <AnalysisRecord
-                  result={analysis.result}
-                  language={analysis.language}
-                  createdAt={analysis.createdAt}
-                />
+                <AnalysisRecord result={analysis.result} createdAt={analysis.createdAt} />
               ) : (
                 <AnalysisLifecycleState
                   analysis={analysis}
@@ -612,16 +606,7 @@ function AnalysisLifecycleState({
   );
 }
 
-function AnalysisRecord({
-  result,
-  language,
-  createdAt,
-}: {
-  result: AnalysisResult;
-  language: AnalysisResource['language'];
-  createdAt: string;
-}) {
-  const languagePresentation = getAnalysisLanguagePresentation(language);
+function AnalysisRecord({ result, createdAt }: { result: AnalysisResult; createdAt: string }) {
   const outcomePresentation = getAnalysisOutcomePresentation(result.outcome);
   const classification = result.outcome === 'definitive' ? result.emotionClassification : undefined;
   const classificationProbability = classification ? result.confidence[classification] : undefined;
@@ -658,10 +643,6 @@ function AnalysisRecord({
             </div>
           ) : null}
           <div className="analysis-result-hero-tags">
-            <span>{languagePresentation.label}</span>
-            <span title={languagePresentation.qualificationDescription}>
-              {languagePresentation.qualification}
-            </span>
             <span>{formatAnalysisDate(createdAt)}</span>
           </div>
         </div>
@@ -702,14 +683,6 @@ function AnalysisRecord({
         />
       ) : null}
 
-      <WhyThisResult
-        cueSpans={result.technicalTrace.cueSpans}
-        classification={classification}
-        neural={result.technicalTrace.probabilities.before}
-        symbolic={result.technicalTrace.probabilities.symbolic}
-        combined={result.confidence}
-      />
-
       <section
         className={`analysis-result-trace analysis-result-trace--${classification ?? 'inconclusive'}`}
         aria-labelledby="traceability-heading"
@@ -720,23 +693,38 @@ function AnalysisRecord({
               <Activity size={14} aria-hidden="true" />
               Evidence
             </p>
-            <h2 id="traceability-heading">How DamdAImin reached this result</h2>
+            <h2 id="traceability-heading">How DamdAImin Reached This Result</h2>
           </div>
         </div>
 
         <TechnicalTraceView
           trace={result.technicalTrace}
+          finalScores={result.confidence}
           classification={classification}
-          explanation={result.explanation}
-          versions={{
-            contractVersion: result.contractVersion,
-            schemaVersion: result.schemaVersion,
-            modelVersion: result.modelVersion,
-            preprocessingVersion: result.preprocessingVersion,
-            ruleSetVersion: result.ruleSetVersion,
-          }}
         />
       </section>
+
+      {classification ? (
+        <ScoreChangeChart
+          key={createdAt}
+          trace={result.technicalTrace}
+          classification={classification}
+        >
+          <EmotionScoreBreakdown trace={result.technicalTrace} finalScores={result.confidence} />
+        </ScoreChangeChart>
+      ) : null}
+      <TechnicalDetails
+        trace={result.technicalTrace}
+        explanation={result.explanation}
+        inconclusiveScores={classification ? undefined : result.confidence}
+        versions={{
+          contractVersion: result.contractVersion,
+          schemaVersion: result.schemaVersion,
+          modelVersion: result.modelVersion,
+          preprocessingVersion: result.preprocessingVersion,
+          ruleSetVersion: result.ruleSetVersion,
+        }}
+      />
     </article>
   );
 }
@@ -776,8 +764,8 @@ function LayerComparison({
         />
         <LayerColumn
           title="Symbolic Layer"
-          tag="Rules"
-          description="Checks voice and language clues against research rules."
+          tag="Text"
+          description="Reads your words using research rules."
           scores={symbolic}
           order={order}
         />
@@ -790,6 +778,11 @@ function LayerComparison({
           highlighted
         />
       </div>
+      {symbolic ? (
+        <p className="analysis-layer-description">
+          {describeLayerScores('The symbolic layer', symbolic)}
+        </p>
+      ) : null}
     </section>
   );
 }
@@ -809,10 +802,9 @@ function LayerColumn({
   order: EmotionClassification[];
   highlighted?: boolean;
 }) {
-  const displayedProbabilities = scores
+  const formattedScores = scores
     ? formatProbabilityDistribution(order.map((classification) => scores[classification]))
     : [];
-
   return (
     <section
       className={`analysis-result-confidence-model${highlighted ? ` analysis-result-confidence-model--final analysis-result-confidence-model--${order[0]}` : ''}`}
@@ -832,7 +824,7 @@ function LayerColumn({
             >
               <div className="analysis-result-confidence-label">
                 <span>{formatClassification(classification)}</span>
-                <strong>{displayedProbabilities[index]}</strong>
+                <strong>{formattedScores[index]}</strong>
               </div>
               <meter
                 min="0"
@@ -852,139 +844,26 @@ function LayerColumn({
   );
 }
 
-/* ---------- Why this result? ---------- */
-
-function WhyThisResult({
-  cueSpans,
-  classification,
-  neural,
-  symbolic,
-  combined,
-}: {
-  cueSpans: CueSpan[];
-  classification?: EmotionClassification;
-  neural: EmotionScores;
-  symbolic?: EmotionScores;
-  combined: EmotionScores;
-}) {
-  const voiceCues = cueSpans.filter((span) => span.source === 'acoustic');
-  const transcriptCues = new Set(['asr_transcript', 'user_reviewed_transcript']);
-  const wordCues = cueSpans
-    .filter((span) => span.source === 'linguistic' && !transcriptCues.has(span.cue.toLowerCase()))
-    .filter(
-      (span, index, spans) =>
-        spans.findIndex((candidate) => candidate.value === span.value) === index,
-    );
-  const audioLeaders = getLeadingClassifications(neural);
-  const symbolicLeaders = symbolic ? getLeadingClassifications(symbolic) : [];
-
-  let suggestion: string;
-  if (!classification) {
-    suggestion = 'The Research System marked this result inconclusive.';
-  } else {
-    suggestion = `The combined result leans ${formatClassification(classification)} (${formatProbability(combined[classification])}).`;
-  }
-  const scoreContext = classification
-    ? [
-        describeLayerScores('The audio model', neural),
-        ...(symbolic ? [describeLayerScores('The symbolic layer', symbolic)] : []),
-        'These scores are combined to produce the result for this recording.',
-        ...(audioLeaders.length === 1 &&
-        symbolicLeaders.length === 1 &&
-        audioLeaders[0] !== symbolicLeaders[0]
-          ? [
-              'The layers leaned toward different emotions, so read the combined result with some care.',
-            ]
-          : []),
-      ].join(' ')
-    : undefined;
-
-  return (
-    <section
-      className={`analysis-result-panel analysis-why${classification ? ` analysis-why--${classification}` : ''}`}
-      aria-labelledby="why-heading"
-    >
-      <div className="analysis-result-panel-heading">
-        <div>
-          <p className="dashboard-card-kicker">
-            <Lightbulb size={14} aria-hidden="true" />
-            WHY THIS RESULT?
-          </p>
-          <h3 id="why-heading">Explanation Overview </h3>
-        </div>
-      </div>
-
-      <div className="analysis-why-group">
-        <h4>What this suggests</h4>
-        <p className="analysis-why-summary">{suggestion}</p>
-        {scoreContext ? <p className="analysis-why-summary">{scoreContext}</p> : null}
-      </div>
-
-      {voiceCues.length ? (
-        <div className="analysis-why-group">
-          <h4>Audio clues in this recording</h4>
-          <ul className="analysis-why-list">
-            {voiceCues.map((span, index) => (
-              <li key={`${span.startMs}-${span.cue}-${index}`}>{describeVoiceCue(span)}</li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-
-      {wordCues.length ? (
-        <div className="analysis-why-group">
-          <h4>Language clues in this recording</h4>
-          <ul className="analysis-why-cue-list">
-            {wordCues.map((span, index) => (
-              <li key={`${span.cue}-${span.value}-${index}`}>
-                <strong>{span.value}</strong>
-                <span>{humanizeCue(span.cue)} cue</span>
-              </li>
-            ))}
-          </ul>
-          <p className="analysis-why-note">
-            These are clues the system returned, not proof of how the speaker felt.
-          </p>
-        </div>
-      ) : null}
-    </section>
-  );
-}
-
 /* ---------- Evidence: overview, clue table, technical details ---------- */
 
 function TechnicalTraceView({
   trace,
+  finalScores,
   classification,
-  explanation,
-  versions,
 }: {
   trace: AnalysisResult['technicalTrace'];
+  finalScores: EmotionScores;
   classification?: EmotionClassification;
-  explanation: string;
-  versions: Pick<
-    AnalysisResult,
-    'contractVersion' | 'schemaVersion' | 'modelVersion' | 'preprocessingVersion' | 'ruleSetVersion'
-  >;
 }) {
   const cueCount = trace.cueSpans.length;
   const ruleCount = trace.activatedRules.length;
   const audioScore = classification ? trace.probabilities.before[classification] : undefined;
-  const finalScore = classification ? trace.probabilities.after[classification] : undefined;
+  const symbolicScore = classification ? trace.probabilities.symbolic?.[classification] : undefined;
+  const finalScore = classification ? finalScores[classification] : undefined;
   const resultCopy =
-    audioScore === undefined || finalScore === undefined || classification === undefined
+    audioScore === undefined || classification === undefined
       ? 'The evidence did not favor one emotion clearly enough.'
-      : `Audio layer: ${formatProbability(audioScore)}. Combined: ${formatProbability(finalScore)}.`;
-  const beforeProbabilities = formatProbabilityDistribution(
-    classificationKeys.map(
-      (probabilityClassification) => trace.probabilities.before[probabilityClassification],
-    ),
-  );
-  const afterProbabilities = formatProbabilityDistribution(
-    classificationKeys.map(
-      (probabilityClassification) => trace.probabilities.after[probabilityClassification],
-    ),
-  );
+      : `Audio layer: ${formatProbability(audioScore)}. ${symbolicScore === undefined ? `Combined: ${formatProbability(finalScore ?? audioScore)}.` : `Symbolic: ${formatProbability(symbolicScore)}.`}`;
 
   return (
     <div className="analysis-trace-body">
@@ -998,9 +877,7 @@ function TechnicalTraceView({
           <div>
             <b>{cueCount === 1 ? 'clue found' : 'clues found'}</b>
             <p>
-              {cueCount
-                ? 'Words and sounds in your recording that shaped the result.'
-                : 'No specific words or sounds were flagged.'}
+              {cueCount ? 'that shaped the result.' : 'No specific words or sounds were flagged.'}
             </p>
           </div>
         </li>
@@ -1014,7 +891,7 @@ function TechnicalTraceView({
             <b>{ruleCount === 1 ? 'rule applied' : 'rules applied'}</b>
             <p>
               {ruleCount
-                ? 'Research rules that adjusted the emotion scores.'
+                ? 'that adjusted the emotion scores.'
                 : 'No research rules adjusted the scores.'}
             </p>
           </div>
@@ -1032,7 +909,7 @@ function TechnicalTraceView({
           <div>
             <b>
               {finalScore !== undefined
-                ? `${formatProbability(finalScore)} final score`
+                ? `${formatProbability(finalScore)} Final Confidence`
                 : 'Inconclusive'}
             </b>
             <p>{resultCopy}</p>
@@ -1040,192 +917,207 @@ function TechnicalTraceView({
         </li>
       </ol>
 
-      <CueTable cueSpans={trace.cueSpans} />
-
-      <details className="analysis-trace-technical">
-        <summary>
-          <span>
-            <strong>SEE MORE</strong>
-          </span>
-          <span className="analysis-trace-technical-toggle" aria-hidden="true">
-            +
-          </span>
-        </summary>
-
-        <div className="analysis-trace-technical-body">
-          <section className="analysis-trace-card" aria-labelledby="original-explanation-heading">
-            <div className="analysis-trace-card-heading">
-              <p className="dashboard-card-kicker">From the analysis system</p>
-              <h3 id="original-explanation-heading">What the system reported</h3>
-            </div>
-            <details className="analysis-trace-raw-output">
-              <summary>Show the original explanation</summary>
-              <p>{explanation}</p>
-            </details>
-          </section>
-
-          <div className="analysis-trace-columns analysis-trace-columns--two">
-            <section className="analysis-trace-card" aria-labelledby="activated-rules-heading">
-              <div className="analysis-trace-card-heading">
-                <p className="dashboard-card-kicker">Text analysis</p>
-                <h3 id="activated-rules-heading">Scoring rules used</h3>
-              </div>
-              {trace.activatedRules.length ? (
-                <ul className="analysis-trace-list">
-                  {trace.activatedRules.map((rule) => {
-                    const description = describeResearchRule(rule.id, rule.description);
-                    return (
-                      <li key={rule.id}>
-                        <strong>{description.title}</strong>
-                        <p>{description.detail}</p>
-                        <small>Rule ID: {rule.id}</small>
-                      </li>
-                    );
-                  })}
-                </ul>
-              ) : (
-                <p className="analysis-empty-value">
-                  No scoring rules changed the result for this recording.
-                </p>
-              )}
-            </section>
-
-            <section className="analysis-trace-card" aria-labelledby="score-adjustments-heading">
-              <div className="analysis-trace-card-heading">
-                <p className="dashboard-card-kicker">Score changes</p>
-                <h3 id="score-adjustments-heading">How clues shifted the scores</h3>
-              </div>
-              {trace.scoreAdjustments.length ? (
-                <ul className="analysis-trace-list">
-                  {trace.scoreAdjustments.map((adjustment, index) => (
-                    <li key={`${adjustment.emotionClassification}-${index}`}>
-                      <div className="analysis-trace-item-heading">
-                        <strong>{formatClassification(adjustment.emotionClassification)}</strong>
-                        <span>{`${adjustment.delta >= 0 ? '+' : ''}${adjustment.delta.toFixed(2)} score`}</span>
-                      </div>
-                      <p>
-                        {describeScoreAdjustment(
-                          adjustment.reason,
-                          adjustment.emotionClassification,
-                          adjustment.delta,
-                        )}
-                      </p>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="analysis-empty-value">No clues changed the emotion scores.</p>
-              )}
-            </section>
-          </div>
-
-          <section
-            className="analysis-trace-probabilities"
-            aria-labelledby="probability-changes-heading"
-          >
-            <div className="analysis-trace-card-heading">
-              <p className="dashboard-card-kicker">Emotion scores</p>
-              <h3 id="probability-changes-heading">Scores before and after clue adjustments</h3>
-            </div>
-            <div
-              className="probability-table-wrap"
-              tabIndex={0}
-              aria-label="Before-and-after probabilities table"
-            >
-              <table className="probability-table">
-                <caption className="sr-only">
-                  Emotion scores before and after clue adjustments
-                </caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Emotion</th>
-                    <th scope="col">Before</th>
-                    <th scope="col">After</th>
-                    <th scope="col">Change</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {classificationKeys.map((probabilityClassification, index) => {
-                    const before = trace.probabilities.before[probabilityClassification];
-                    const after = trace.probabilities.after[probabilityClassification];
-                    return (
-                      <tr key={probabilityClassification}>
-                        <th scope="row">{formatClassification(probabilityClassification)}</th>
-                        <td>{beforeProbabilities[index]}</td>
-                        <td>{afterProbabilities[index]}</td>
-                        <td>{formatScoreDelta(after - before)}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </section>
-
-          <details className="analysis-trace-versions">
-            <summary>
-              Model and system versions <span>Technical reference</span>
-            </summary>
-            <dl>
-              <div>
-                <dt>Contract</dt>
-                <dd>{versions.contractVersion}</dd>
-              </div>
-              <div>
-                <dt>Schema</dt>
-                <dd>{versions.schemaVersion}</dd>
-              </div>
-              <div>
-                <dt>Model</dt>
-                <dd>{versions.modelVersion}</dd>
-              </div>
-              <div>
-                <dt>Preprocessing</dt>
-                <dd>{versions.preprocessingVersion}</dd>
-              </div>
-              <div>
-                <dt>Rule set</dt>
-                <dd>{versions.ruleSetVersion}</dd>
-              </div>
-            </dl>
-          </details>
-        </div>
-      </details>
+      <CueTable cueSpans={trace.cueSpans} scoreAdjustments={trace.scoreAdjustments} />
     </div>
   );
 }
 
+function EmotionScoreBreakdown({
+  trace,
+  finalScores,
+}: {
+  trace: AnalysisResult['technicalTrace'];
+  finalScores: EmotionScores;
+}) {
+  return (
+    <section className="sjc-breakdown" aria-labelledby="probability-changes-heading">
+      <div className="analysis-trace-card-heading">
+        <h3 id="probability-changes-heading">Scores before and after clue adjustments</h3>
+      </div>
+      <div
+        className="probability-table-wrap"
+        tabIndex={0}
+        aria-label="Before-and-after probabilities table"
+      >
+        <table className="probability-table">
+          <caption className="sr-only">Emotion scores before and after clue adjustments</caption>
+          <thead>
+            <tr>
+              <th scope="col">Emotion</th>
+              <th scope="col">Before</th>
+              <th scope="col">After</th>
+              <th scope="col">Change</th>
+            </tr>
+          </thead>
+          <tbody>
+            {classificationKeys.map((probabilityClassification) => {
+              const before = trace.probabilities.before[probabilityClassification];
+              const after = finalScores[probabilityClassification];
+              return (
+                <tr key={probabilityClassification}>
+                  <th scope="row">{formatClassification(probabilityClassification)}</th>
+                  <td>{formatProbability(before)}</td>
+                  <td>{formatProbability(after)}</td>
+                  <td>{formatScoreDelta(after - before)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+function TechnicalDetails({
+  trace,
+  explanation,
+  inconclusiveScores,
+  versions,
+}: {
+  trace: AnalysisResult['technicalTrace'];
+  explanation: string;
+  inconclusiveScores?: EmotionScores;
+  versions: Pick<
+    AnalysisResult,
+    'contractVersion' | 'schemaVersion' | 'modelVersion' | 'preprocessingVersion' | 'ruleSetVersion'
+  >;
+}) {
+  return (
+    <details className="analysis-trace-technical">
+      <summary>
+        <span>See more technical details</span>
+        <ChevronDown className="analysis-trace-technical-toggle" size={18} aria-hidden="true" />
+      </summary>
+
+      <div className="analysis-trace-technical-body">
+        <section className="analysis-trace-card" aria-labelledby="original-explanation-heading">
+          <div className="analysis-trace-card-heading">
+            <h3 id="original-explanation-heading">What the system reported</h3>
+          </div>
+          <details>
+            <summary>Show the original explanation</summary>
+            <p>{explanation}</p>
+          </details>
+        </section>
+        <RuleSignalSummary trace={trace} />
+        <section className="analysis-trace-card" aria-labelledby="activated-rules-heading">
+          <h3 id="activated-rules-heading">Scoring rules used</h3>
+          <ul className="analysis-trace-list">
+            {trace.activatedRules.map((rule) => (
+              <li key={rule.id}>
+                <strong>{rule.id}</strong>
+                <p>{rule.description}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
+        <section className="analysis-trace-card" aria-labelledby="score-adjustments-heading">
+          <h3 id="score-adjustments-heading">How clues shifted the scores</h3>
+          <ul className="analysis-trace-list">
+            {trace.scoreAdjustments.map((adjustment, index) => (
+              <li key={index}>
+                <strong>
+                  {formatClassification(adjustment.emotionClassification)}{' '}
+                  {formatEvidence(adjustment.delta)}
+                </strong>
+                <p>{adjustment.reason}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
+        {inconclusiveScores ? (
+          <EmotionScoreBreakdown trace={trace} finalScores={inconclusiveScores} />
+        ) : null}
+
+        <details className="analysis-trace-versions">
+          <summary>
+            Model and system versions <span>Technical reference</span>
+          </summary>
+          <dl>
+            <div>
+              <dt>Contract</dt>
+              <dd>{versions.contractVersion}</dd>
+            </div>
+            <div>
+              <dt>Schema</dt>
+              <dd>{versions.schemaVersion}</dd>
+            </div>
+            <div>
+              <dt>Model</dt>
+              <dd>{versions.modelVersion}</dd>
+            </div>
+            <div>
+              <dt>Preprocessing</dt>
+              <dd>{versions.preprocessingVersion}</dd>
+            </div>
+            <div>
+              <dt>Rule set</dt>
+              <dd>{versions.ruleSetVersion}</dd>
+            </div>
+          </dl>
+        </details>
+      </div>
+    </details>
+  );
+}
+
 /** Lists each clue returned by the analysis system without inferring its emotion. */
-function CueTable({ cueSpans }: { cueSpans: CueSpan[] }) {
-  const sorted = [...cueSpans].sort((a, b) => a.startMs - b.startMs);
+function CueTable({
+  cueSpans,
+  scoreAdjustments,
+}: {
+  cueSpans: CueSpan[];
+  scoreAdjustments: AnalysisResult['technicalTrace']['scoreAdjustments'];
+}) {
+  const transcriptCues = new Set(['asr_transcript', 'user_reviewed_transcript']);
+  const sorted = cueSpans
+    .filter((span) => !transcriptCues.has(span.cue.toLowerCase()))
+    .sort((a, b) => a.startMs - b.startMs);
+  const uniqueCues = sorted.filter(
+    (span, index, spans) =>
+      spans.findIndex(
+        (candidate) =>
+          candidate.source === span.source &&
+          candidate.cue === span.cue &&
+          candidate.value.toLowerCase() === span.value.toLowerCase(),
+      ) === index,
+  );
 
   return (
     <section className="analysis-cue-section" aria-labelledby="cue-table-heading">
-      <h3 id="cue-table-heading">Words and sounds that stood out</h3>
+      <h3 id="cue-table-heading">Words That Stood Out</h3>
       {sorted.length ? (
         <div className="cue-table-wrap" tabIndex={0} aria-label="Flagged words and sounds">
           <table className="cue-table">
             <caption className="sr-only">Words and sounds that stood out</caption>
+            <colgroup>
+              <col className="cue-table-col-phrase" />
+              <col className="cue-table-col-reason" />
+              <col className="cue-table-col-score" />
+            </colgroup>
             <thead>
               <tr>
-                <th scope="col">Word or sound</th>
-                <th scope="col">From</th>
+                <th scope="col">Word or Phrase</th>
                 <th scope="col">Why it was flagged</th>
-                <th scope="col">At</th>
+                <th scope="col">Rule Evidence</th>
               </tr>
             </thead>
             <tbody>
-              {sorted.map((span, index) => (
+              {uniqueCues.map((span, index) => (
                 <tr key={`${span.source}-${span.startMs}-${span.endMs}-${index}`}>
-                  <th scope="row">{span.value}</th>
-                  <td>
-                    <span className={`cue-source cue-source-${span.source}`}>
-                      {span.source === 'acoustic' ? 'Voice' : 'Words'}
+                  <th scope="row">
+                    <span className="cue-phrase">
+                      {span.source === 'linguistic' ? `“${span.value}”` : span.value}
                     </span>
-                  </td>
+                  </th>
                   <td>{humanizeCue(span.cue)}</td>
-                  <td className="cue-time">
-                    {formatSeconds(span.startMs)}–{formatSeconds(span.endMs)}
+                  <td>
+                    <CueScoreChanges
+                      cue={span.value}
+                      ruleId={span.cue}
+                      scoreAdjustments={scoreAdjustments}
+                    />
                   </td>
                 </tr>
               ))}
@@ -1235,6 +1127,161 @@ function CueTable({ cueSpans }: { cueSpans: CueSpan[] }) {
       ) : (
         <p className="analysis-empty-value">No specific words or sounds were flagged.</p>
       )}
+    </section>
+  );
+}
+
+function CueScoreChanges({
+  cue,
+  ruleId,
+  scoreAdjustments,
+}: {
+  cue: string;
+  ruleId: string;
+  scoreAdjustments: AnalysisResult['technicalTrace']['scoreAdjustments'];
+}) {
+  const matchingAdjustments = scoreAdjustments.filter(
+    (adjustment) =>
+      adjustment.cue?.toLowerCase() === cue.toLowerCase() && adjustment.ruleId === ruleId,
+  );
+
+  if (!matchingAdjustments.length) {
+    return <span className="cue-score-empty">Context cue or per-cue evidence unavailable</span>;
+  }
+
+  return (
+    <div className="cue-score-changes">
+      {matchingAdjustments.map((adjustment, index) => (
+        <span
+          className={`cue-score-change cue-score-change--${adjustment.emotionClassification}`}
+          key={index}
+        >
+          {formatClassification(adjustment.emotionClassification)}{' '}
+          {formatEvidence(adjustment.delta)}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function formatEvidence(value: number): string {
+  return `${value > 0 ? '+' : ''}${value.toFixed(2)} evidence`;
+}
+
+const scoreSignalRules = [
+  {
+    id: 'LEXICAL_EMOTION',
+    label: 'Emotion words and phrases',
+    explanation: 'Looks for words that carry emotion and the emotion linked to each word.',
+  },
+  {
+    id: 'LEXICAL_NEGATION',
+    label: 'Negation cues',
+    explanation: 'Checks whether negation changes the meaning of an emotion phrase.',
+  },
+  {
+    id: 'CODE_SWITCH_TOKEN_LID',
+    label: 'Filipino-English code-switching',
+    explanation: 'Checks for Filipino and English being used together in the transcript.',
+  },
+  {
+    id: 'CONTRAST_POST_CLAUSE',
+    label: 'Emotion after contrast',
+    explanation: 'Checks for an emotional phrase after a contrast word such as “pero.”',
+  },
+] as const;
+
+function RuleSignalSummary({ trace }: { trace: AnalysisResult['technicalTrace'] }) {
+  const matchedSignals = scoreSignalRules.filter(
+    (signal) =>
+      trace.activatedRules.some((rule) => rule.id.replace(/-\d+$/, '') === signal.id) ||
+      trace.cueSpans.some((span) => span.cue.replace(/-\d+$/, '').toUpperCase() === signal.id),
+  ).length;
+
+  return (
+    <section
+      className="analysis-trace-card analysis-rule-signals"
+      aria-labelledby="rule-signals-heading"
+    >
+      <div className="analysis-trace-card-heading">
+        <p className="dashboard-card-kicker">Analysis signals</p>
+        <h2 id="rule-signals-heading">What the text rules picked up</h2>
+        <p className="analysis-rule-signals-intro">
+          {matchedSignals} of {scoreSignalRules.length} signal types matched. These are clues used
+          alongside the audio—not the final emotion scores on their own.
+        </p>
+      </div>
+      <dl className="analysis-rule-signal-list">
+        {scoreSignalRules.map((signal) => {
+          const activeRules = trace.activatedRules.filter(
+            (rule) => rule.id.replace(/-\d+$/, '') === signal.id,
+          );
+          const cues = trace.cueSpans.filter(
+            (span) => span.cue.replace(/-\d+$/, '').toUpperCase() === signal.id,
+          );
+          const adjustments = trace.scoreAdjustments.filter((adjustment) =>
+            adjustment.reason.toUpperCase().startsWith(`${signal.id} DETECTED `),
+          );
+          const active = activeRules.length > 0 || cues.length > 0;
+
+          return (
+            <div
+              className={`analysis-rule-signal${active ? ' analysis-rule-signal--active' : ''}`}
+              key={signal.id}
+            >
+              <dt className="analysis-rule-signal-heading">
+                <strong>{signal.label}</strong>
+                <span
+                  className={`analysis-rule-signal-status${active ? ' analysis-rule-signal-status--active' : ''}`}
+                >
+                  {active ? 'Matched' : 'No match'}
+                </span>
+              </dt>
+              <dd>
+                <p className="analysis-rule-signal-explanation">{signal.explanation}</p>
+                {active && cues.length ? (
+                  <ul className="analysis-rule-signal-values">
+                    {cues.map((span, index) => {
+                      const adjustment = adjustments.find(
+                        (item) => item.cue?.toLowerCase() === span.value.toLowerCase(),
+                      );
+                      return (
+                        <li className="analysis-rule-signal-value" key={`${span.value}-${index}`}>
+                          <span className="analysis-rule-signal-cue">“{span.value}”</span>
+                          {adjustment ? (
+                            <span className="analysis-rule-signal-adjustment">
+                              {formatClassification(adjustment.emotionClassification)} rule
+                              adjustment {formatEvidence(adjustment.delta)}
+                            </span>
+                          ) : null}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : null}
+                {active && cues.length === 0 ? (
+                  <p className="analysis-rule-signal-empty">
+                    The rule matched, but no individual word or phrase was returned.
+                  </p>
+                ) : null}
+                {activeRules.length ? (
+                  <details className="analysis-rule-signal-technical">
+                    <summary>Technical rule ID{activeRules.length > 1 ? 's' : ''}</summary>
+                    <ul>
+                      {activeRules.map((rule) => (
+                        <li key={rule.id}>
+                          <code>{rule.id}</code>
+                          {rule.description ? <span>{rule.description}</span> : null}
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                ) : null}
+              </dd>
+            </div>
+          );
+        })}
+      </dl>
     </section>
   );
 }
@@ -1252,30 +1299,6 @@ function rankEmotions(scores: EmotionScores) {
     );
 }
 
-/**
- * Only describes cues the backend actually returned. Unknown cues fall back to
- * the raw value, so nothing is invented.
- */
-function describeVoiceCue(span: CueSpan): string {
-  const cue = span.cue.toLowerCase();
-  const value = span.value.toLowerCase();
-
-  if (cue.includes('pitch')) {
-    if (value.includes('rising')) {
-      return 'Your pitch rose during the recording. Pitch movement is an acoustic clue, not proof of excitement.';
-    }
-    if (value.includes('falling')) {
-      return 'Your pitch dropped during the recording. This describes the sound pattern, not your overall mood.';
-    }
-    if (value.includes('flat')) {
-      return 'Your pitch stayed steady with little change during the recording.';
-    }
-    return `Pitch pattern: ${span.value}.`;
-  }
-
-  return `${humanizeCue(span.cue)}: ${span.value}.`;
-}
-
 function humanizeCue(cue: string): string {
   const knownCues: Record<string, string> = {
     asr_transcript: 'Auto-generated transcript',
@@ -1289,27 +1312,6 @@ function humanizeCue(cue: string): string {
 
   const text = cue.replace(/[_-]+/g, ' ').trim().toLowerCase();
   return text.charAt(0).toUpperCase() + text.slice(1);
-}
-
-function describeResearchRule(id: string, description: string): { title: string; detail: string } {
-  const titles: Record<string, string> = {
-    LEXICAL_NEGATION: 'Negation near an emotion-related phrase',
-    LEXICAL_MODIFIER: 'Intensity word near an emotion-related phrase',
-    LEXICAL_PROFANITY: 'Profanity cue',
-    LEXICAL_POLITENESS: 'Polite-language cue',
-    LEXICAL_EMOTION: 'Emotion-related word or phrase',
-    CODE_SWITCH_TOKEN_LID: 'Filipino-English code-switching',
-    PROSODIC_ENERGY_RATE: 'Voice energy and speaking rate',
-    CONTRAST_POST_CLAUSE: 'Emotion after a contrast word',
-    CONTRADICTION_RECALIBRATION: 'Neural and symbolic results disagree',
-    NEURAL_RULE_AGREEMENT: 'Neural prediction and rule evidence agree',
-  };
-  const title = Object.entries(titles).find(([prefix]) => id.toUpperCase().startsWith(prefix))?.[1];
-  return { title: title ?? id, detail: description };
-}
-
-function formatSeconds(milliseconds: number): string {
-  return `${(milliseconds / 1000).toFixed(1)}s`;
 }
 
 function formatAnalysisAccountName(email: string): string {

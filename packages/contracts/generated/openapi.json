@@ -727,6 +727,14 @@
                                           "reason"
                                         ],
                                         "properties": {
+                                          "cue": {
+                                            "minLength": 1,
+                                            "type": "string"
+                                          },
+                                          "ruleId": {
+                                            "minLength": 1,
+                                            "type": "string"
+                                          },
                                           "emotionClassification": {
                                             "anyOf": [
                                               {
@@ -761,6 +769,87 @@
                                           "reason": {
                                             "minLength": 1,
                                             "type": "string"
+                                          }
+                                        }
+                                      }
+                                    },
+                                    "scoreJourney": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "required": [
+                                          "cue",
+                                          "ruleId",
+                                          "source",
+                                          "scores"
+                                        ],
+                                        "properties": {
+                                          "cue": {
+                                            "minLength": 1,
+                                            "type": "string"
+                                          },
+                                          "ruleId": {
+                                            "minLength": 1,
+                                            "type": "string"
+                                          },
+                                          "source": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string",
+                                                "enum": [
+                                                  "baseline"
+                                                ]
+                                              },
+                                              {
+                                                "type": "string",
+                                                "enum": [
+                                                  "linguistic"
+                                                ]
+                                              },
+                                              {
+                                                "type": "string",
+                                                "enum": [
+                                                  "acoustic"
+                                                ]
+                                              },
+                                              {
+                                                "type": "string",
+                                                "enum": [
+                                                  "system"
+                                                ]
+                                              }
+                                            ]
+                                          },
+                                          "scores": {
+                                            "type": "object",
+                                            "required": [
+                                              "happiness",
+                                              "sadness",
+                                              "anger",
+                                              "neutrality"
+                                            ],
+                                            "properties": {
+                                              "happiness": {
+                                                "minimum": 0,
+                                                "maximum": 1,
+                                                "type": "number"
+                                              },
+                                              "sadness": {
+                                                "minimum": 0,
+                                                "maximum": 1,
+                                                "type": "number"
+                                              },
+                                              "anger": {
+                                                "minimum": 0,
+                                                "maximum": 1,
+                                                "type": "number"
+                                              },
+                                              "neutrality": {
+                                                "minimum": 0,
+                                                "maximum": 1,
+                                                "type": "number"
+                                              }
+                                            }
                                           }
                                         }
                                       }
@@ -1064,6 +1153,14 @@
                                           "reason"
                                         ],
                                         "properties": {
+                                          "cue": {
+                                            "minLength": 1,
+                                            "type": "string"
+                                          },
+                                          "ruleId": {
+                                            "minLength": 1,
+                                            "type": "string"
+                                          },
                                           "emotionClassification": {
                                             "anyOf": [
                                               {
@@ -1098,6 +1195,87 @@
                                           "reason": {
                                             "minLength": 1,
                                             "type": "string"
+                                          }
+                                        }
+                                      }
+                                    },
+                                    "scoreJourney": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "required": [
+                                          "cue",
+                                          "ruleId",
+                                          "source",
+                                          "scores"
+                                        ],
+                                        "properties": {
+                                          "cue": {
+                                            "minLength": 1,
+                                            "type": "string"
+                                          },
+                                          "ruleId": {
+                                            "minLength": 1,
+                                            "type": "string"
+                                          },
+                                          "source": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string",
+                                                "enum": [
+                                                  "baseline"
+                                                ]
+                                              },
+                                              {
+                                                "type": "string",
+                                                "enum": [
+                                                  "linguistic"
+                                                ]
+                                              },
+                                              {
+                                                "type": "string",
+                                                "enum": [
+                                                  "acoustic"
+                                                ]
+                                              },
+                                              {
+                                                "type": "string",
+                                                "enum": [
+                                                  "system"
+                                                ]
+                                              }
+                                            ]
+                                          },
+                                          "scores": {
+                                            "type": "object",
+                                            "required": [
+                                              "happiness",
+                                              "sadness",
+                                              "anger",
+                                              "neutrality"
+                                            ],
+                                            "properties": {
+                                              "happiness": {
+                                                "minimum": 0,
+                                                "maximum": 1,
+                                                "type": "number"
+                                              },
+                                              "sadness": {
+                                                "minimum": 0,
+                                                "maximum": 1,
+                                                "type": "number"
+                                              },
+                                              "anger": {
+                                                "minimum": 0,
+                                                "maximum": 1,
+                                                "type": "number"
+                                              },
+                                              "neutrality": {
+                                                "minimum": 0,
+                                                "maximum": 1,
+                                                "type": "number"
+                                              }
+                                            }
                                           }
                                         }
                                       }
@@ -1917,6 +2095,14 @@
                                       "reason"
                                     ],
                                     "properties": {
+                                      "cue": {
+                                        "minLength": 1,
+                                        "type": "string"
+                                      },
+                                      "ruleId": {
+                                        "minLength": 1,
+                                        "type": "string"
+                                      },
                                       "emotionClassification": {
                                         "anyOf": [
                                           {
@@ -1951,6 +2137,87 @@
                                       "reason": {
                                         "minLength": 1,
                                         "type": "string"
+                                      }
+                                    }
+                                  }
+                                },
+                                "scoreJourney": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "required": [
+                                      "cue",
+                                      "ruleId",
+                                      "source",
+                                      "scores"
+                                    ],
+                                    "properties": {
+                                      "cue": {
+                                        "minLength": 1,
+                                        "type": "string"
+                                      },
+                                      "ruleId": {
+                                        "minLength": 1,
+                                        "type": "string"
+                                      },
+                                      "source": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string",
+                                            "enum": [
+                                              "baseline"
+                                            ]
+                                          },
+                                          {
+                                            "type": "string",
+                                            "enum": [
+                                              "linguistic"
+                                            ]
+                                          },
+                                          {
+                                            "type": "string",
+                                            "enum": [
+                                              "acoustic"
+                                            ]
+                                          },
+                                          {
+                                            "type": "string",
+                                            "enum": [
+                                              "system"
+                                            ]
+                                          }
+                                        ]
+                                      },
+                                      "scores": {
+                                        "type": "object",
+                                        "required": [
+                                          "happiness",
+                                          "sadness",
+                                          "anger",
+                                          "neutrality"
+                                        ],
+                                        "properties": {
+                                          "happiness": {
+                                            "minimum": 0,
+                                            "maximum": 1,
+                                            "type": "number"
+                                          },
+                                          "sadness": {
+                                            "minimum": 0,
+                                            "maximum": 1,
+                                            "type": "number"
+                                          },
+                                          "anger": {
+                                            "minimum": 0,
+                                            "maximum": 1,
+                                            "type": "number"
+                                          },
+                                          "neutrality": {
+                                            "minimum": 0,
+                                            "maximum": 1,
+                                            "type": "number"
+                                          }
+                                        }
                                       }
                                     }
                                   }
@@ -2254,6 +2521,14 @@
                                       "reason"
                                     ],
                                     "properties": {
+                                      "cue": {
+                                        "minLength": 1,
+                                        "type": "string"
+                                      },
+                                      "ruleId": {
+                                        "minLength": 1,
+                                        "type": "string"
+                                      },
                                       "emotionClassification": {
                                         "anyOf": [
                                           {
@@ -2288,6 +2563,87 @@
                                       "reason": {
                                         "minLength": 1,
                                         "type": "string"
+                                      }
+                                    }
+                                  }
+                                },
+                                "scoreJourney": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "required": [
+                                      "cue",
+                                      "ruleId",
+                                      "source",
+                                      "scores"
+                                    ],
+                                    "properties": {
+                                      "cue": {
+                                        "minLength": 1,
+                                        "type": "string"
+                                      },
+                                      "ruleId": {
+                                        "minLength": 1,
+                                        "type": "string"
+                                      },
+                                      "source": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string",
+                                            "enum": [
+                                              "baseline"
+                                            ]
+                                          },
+                                          {
+                                            "type": "string",
+                                            "enum": [
+                                              "linguistic"
+                                            ]
+                                          },
+                                          {
+                                            "type": "string",
+                                            "enum": [
+                                              "acoustic"
+                                            ]
+                                          },
+                                          {
+                                            "type": "string",
+                                            "enum": [
+                                              "system"
+                                            ]
+                                          }
+                                        ]
+                                      },
+                                      "scores": {
+                                        "type": "object",
+                                        "required": [
+                                          "happiness",
+                                          "sadness",
+                                          "anger",
+                                          "neutrality"
+                                        ],
+                                        "properties": {
+                                          "happiness": {
+                                            "minimum": 0,
+                                            "maximum": 1,
+                                            "type": "number"
+                                          },
+                                          "sadness": {
+                                            "minimum": 0,
+                                            "maximum": 1,
+                                            "type": "number"
+                                          },
+                                          "anger": {
+                                            "minimum": 0,
+                                            "maximum": 1,
+                                            "type": "number"
+                                          },
+                                          "neutrality": {
+                                            "minimum": 0,
+                                            "maximum": 1,
+                                            "type": "number"
+                                          }
+                                        }
                                       }
                                     }
                                   }
@@ -2787,6 +3143,14 @@
                                           "reason"
                                         ],
                                         "properties": {
+                                          "cue": {
+                                            "minLength": 1,
+                                            "type": "string"
+                                          },
+                                          "ruleId": {
+                                            "minLength": 1,
+                                            "type": "string"
+                                          },
                                           "emotionClassification": {
                                             "anyOf": [
                                               {
@@ -2821,6 +3185,87 @@
                                           "reason": {
                                             "minLength": 1,
                                             "type": "string"
+                                          }
+                                        }
+                                      }
+                                    },
+                                    "scoreJourney": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "required": [
+                                          "cue",
+                                          "ruleId",
+                                          "source",
+                                          "scores"
+                                        ],
+                                        "properties": {
+                                          "cue": {
+                                            "minLength": 1,
+                                            "type": "string"
+                                          },
+                                          "ruleId": {
+                                            "minLength": 1,
+                                            "type": "string"
+                                          },
+                                          "source": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string",
+                                                "enum": [
+                                                  "baseline"
+                                                ]
+                                              },
+                                              {
+                                                "type": "string",
+                                                "enum": [
+                                                  "linguistic"
+                                                ]
+                                              },
+                                              {
+                                                "type": "string",
+                                                "enum": [
+                                                  "acoustic"
+                                                ]
+                                              },
+                                              {
+                                                "type": "string",
+                                                "enum": [
+                                                  "system"
+                                                ]
+                                              }
+                                            ]
+                                          },
+                                          "scores": {
+                                            "type": "object",
+                                            "required": [
+                                              "happiness",
+                                              "sadness",
+                                              "anger",
+                                              "neutrality"
+                                            ],
+                                            "properties": {
+                                              "happiness": {
+                                                "minimum": 0,
+                                                "maximum": 1,
+                                                "type": "number"
+                                              },
+                                              "sadness": {
+                                                "minimum": 0,
+                                                "maximum": 1,
+                                                "type": "number"
+                                              },
+                                              "anger": {
+                                                "minimum": 0,
+                                                "maximum": 1,
+                                                "type": "number"
+                                              },
+                                              "neutrality": {
+                                                "minimum": 0,
+                                                "maximum": 1,
+                                                "type": "number"
+                                              }
+                                            }
                                           }
                                         }
                                       }
@@ -3124,6 +3569,14 @@
                                           "reason"
                                         ],
                                         "properties": {
+                                          "cue": {
+                                            "minLength": 1,
+                                            "type": "string"
+                                          },
+                                          "ruleId": {
+                                            "minLength": 1,
+                                            "type": "string"
+                                          },
                                           "emotionClassification": {
                                             "anyOf": [
                                               {
@@ -3158,6 +3611,87 @@
                                           "reason": {
                                             "minLength": 1,
                                             "type": "string"
+                                          }
+                                        }
+                                      }
+                                    },
+                                    "scoreJourney": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "required": [
+                                          "cue",
+                                          "ruleId",
+                                          "source",
+                                          "scores"
+                                        ],
+                                        "properties": {
+                                          "cue": {
+                                            "minLength": 1,
+                                            "type": "string"
+                                          },
+                                          "ruleId": {
+                                            "minLength": 1,
+                                            "type": "string"
+                                          },
+                                          "source": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string",
+                                                "enum": [
+                                                  "baseline"
+                                                ]
+                                              },
+                                              {
+                                                "type": "string",
+                                                "enum": [
+                                                  "linguistic"
+                                                ]
+                                              },
+                                              {
+                                                "type": "string",
+                                                "enum": [
+                                                  "acoustic"
+                                                ]
+                                              },
+                                              {
+                                                "type": "string",
+                                                "enum": [
+                                                  "system"
+                                                ]
+                                              }
+                                            ]
+                                          },
+                                          "scores": {
+                                            "type": "object",
+                                            "required": [
+                                              "happiness",
+                                              "sadness",
+                                              "anger",
+                                              "neutrality"
+                                            ],
+                                            "properties": {
+                                              "happiness": {
+                                                "minimum": 0,
+                                                "maximum": 1,
+                                                "type": "number"
+                                              },
+                                              "sadness": {
+                                                "minimum": 0,
+                                                "maximum": 1,
+                                                "type": "number"
+                                              },
+                                              "anger": {
+                                                "minimum": 0,
+                                                "maximum": 1,
+                                                "type": "number"
+                                              },
+                                              "neutrality": {
+                                                "minimum": 0,
+                                                "maximum": 1,
+                                                "type": "number"
+                                              }
+                                            }
                                           }
                                         }
                                       }
@@ -3656,6 +4190,14 @@
                                       "reason"
                                     ],
                                     "properties": {
+                                      "cue": {
+                                        "minLength": 1,
+                                        "type": "string"
+                                      },
+                                      "ruleId": {
+                                        "minLength": 1,
+                                        "type": "string"
+                                      },
                                       "emotionClassification": {
                                         "anyOf": [
                                           {
@@ -3690,6 +4232,87 @@
                                       "reason": {
                                         "minLength": 1,
                                         "type": "string"
+                                      }
+                                    }
+                                  }
+                                },
+                                "scoreJourney": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "required": [
+                                      "cue",
+                                      "ruleId",
+                                      "source",
+                                      "scores"
+                                    ],
+                                    "properties": {
+                                      "cue": {
+                                        "minLength": 1,
+                                        "type": "string"
+                                      },
+                                      "ruleId": {
+                                        "minLength": 1,
+                                        "type": "string"
+                                      },
+                                      "source": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string",
+                                            "enum": [
+                                              "baseline"
+                                            ]
+                                          },
+                                          {
+                                            "type": "string",
+                                            "enum": [
+                                              "linguistic"
+                                            ]
+                                          },
+                                          {
+                                            "type": "string",
+                                            "enum": [
+                                              "acoustic"
+                                            ]
+                                          },
+                                          {
+                                            "type": "string",
+                                            "enum": [
+                                              "system"
+                                            ]
+                                          }
+                                        ]
+                                      },
+                                      "scores": {
+                                        "type": "object",
+                                        "required": [
+                                          "happiness",
+                                          "sadness",
+                                          "anger",
+                                          "neutrality"
+                                        ],
+                                        "properties": {
+                                          "happiness": {
+                                            "minimum": 0,
+                                            "maximum": 1,
+                                            "type": "number"
+                                          },
+                                          "sadness": {
+                                            "minimum": 0,
+                                            "maximum": 1,
+                                            "type": "number"
+                                          },
+                                          "anger": {
+                                            "minimum": 0,
+                                            "maximum": 1,
+                                            "type": "number"
+                                          },
+                                          "neutrality": {
+                                            "minimum": 0,
+                                            "maximum": 1,
+                                            "type": "number"
+                                          }
+                                        }
                                       }
                                     }
                                   }
@@ -3993,6 +4616,14 @@
                                       "reason"
                                     ],
                                     "properties": {
+                                      "cue": {
+                                        "minLength": 1,
+                                        "type": "string"
+                                      },
+                                      "ruleId": {
+                                        "minLength": 1,
+                                        "type": "string"
+                                      },
                                       "emotionClassification": {
                                         "anyOf": [
                                           {
@@ -4027,6 +4658,87 @@
                                       "reason": {
                                         "minLength": 1,
                                         "type": "string"
+                                      }
+                                    }
+                                  }
+                                },
+                                "scoreJourney": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "required": [
+                                      "cue",
+                                      "ruleId",
+                                      "source",
+                                      "scores"
+                                    ],
+                                    "properties": {
+                                      "cue": {
+                                        "minLength": 1,
+                                        "type": "string"
+                                      },
+                                      "ruleId": {
+                                        "minLength": 1,
+                                        "type": "string"
+                                      },
+                                      "source": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string",
+                                            "enum": [
+                                              "baseline"
+                                            ]
+                                          },
+                                          {
+                                            "type": "string",
+                                            "enum": [
+                                              "linguistic"
+                                            ]
+                                          },
+                                          {
+                                            "type": "string",
+                                            "enum": [
+                                              "acoustic"
+                                            ]
+                                          },
+                                          {
+                                            "type": "string",
+                                            "enum": [
+                                              "system"
+                                            ]
+                                          }
+                                        ]
+                                      },
+                                      "scores": {
+                                        "type": "object",
+                                        "required": [
+                                          "happiness",
+                                          "sadness",
+                                          "anger",
+                                          "neutrality"
+                                        ],
+                                        "properties": {
+                                          "happiness": {
+                                            "minimum": 0,
+                                            "maximum": 1,
+                                            "type": "number"
+                                          },
+                                          "sadness": {
+                                            "minimum": 0,
+                                            "maximum": 1,
+                                            "type": "number"
+                                          },
+                                          "anger": {
+                                            "minimum": 0,
+                                            "maximum": 1,
+                                            "type": "number"
+                                          },
+                                          "neutrality": {
+                                            "minimum": 0,
+                                            "maximum": 1,
+                                            "type": "number"
+                                          }
+                                        }
                                       }
                                     }
                                   }

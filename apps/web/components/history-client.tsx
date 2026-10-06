@@ -25,31 +25,33 @@ import type {
 
 import { authClient, getAuthToken } from '../lib/auth-client';
 import { formatClassification } from '../lib/analysis-result';
+import { MAX_RECORDING_SECONDS } from '../lib/recording-audio';
 
 const apiBaseUrl = (process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:4000/api/v2').replace(
   /\/$/,
   '',
 );
 
-type HistoryResultFilter = NonNullable<AnalysisHistoryQuery['result']>;
+type HistoryEmotionFilter = Exclude<
+  NonNullable<AnalysisHistoryQuery['result']>,
+  'definitive' | 'inconclusive'
+>;
 
 interface HistoryFilterState {
   search: string;
-  status: AnalysisHistoryItem['status'] | '';
-  result: HistoryResultFilter | '';
-  language: AnalysisHistoryItem['language'] | '';
+  result: HistoryEmotionFilter | '';
   from: string;
   to: string;
 }
 
 const emptyFilters: HistoryFilterState = {
   search: '',
-  status: '',
   result: '',
-  language: '',
   from: '',
   to: '',
 };
+
+const HISTORY_PAGE_SIZE = 10;
 
 export function HistoryClient() {
   const router = useRouter();
@@ -58,6 +60,7 @@ export function HistoryClient() {
   const [draftFilters, setDraftFilters] = useState<HistoryFilterState>(emptyFilters);
   const [activeFilters, setActiveFilters] = useState<HistoryFilterState>(emptyFilters);
   const [hasMore, setHasMore] = useState(false);
+  const [page, setPage] = useState(1);
   const [reloadToken, setReloadToken] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -70,6 +73,7 @@ export function HistoryClient() {
       setError('');
       setAnalyses([]);
       setHasMore(false);
+      setPage(1);
 
       try {
         const session = await authClient.getSession();
@@ -144,10 +148,12 @@ export function HistoryClient() {
 
   function applyFilters(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setPage(1);
     setActiveFilters({ ...draftFilters, search: draftFilters.search.trim() });
   }
 
   function clearFilters() {
+    setPage(1);
     setDraftFilters(emptyFilters);
     setActiveFilters(emptyFilters);
   }
@@ -159,6 +165,9 @@ export function HistoryClient() {
 
   const filtersActive = hasActiveFilters(activeFilters);
   const accountLabel = formatAccountName(accountEmail);
+  const pageCount = Math.max(1, Math.ceil(analyses.length / HISTORY_PAGE_SIZE));
+  const pageStart = (page - 1) * HISTORY_PAGE_SIZE;
+  const visibleAnalyses = analyses.slice(pageStart, pageStart + HISTORY_PAGE_SIZE);
 
   return (
     <main className="dashboard-page">
@@ -253,7 +262,7 @@ export function HistoryClient() {
 
                 <span className="dashboard-microphone-label">
                   <strong>Tap to record</strong>
-                  <small>Up to 60 seconds</small>
+                  <small>Up to {MAX_RECORDING_SECONDS} seconds</small>
                 </span>
               </Link>
             </section>
@@ -332,36 +341,19 @@ export function HistoryClient() {
                 <summary>
                   <span>Filter history</span>
                   <span>
-                    State, result, language, or date <ChevronDown size={15} aria-hidden="true" />
+                    Emotion or date <ChevronDown size={15} aria-hidden="true" />
                   </span>
                 </summary>
                 <div className="dashboard-filter-grid">
                   <label className="field">
-                    <span>Lifecycle state</span>
-                    <select
-                      value={draftFilters.status}
-                      onChange={(event) =>
-                        updateFilter('status', event.target.value as HistoryFilterState['status'])
-                      }
-                    >
-                      <option value="">Any state</option>
-                      <option value="queued">Queued</option>
-                      <option value="processing">Processing</option>
-                      <option value="completed">Completed</option>
-                      <option value="failed">Failed</option>
-                    </select>
-                  </label>
-                  <label className="field">
-                    <span>Result</span>
+                    <span>Emotion</span>
                     <select
                       value={draftFilters.result}
                       onChange={(event) =>
                         updateFilter('result', event.target.value as HistoryFilterState['result'])
                       }
                     >
-                      <option value="">Any result</option>
-                      <option value="definitive">Definitive classification</option>
-                      <option value="inconclusive">Inconclusive Result</option>
+                      <option value="">Any emotion</option>
                       <option value="happiness">Happy</option>
                       <option value="sadness">Sad</option>
                       <option value="anger">Angry</option>
@@ -369,27 +361,11 @@ export function HistoryClient() {
                     </select>
                   </label>
                   <label className="field">
-                    <span>Analysis language</span>
-                    <select
-                      value={draftFilters.language}
-                      onChange={(event) =>
-                        updateFilter(
-                          'language',
-                          event.target.value as HistoryFilterState['language'],
-                        )
-                      }
-                    >
-                      <option value="">Any language</option>
-                      <option value="taglish">Taglish</option>
-                      <option value="english">English</option>
-                      <option value="tagalog">Tagalog</option>
-                    </select>
-                  </label>
-                  <label className="field">
                     <span>From date</span>
                     <input
                       type="date"
                       value={draftFilters.from}
+                      max={draftFilters.to || undefined}
                       onChange={(event) => updateFilter('from', event.target.value)}
                     />
                   </label>
@@ -398,6 +374,7 @@ export function HistoryClient() {
                     <input
                       type="date"
                       value={draftFilters.to}
+                      min={draftFilters.from || undefined}
                       onChange={(event) => updateFilter('to', event.target.value)}
                     />
                   </label>
@@ -470,11 +447,9 @@ export function HistoryClient() {
                   <span role="columnheader">Emotion</span>
                   <span role="columnheader">Language</span>
                   <span role="columnheader">Date</span>
-                  <span role="columnheader">
-                    <span className="sr-only">Open record</span>
-                  </span>
+                  <span role="columnheader" aria-label="Open record" />
                 </div>
-                {analyses.map((analysis) => (
+                {visibleAnalyses.map((analysis) => (
                   <div
                     className="dashboard-table-row dashboard-table-record"
                     key={analysis.id}
@@ -484,14 +459,13 @@ export function HistoryClient() {
                       <Link
                         className="dashboard-record-cell dashboard-record-link"
                         href={`/analyses/${analysis.id}`}
-                        aria-label={`Open ${formatEmotionLabel(analysis)} analysis from ${formatDashboardDate(analysis.createdAt)}`}
+                        aria-label={`Open ${formatEmotionLabel(analysis)} analysis ${analysis.id} from ${formatDashboardDate(analysis.createdAt)}`}
                       >
                         <span className="dashboard-play-icon" aria-hidden="true">
                           <Play size={12} fill="currentColor" />
                         </span>
                         <span>
-                          <strong>Analysis record</strong>
-                          <small>#{analysis.id.slice(0, 8)}</small>
+                          <strong title={analysis.id}>#{analysis.id.slice(0, 8)}</strong>
                         </span>
                       </Link>
                     </span>
@@ -519,6 +493,32 @@ export function HistoryClient() {
                   </div>
                 ))}
               </div>
+            ) : null}
+            {!loading && !error && analyses.length > 0 ? (
+              <nav className="dashboard-pagination" aria-label="Analysis list pagination">
+                <p role="status" aria-live="polite">
+                  Page {page} of {pageCount} · Showing {pageStart + 1}–
+                  {pageStart + visibleAnalyses.length} of {analyses.length}
+                </p>
+                <div className="dashboard-pagination-actions">
+                  <button
+                    className="secondary-button"
+                    type="button"
+                    disabled={page === 1}
+                    onClick={() => setPage((current) => current - 1)}
+                  >
+                    Previous
+                  </button>
+                  <button
+                    className="secondary-button"
+                    type="button"
+                    disabled={page === pageCount}
+                    onClick={() => setPage((current) => current + 1)}
+                  >
+                    Next
+                  </button>
+                </div>
+              </nav>
             ) : null}
           </section>
         </div>
@@ -569,9 +569,7 @@ function HistoryTableSkeleton() {
 function buildHistoryUrl(filters: HistoryFilterState): string {
   const params = new URLSearchParams();
   if (filters.search) params.set('search', filters.search);
-  if (filters.status) params.set('status', filters.status);
   if (filters.result) params.set('result', filters.result);
-  if (filters.language) params.set('language', filters.language);
   if (filters.from) params.set('from', filters.from);
   if (filters.to) params.set('to', filters.to);
 
@@ -580,14 +578,7 @@ function buildHistoryUrl(filters: HistoryFilterState): string {
 }
 
 function hasActiveFilters(filters: HistoryFilterState): boolean {
-  return Boolean(
-    filters.search ||
-    filters.status ||
-    filters.result ||
-    filters.language ||
-    filters.from ||
-    filters.to,
-  );
+  return Boolean(filters.search || filters.result || filters.from || filters.to);
 }
 
 function formatStatus(status: AnalysisHistoryItem['status']): string {
@@ -615,6 +606,7 @@ function formatDashboardDate(value: string): string {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
+    timeZone: 'UTC',
   });
 }
 
