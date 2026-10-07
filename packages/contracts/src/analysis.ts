@@ -71,6 +71,12 @@ export const TechnicalTraceSchema = Type.Object({
   activatedRules: Type.Array(ActivatedRuleSchema),
   scoreAdjustments: Type.Array(ScoreAdjustmentSchema),
   scoreJourney: Type.Optional(Type.Array(SymbolicScoreJourneyStepSchema)),
+  fusionWeights: Type.Optional(
+    Type.Object({
+      neural: Type.Number({ minimum: 0, maximum: 1 }),
+      symbolic: Type.Number({ minimum: 0, maximum: 1 }),
+    }),
+  ),
   probabilities: Type.Object({
     before: ConfidenceBreakdownSchema,
     symbolic: Type.Optional(ConfidenceBreakdownSchema),

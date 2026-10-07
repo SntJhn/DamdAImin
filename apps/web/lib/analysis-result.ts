@@ -1,4 +1,9 @@
-import type { AnalysisLanguage, AnalysisOutcome, EmotionClassification } from '@damdai/contracts';
+import type {
+  AnalysisLanguage,
+  AnalysisOutcome,
+  AnalysisResult,
+  EmotionClassification,
+} from '@damdai/contracts';
 
 interface AnalysisLanguagePresentation {
   label: string;
@@ -106,6 +111,35 @@ export function formatClassification(classification: EmotionClassification): str
 
 export function formatProbability(probability: number): string {
   return `${Math.round(probability * 100)}%`;
+}
+
+export function getFusionWeightLabels(
+  result: Pick<AnalysisResult, 'technicalTrace' | 'explanation'>,
+): { audio: string; text: string } | undefined {
+  let weights = result.technicalTrace.fusionWeights;
+  if (!weights) {
+    // Older analyses recorded the effective weights only in their explanation.
+    const recorded = result.explanation.match(
+      /Adaptive fusion assigned (\d+(?:\.\d+)?)% weight to audio and (\d+(?:\.\d+)?)% to symbolic evidence/i,
+    );
+    if (!recorded) return undefined;
+    weights = { neural: Number(recorded[1]) / 100, symbolic: Number(recorded[2]) / 100 };
+  }
+
+  const { neural, symbolic } = weights;
+  if (
+    !Number.isFinite(neural) ||
+    !Number.isFinite(symbolic) ||
+    neural < 0 ||
+    symbolic < 0 ||
+    neural > 1 ||
+    symbolic > 1 ||
+    Math.abs(neural + symbolic - 1) > 0.000001
+  ) {
+    return undefined;
+  }
+  const [audio, text] = formatProbabilityDistribution([neural, symbolic]);
+  return { audio, text };
 }
 
 export function formatProbabilityDistribution(probabilities: readonly number[]): string[] {

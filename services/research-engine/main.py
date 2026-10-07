@@ -1193,6 +1193,10 @@ class ResearchRuntime:
                     "activatedRules": activated_rules,
                     "scoreAdjustments": score_adjustments,
                     "scoreJourney": symbolic["score_journey"],
+                    "fusionWeights": {
+                        "neural": fusion["neural_weight"],
+                        "symbolic": fusion["symbolic_weight"],
+                    },
                     "probabilities": {
                         "before": before,
                         "symbolic": probability_breakdown(symbolic["symbolic_probabilities"]),

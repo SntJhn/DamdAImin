@@ -62,6 +62,10 @@ export interface TechnicalTrace {
   activatedRules: ActivatedRule[];
   scoreAdjustments: ScoreAdjustment[];
   scoreJourney?: SymbolicScoreJourneyStep[];
+  fusionWeights?: {
+    neural: number;
+    symbolic: number;
+  };
   probabilities: {
     before: ConfidenceBreakdown;
     symbolic?: ConfidenceBreakdown;

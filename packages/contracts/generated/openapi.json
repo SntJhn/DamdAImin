@@ -854,6 +854,25 @@
                                         }
                                       }
                                     },
+                                    "fusionWeights": {
+                                      "type": "object",
+                                      "required": [
+                                        "neural",
+                                        "symbolic"
+                                      ],
+                                      "properties": {
+                                        "neural": {
+                                          "minimum": 0,
+                                          "maximum": 1,
+                                          "type": "number"
+                                        },
+                                        "symbolic": {
+                                          "minimum": 0,
+                                          "maximum": 1,
+                                          "type": "number"
+                                        }
+                                      }
+                                    },
                                     "probabilities": {
                                       "type": "object",
                                       "required": [
@@ -1277,6 +1296,25 @@
                                               }
                                             }
                                           }
+                                        }
+                                      }
+                                    },
+                                    "fusionWeights": {
+                                      "type": "object",
+                                      "required": [
+                                        "neural",
+                                        "symbolic"
+                                      ],
+                                      "properties": {
+                                        "neural": {
+                                          "minimum": 0,
+                                          "maximum": 1,
+                                          "type": "number"
+                                        },
+                                        "symbolic": {
+                                          "minimum": 0,
+                                          "maximum": 1,
+                                          "type": "number"
                                         }
                                       }
                                     },
@@ -2222,6 +2260,25 @@
                                     }
                                   }
                                 },
+                                "fusionWeights": {
+                                  "type": "object",
+                                  "required": [
+                                    "neural",
+                                    "symbolic"
+                                  ],
+                                  "properties": {
+                                    "neural": {
+                                      "minimum": 0,
+                                      "maximum": 1,
+                                      "type": "number"
+                                    },
+                                    "symbolic": {
+                                      "minimum": 0,
+                                      "maximum": 1,
+                                      "type": "number"
+                                    }
+                                  }
+                                },
                                 "probabilities": {
                                   "type": "object",
                                   "required": [
@@ -2645,6 +2702,25 @@
                                           }
                                         }
                                       }
+                                    }
+                                  }
+                                },
+                                "fusionWeights": {
+                                  "type": "object",
+                                  "required": [
+                                    "neural",
+                                    "symbolic"
+                                  ],
+                                  "properties": {
+                                    "neural": {
+                                      "minimum": 0,
+                                      "maximum": 1,
+                                      "type": "number"
+                                    },
+                                    "symbolic": {
+                                      "minimum": 0,
+                                      "maximum": 1,
+                                      "type": "number"
                                     }
                                   }
                                 },
@@ -3270,6 +3346,25 @@
                                         }
                                       }
                                     },
+                                    "fusionWeights": {
+                                      "type": "object",
+                                      "required": [
+                                        "neural",
+                                        "symbolic"
+                                      ],
+                                      "properties": {
+                                        "neural": {
+                                          "minimum": 0,
+                                          "maximum": 1,
+                                          "type": "number"
+                                        },
+                                        "symbolic": {
+                                          "minimum": 0,
+                                          "maximum": 1,
+                                          "type": "number"
+                                        }
+                                      }
+                                    },
                                     "probabilities": {
                                       "type": "object",
                                       "required": [
@@ -3693,6 +3788,25 @@
                                               }
                                             }
                                           }
+                                        }
+                                      }
+                                    },
+                                    "fusionWeights": {
+                                      "type": "object",
+                                      "required": [
+                                        "neural",
+                                        "symbolic"
+                                      ],
+                                      "properties": {
+                                        "neural": {
+                                          "minimum": 0,
+                                          "maximum": 1,
+                                          "type": "number"
+                                        },
+                                        "symbolic": {
+                                          "minimum": 0,
+                                          "maximum": 1,
+                                          "type": "number"
                                         }
                                       }
                                     },
@@ -4317,6 +4431,25 @@
                                     }
                                   }
                                 },
+                                "fusionWeights": {
+                                  "type": "object",
+                                  "required": [
+                                    "neural",
+                                    "symbolic"
+                                  ],
+                                  "properties": {
+                                    "neural": {
+                                      "minimum": 0,
+                                      "maximum": 1,
+                                      "type": "number"
+                                    },
+                                    "symbolic": {
+                                      "minimum": 0,
+                                      "maximum": 1,
+                                      "type": "number"
+                                    }
+                                  }
+                                },
                                 "probabilities": {
                                   "type": "object",
                                   "required": [
@@ -4740,6 +4873,25 @@
                                           }
                                         }
                                       }
+                                    }
+                                  }
+                                },
+                                "fusionWeights": {
+                                  "type": "object",
+                                  "required": [
+                                    "neural",
+                                    "symbolic"
+                                  ],
+                                  "properties": {
+                                    "neural": {
+                                      "minimum": 0,
+                                      "maximum": 1,
+                                      "type": "number"
+                                    },
+                                    "symbolic": {
+                                      "minimum": 0,
+                                      "maximum": 1,
+                                      "type": "number"
                                     }
                                   }
                                 },
