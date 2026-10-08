@@ -2767,8 +2767,8 @@ select {
   --dashboard-white: #fff;
   --dashboard-ink: #2a2a2a;
   --dashboard-muted: #666;
-  --dashboard-accent-ink: var(--dashboard-orange);
-  --dashboard-on-accent: var(--dashboard-white);
+  --dashboard-accent-ink: #a53108;
+  --dashboard-on-accent: #202020;
   --dashboard-orange: #fd5113;
   --dashboard-amber: #fb9600;
   display: grid;
@@ -2816,7 +2816,7 @@ select {
 }
 
 .dashboard-brand-accent {
-  background: linear-gradient(180deg, var(--dashboard-orange), var(--dashboard-amber));
+  background: linear-gradient(180deg, #a53108, #945000);
   background-clip: text;
   color: transparent;
 }
@@ -4151,7 +4151,7 @@ select {
 
 .analysis-panel-kicker {
   margin: 0;
-  color: var(--dashboard-orange);
+  color: var(--dashboard-accent-ink);
   font-size: 0.66rem;
   font-weight: 700;
   letter-spacing: 0.13em;
@@ -4314,7 +4314,7 @@ select {
 }
 
 .recorder-waveform[data-signal-detected='true'] .recorder-waveform-label {
-  color: var(--dashboard-orange);
+  color: var(--dashboard-accent-ink);
 }
 
 .analysis-capture-panel .recorder-status {
@@ -4534,7 +4534,7 @@ select {
   place-items: center;
   border-radius: 0.75rem;
   background: rgba(253, 81, 19, 0.1);
-  color: var(--dashboard-orange);
+  color: var(--dashboard-accent-ink);
 }
 
 .analysis-audio-preview-copy {
@@ -5383,8 +5383,8 @@ select {
   --trace-accent: #a26e00;
   --trace-top: #f4c542;
   --trace-bottom: #fd5113;
-  --trace-ink: var(--dashboard-white);
-  --trace-copy: var(--dashboard-white);
+  --trace-ink: #202020;
+  --trace-copy: #202020;
 }
 
 .analysis-result-trace--sadness {
@@ -5459,7 +5459,7 @@ select {
   border: 1px solid rgba(253, 81, 19, 0.18);
   border-radius: 50%;
   background: var(--dashboard-white);
-  color: var(--dashboard-orange);
+  color: var(--dashboard-accent-ink);
   stroke-width: 2;
   transform: translateY(-50%);
 }
@@ -5477,7 +5477,7 @@ select {
 }
 
 .analysis-trace-overview li > strong {
-  color: var(--dashboard-orange);
+  color: var(--dashboard-accent-ink);
   font-family: 'Google Sans', sans-serif;
   font-size: clamp(2.25rem, 4vw, 3.4rem);
   letter-spacing: -0.09em;
@@ -5597,7 +5597,7 @@ select {
   place-items: center;
   border: 1px solid rgba(253, 81, 19, 0.24);
   border-radius: 50%;
-  color: var(--dashboard-orange);
+  color: var(--dashboard-accent-ink);
   font-family: monospace;
   font-size: 1.1rem;
   transition: transform 180ms ease;
@@ -5679,7 +5679,7 @@ select {
 
 .analysis-trace-item-heading span,
 .analysis-trace-list small {
-  color: var(--dashboard-orange);
+  color: var(--dashboard-accent-ink);
   font-size: 0.62rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -5746,7 +5746,7 @@ select {
 }
 
 .probability-table tbody td:last-child {
-  color: var(--dashboard-orange);
+  color: var(--dashboard-accent-ink);
   font-weight: 700;
 }
 
@@ -5874,7 +5874,7 @@ select {
   border: 1px solid rgba(253, 81, 19, 0.2);
   border-radius: 999px;
   background: var(--analysis-waiting-pale);
-  color: var(--dashboard-orange);
+  color: var(--dashboard-accent-ink);
   font-size: 0.66rem;
   font-weight: 800;
   letter-spacing: 0.1em;
@@ -6087,8 +6087,8 @@ select {
 }
 
 .analysis-result-state-card--active .analysis-result-button-secondary {
-  border-color: var(--dashboard-orange);
-  color: var(--dashboard-orange);
+  border-color: var(--dashboard-accent-ink);
+  color: var(--dashboard-accent-ink);
 }
 
 .analysis-result-button:focus-visible {
@@ -6685,7 +6685,7 @@ select {
 .analysis-trace-overview li.analysis-trace-overview-result--happiness {
   border-color: transparent;
   background: linear-gradient(180deg, #f4c542 0%, #fd5113 100%);
-  color: var(--dashboard-white);
+  color: var(--dashboard-on-accent);
 }
 
 .analysis-trace-overview li.analysis-trace-overview-result--neutrality {
@@ -7268,7 +7268,7 @@ select {
 
 .analysis-rule-signal-status--active {
   background: rgba(253, 81, 19, 0.1);
-  color: var(--dashboard-orange);
+  color: var(--dashboard-accent-ink);
 }
 
 .analysis-rule-signal-status::before {
@@ -7772,7 +7772,7 @@ select {
 
 .sjc-modal-close:hover {
   background: rgba(253, 81, 19, 0.12);
-  color: var(--dashboard-orange);
+  color: var(--dashboard-accent-ink);
 }
 
 .sjc-modal h4 {
@@ -7911,8 +7911,8 @@ select {
 }
 
 .sjc-modal-nav button:hover:not(:disabled) {
-  border-color: var(--dashboard-orange);
-  color: var(--dashboard-orange);
+  border-color: var(--dashboard-accent-ink);
+  color: var(--dashboard-accent-ink);
 }
 
 .sjc-modal-nav button:disabled {
@@ -8027,5 +8027,13 @@ select {
 }
 
 .analysis-result-confidence-model--happiness .analysis-layer-tag {
+  color: var(--dashboard-on-accent);
+}
+
+.analysis-result-trace--inconclusive .analysis-trace-overview-result,
+.analysis-result-trace--inconclusive .analysis-trace-overview-result > strong,
+.analysis-result-trace--inconclusive .analysis-trace-overview-result b,
+.analysis-result-trace--inconclusive .analysis-trace-overview-result p,
+.analysis-result-trace--inconclusive .analysis-trace-overview-result .analysis-trace-overview-step {
   color: var(--dashboard-on-accent);
 }
