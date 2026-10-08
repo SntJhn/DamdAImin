@@ -22,6 +22,7 @@ import {
 import type { AnalysisResource, AnalysisResult, EmotionClassification } from '@damdai/contracts';
 
 import { authClient, getAuthToken } from '../lib/auth-client';
+import { getCueScoreAdjustments, getRuleSignals } from '../lib/analysis-evidence';
 import {
   describeLayerScores,
   formatClassification,
@@ -29,6 +30,7 @@ import {
   formatProbabilityDistribution,
   formatScoreDelta,
   getAnalysisOutcomePresentation,
+  getFusionWeightLabels,
 } from '../lib/analysis-result';
 import { ScoreChangeChart } from './score-change-chart';
 
@@ -680,6 +682,7 @@ function AnalysisRecord({ result, createdAt }: { result: AnalysisResult; created
           neural={result.technicalTrace.probabilities.before}
           symbolic={result.technicalTrace.probabilities.symbolic}
           combined={result.confidence}
+          weights={getFusionWeightLabels(result)}
         />
       ) : null}
 
@@ -715,7 +718,6 @@ function AnalysisRecord({ result, createdAt }: { result: AnalysisResult; created
       ) : null}
       <TechnicalDetails
         trace={result.technicalTrace}
-        explanation={result.explanation}
         inconclusiveScores={classification ? undefined : result.confidence}
         versions={{
           contractVersion: result.contractVersion,
@@ -735,10 +737,12 @@ function LayerComparison({
   neural,
   symbolic,
   combined,
+  weights,
 }: {
   neural: EmotionScores;
   symbolic?: EmotionScores;
   combined: EmotionScores;
+  weights?: { audio: string; text: string };
 }) {
   // Every column uses the combined ranking so rows line up and the order is never hardcoded.
   const order = rankEmotions(combined).map((row) => row.classification);
@@ -757,14 +761,16 @@ function LayerComparison({
       <div className="analysis-result-confidence-grid analysis-result-confidence-grid--three">
         <LayerColumn
           title="Neural Layer"
-          tag="Audio"
+          tag={weights ? `Audio: ${weights.audio}` : 'Audio'}
+          tagDescription={weights ? 'Audio weight in the combined result' : undefined}
           description="Listens to how you sound."
           scores={neural}
           order={order}
         />
         <LayerColumn
           title="Symbolic Layer"
-          tag="Text"
+          tag={weights ? `Text: ${weights.text}` : 'Text'}
+          tagDescription={weights ? 'Text weight in the combined result' : undefined}
           description="Reads your words using research rules."
           scores={symbolic}
           order={order}
@@ -790,6 +796,7 @@ function LayerComparison({
 function LayerColumn({
   title,
   tag,
+  tagDescription,
   description,
   scores,
   order,
@@ -797,6 +804,7 @@ function LayerColumn({
 }: {
   title: string;
   tag: string;
+  tagDescription?: string;
   description: string;
   scores?: EmotionScores;
   order: EmotionClassification[];
@@ -812,7 +820,9 @@ function LayerColumn({
     >
       <div className="analysis-layer-heading">
         <h3>{title}</h3>
-        <span className="analysis-layer-tag">{tag}</span>
+        <span className="analysis-layer-tag" title={tagDescription}>
+          {tag}
+        </span>
       </div>
       <p className="analysis-layer-description">{description}</p>
       {scores ? (
@@ -855,7 +865,9 @@ function TechnicalTraceView({
   finalScores: EmotionScores;
   classification?: EmotionClassification;
 }) {
-  const cueCount = trace.cueSpans.length;
+  const cueCount = trace.cueSpans.filter(
+    (span) => !['ASR_TRANSCRIPT', 'USER_REVIEWED_TRANSCRIPT'].includes(span.cue.toUpperCase()),
+  ).length;
   const ruleCount = trace.activatedRules.length;
   const audioScore = classification ? trace.probabilities.before[classification] : undefined;
   const symbolicScore = classification ? trace.probabilities.symbolic?.[classification] : undefined;
@@ -971,12 +983,10 @@ function EmotionScoreBreakdown({
 
 function TechnicalDetails({
   trace,
-  explanation,
   inconclusiveScores,
   versions,
 }: {
   trace: AnalysisResult['technicalTrace'];
-  explanation: string;
   inconclusiveScores?: EmotionScores;
   versions: Pick<
     AnalysisResult,
@@ -991,41 +1001,7 @@ function TechnicalDetails({
       </summary>
 
       <div className="analysis-trace-technical-body">
-        <section className="analysis-trace-card" aria-labelledby="original-explanation-heading">
-          <div className="analysis-trace-card-heading">
-            <h3 id="original-explanation-heading">What the system reported</h3>
-          </div>
-          <details>
-            <summary>Show the original explanation</summary>
-            <p>{explanation}</p>
-          </details>
-        </section>
         <RuleSignalSummary trace={trace} />
-        <section className="analysis-trace-card" aria-labelledby="activated-rules-heading">
-          <h3 id="activated-rules-heading">Scoring rules used</h3>
-          <ul className="analysis-trace-list">
-            {trace.activatedRules.map((rule) => (
-              <li key={rule.id}>
-                <strong>{rule.id}</strong>
-                <p>{rule.description}</p>
-              </li>
-            ))}
-          </ul>
-        </section>
-        <section className="analysis-trace-card" aria-labelledby="score-adjustments-heading">
-          <h3 id="score-adjustments-heading">How clues shifted the scores</h3>
-          <ul className="analysis-trace-list">
-            {trace.scoreAdjustments.map((adjustment, index) => (
-              <li key={index}>
-                <strong>
-                  {formatClassification(adjustment.emotionClassification)}{' '}
-                  {formatEvidence(adjustment.delta)}
-                </strong>
-                <p>{adjustment.reason}</p>
-              </li>
-            ))}
-          </ul>
-        </section>
         {inconclusiveScores ? (
           <EmotionScoreBreakdown trace={trace} finalScores={inconclusiveScores} />
         ) : null}
@@ -1086,11 +1062,11 @@ function CueTable({
 
   return (
     <section className="analysis-cue-section" aria-labelledby="cue-table-heading">
-      <h3 id="cue-table-heading">Words That Stood Out</h3>
+      <h3 id="cue-table-heading">Clues That Stood Out</h3>
       {sorted.length ? (
         <div className="cue-table-wrap" tabIndex={0} aria-label="Flagged words and sounds">
           <table className="cue-table">
-            <caption className="sr-only">Words and sounds that stood out</caption>
+            <caption className="sr-only">Words, sounds, and system clues that stood out</caption>
             <colgroup>
               <col className="cue-table-col-phrase" />
               <col className="cue-table-col-reason" />
@@ -1098,7 +1074,7 @@ function CueTable({
             </colgroup>
             <thead>
               <tr>
-                <th scope="col">Word or Phrase</th>
+                <th scope="col">Clue</th>
                 <th scope="col">Why it was flagged</th>
                 <th scope="col">Rule Evidence</th>
               </tr>
@@ -1108,7 +1084,12 @@ function CueTable({
                 <tr key={`${span.source}-${span.startMs}-${span.endMs}-${index}`}>
                   <th scope="row">
                     <span className="cue-phrase">
-                      {span.source === 'linguistic' ? `“${span.value}”` : span.value}
+                      {span.source === 'linguistic' &&
+                      !['CONTRADICTION_RECALIBRATION', 'NEURAL_RULE_AGREEMENT'].includes(
+                        span.cue.toUpperCase(),
+                      )
+                        ? `“${span.value}”`
+                        : span.value}
                     </span>
                   </th>
                   <td>{humanizeCue(span.cue)}</td>
@@ -1140,10 +1121,7 @@ function CueScoreChanges({
   ruleId: string;
   scoreAdjustments: AnalysisResult['technicalTrace']['scoreAdjustments'];
 }) {
-  const matchingAdjustments = scoreAdjustments.filter(
-    (adjustment) =>
-      adjustment.cue?.toLowerCase() === cue.toLowerCase() && adjustment.ruleId === ruleId,
-  );
+  const matchingAdjustments = getCueScoreAdjustments(cue, ruleId, scoreAdjustments);
 
   if (!matchingAdjustments.length) {
     return <span className="cue-score-empty">Context cue or per-cue evidence unavailable</span>;
@@ -1168,35 +1146,9 @@ function formatEvidence(value: number): string {
   return `${value > 0 ? '+' : ''}${value.toFixed(2)} evidence`;
 }
 
-const scoreSignalRules = [
-  {
-    id: 'LEXICAL_EMOTION',
-    label: 'Emotion words and phrases',
-    explanation: 'Looks for words that carry emotion and the emotion linked to each word.',
-  },
-  {
-    id: 'LEXICAL_NEGATION',
-    label: 'Negation cues',
-    explanation: 'Checks whether negation changes the meaning of an emotion phrase.',
-  },
-  {
-    id: 'CODE_SWITCH_TOKEN_LID',
-    label: 'Filipino-English code-switching',
-    explanation: 'Checks for Filipino and English being used together in the transcript.',
-  },
-  {
-    id: 'CONTRAST_POST_CLAUSE',
-    label: 'Emotion after contrast',
-    explanation: 'Checks for an emotional phrase after a contrast word such as “pero.”',
-  },
-] as const;
-
 function RuleSignalSummary({ trace }: { trace: AnalysisResult['technicalTrace'] }) {
-  const matchedSignals = scoreSignalRules.filter(
-    (signal) =>
-      trace.activatedRules.some((rule) => rule.id.replace(/-\d+$/, '') === signal.id) ||
-      trace.cueSpans.some((span) => span.cue.replace(/-\d+$/, '').toUpperCase() === signal.id),
-  ).length;
+  const signals = getRuleSignals(trace);
+  const matchedSignals = signals.filter((signal) => signal.active).length;
 
   return (
     <section
@@ -1205,24 +1157,15 @@ function RuleSignalSummary({ trace }: { trace: AnalysisResult['technicalTrace'] 
     >
       <div className="analysis-trace-card-heading">
         <p className="dashboard-card-kicker">Analysis signals</p>
-        <h2 id="rule-signals-heading">What the text rules picked up</h2>
+        <h2 id="rule-signals-heading">What the symbolic rules picked up</h2>
         <p className="analysis-rule-signals-intro">
-          {matchedSignals} of {scoreSignalRules.length} signal types matched. These are clues used
-          alongside the audio—not the final emotion scores on their own.
+          {matchedSignals} of {signals.length} signal types matched. These include text, speaking,
+          and model-comparison clues used to calculate symbolic evidence.
         </p>
       </div>
       <dl className="analysis-rule-signal-list">
-        {scoreSignalRules.map((signal) => {
-          const activeRules = trace.activatedRules.filter(
-            (rule) => rule.id.replace(/-\d+$/, '') === signal.id,
-          );
-          const cues = trace.cueSpans.filter(
-            (span) => span.cue.replace(/-\d+$/, '').toUpperCase() === signal.id,
-          );
-          const adjustments = trace.scoreAdjustments.filter((adjustment) =>
-            adjustment.reason.toUpperCase().startsWith(`${signal.id} DETECTED `),
-          );
-          const active = activeRules.length > 0 || cues.length > 0;
+        {signals.map((signal) => {
+          const { activeRules, cues, adjustments, active } = signal;
 
           return (
             <div
@@ -1242,18 +1185,20 @@ function RuleSignalSummary({ trace }: { trace: AnalysisResult['technicalTrace'] 
                 {active && cues.length ? (
                   <ul className="analysis-rule-signal-values">
                     {cues.map((span, index) => {
-                      const adjustment = adjustments.find(
-                        (item) => item.cue?.toLowerCase() === span.value.toLowerCase(),
+                      const cueAdjustments = getCueScoreAdjustments(
+                        span.value,
+                        signal.id,
+                        adjustments,
                       );
                       return (
                         <li className="analysis-rule-signal-value" key={`${span.value}-${index}`}>
                           <span className="analysis-rule-signal-cue">“{span.value}”</span>
-                          {adjustment ? (
-                            <span className="analysis-rule-signal-adjustment">
+                          {cueAdjustments.map((adjustment, adjustmentIndex) => (
+                            <span className="analysis-rule-signal-adjustment" key={adjustmentIndex}>
                               {formatClassification(adjustment.emotionClassification)} rule
                               adjustment {formatEvidence(adjustment.delta)}
                             </span>
-                          ) : null}
+                          ))}
                         </li>
                       );
                     })}
@@ -1261,7 +1206,7 @@ function RuleSignalSummary({ trace }: { trace: AnalysisResult['technicalTrace'] 
                 ) : null}
                 {active && cues.length === 0 ? (
                   <p className="analysis-rule-signal-empty">
-                    The rule matched, but no individual word or phrase was returned.
+                    The rule matched, but no individual cue was returned.
                   </p>
                 ) : null}
                 {activeRules.length ? (

@@ -19,7 +19,7 @@ import {
 
 import type { CreateAnalysisUploadResponse, AcceptedAnalysisResponse } from '@damdai/contracts';
 
-import { authClient, getAuthToken } from '../lib/auth-client';
+import { AUTH_UNAVAILABLE_MESSAGE, authClient, getAuthToken } from '../lib/auth-client';
 import { MAX_RECORDING_SECONDS } from '../lib/recording-audio';
 import { MicrophoneRecorder } from './microphone-recorder';
 
@@ -31,6 +31,9 @@ const apiBaseUrl = (process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:40
 export function AnalysisSubmitClient() {
   const router = useRouter();
   const [accountEmail, setAccountEmail] = useState('');
+  const [sessionChecking, setSessionChecking] = useState(true);
+  const [sessionError, setSessionError] = useState('');
+  const [sessionReloadToken, setSessionReloadToken] = useState(0);
   const [inputMethod, setInputMethod] = useState<'microphone' | 'upload'>('microphone');
   const [retainSourceAudio, setRetainSourceAudio] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -47,26 +50,36 @@ export function AnalysisSubmitClient() {
     let cancelled = false;
 
     async function loadSession() {
-      const session = await authClient.getSession();
-      const user = session.data?.user;
-      if (!user) {
-        router.replace('/auth/sign-in?next=/analyze');
-        return;
-      }
+      setSessionChecking(true);
+      setSessionError('');
+      try {
+        const session = await authClient.getSession();
+        if (cancelled) return;
+        if (session.error) throw new Error(AUTH_UNAVAILABLE_MESSAGE);
+        const user = session.data?.user;
+        if (!user) {
+          router.replace('/auth/sign-in?next=/analyze');
+          return;
+        }
 
-      if (!user.emailVerified) {
-        router.replace(`/auth/verify?email=${encodeURIComponent(user.email)}`);
-        return;
-      }
+        if (!user.emailVerified) {
+          router.replace(`/auth/verify?email=${encodeURIComponent(user.email)}`);
+          return;
+        }
 
-      if (!cancelled) setAccountEmail(user.email);
+        setAccountEmail(user.email);
+      } catch {
+        if (!cancelled) setSessionError(AUTH_UNAVAILABLE_MESSAGE);
+      } finally {
+        if (!cancelled) setSessionChecking(false);
+      }
     }
 
     void loadSession();
     return () => {
       cancelled = true;
     };
-  }, [router]);
+  }, [router, sessionReloadToken]);
 
   useEffect(() => {
     if (!file) {
@@ -253,8 +266,13 @@ export function AnalysisSubmitClient() {
   }
 
   async function signOut() {
-    await authClient.signOut();
-    router.replace('/auth/sign-in');
+    try {
+      const result = await authClient.signOut();
+      if (result.error) throw new Error(AUTH_UNAVAILABLE_MESSAGE);
+      router.replace('/auth/sign-in');
+    } catch {
+      setSessionError(AUTH_UNAVAILABLE_MESSAGE);
+    }
   }
 
   function chooseInputMethod(method: 'microphone' | 'upload') {
@@ -561,7 +579,18 @@ export function AnalysisSubmitClient() {
             </div>
 
             <footer className="analysis-intake-footer">
-              {error ? (
+              {sessionError ? (
+                <div role="alert">
+                  <p className="form-message">{sessionError}</p>
+                  <button
+                    className="text-button"
+                    type="button"
+                    onClick={() => setSessionReloadToken((current) => current + 1)}
+                  >
+                    Retry connection
+                  </button>
+                </div>
+              ) : error ? (
                 <p className="form-message" role="alert">
                   {error}
                 </p>
@@ -575,15 +604,17 @@ export function AnalysisSubmitClient() {
               <button
                 className="analysis-submit-button primary-button"
                 type="submit"
-                disabled={busy}
+                disabled={busy || sessionChecking || Boolean(sessionError)}
               >
-                {busy
-                  ? reviewingTranscript
-                    ? 'Queueing Analysis…'
-                    : 'Transcribing audio…'
-                  : reviewingTranscript
-                    ? 'Run analysis'
-                    : 'Generate transcript'}
+                {sessionChecking
+                  ? 'Checking session…'
+                  : busy
+                    ? reviewingTranscript
+                      ? 'Queueing Analysis…'
+                      : 'Transcribing audio…'
+                    : reviewingTranscript
+                      ? 'Run analysis'
+                      : 'Generate transcript'}
                 <ArrowUpRight size={18} aria-hidden="true" />
               </button>
             </footer>

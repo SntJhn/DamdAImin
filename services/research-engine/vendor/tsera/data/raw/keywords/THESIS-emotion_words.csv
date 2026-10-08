@@ -187,10 +187,16 @@ EMO-0185,fulfilling,English,happy,high,emotion adjective,fulfillment;fulfilled
 EMO-0186,enjoyable,English,happy,medium/high,emotion adjective,enjoy;enjoying
 EMO-0187,anxiety,English,sad,high,emotion noun,anxious;anxiety attacks
 EMO-0188,depression,English,sad,very high,emotion noun,depressed;depressing
-EMO-0189,depressed,English/Taglish,sad,very high,explicit emotion,depression;nadedepress
+EMO-0189,depressed,English/Taglish,sad,very high,explicit emotion,depression;depress;de-depress;dedepress;na-depress;nadepress;nade-depress;nadedepress;nakaka-depress;nakakadepress
 EMO-0190,overwhelming,English,sad,high,emotion adjective,overwhelmed;overwhelm
 EMO-0191,guilty,English/Taglish,sad,medium/high,explicit emotion,guilt;na-guilty
 EMO-0192,offended,English,angry,medium/high,explicit emotion,offense;offensive
 EMO-0193,awkward,English,neutral,medium,emotion adjective,awkward feeling;awkwardness
 EMO-0194,amazing,English,happy,high,explicit emotion,awesome;amazed
 EMO-0195,wow,English/Taglish,happy,high,explicit emotion,wow
+EMO-0196,depress,English,sad,high,explicit emotion,depressed;depression
+EMO-0197,happy,English,happy,high,explicit emotion,happiness;feeling happy
+EMO-0198,joyful,English,happy,high,explicit emotion,joy;feeling joyful
+EMO-0199,joy,English,happy,high,emotion noun,joyful;feeling joyful
+EMO-0200,sasaya,Filipino,happy,high,explicit emotion,saya;masaya
+EMO-0201,sad,English/Taglish,sad,high,explicit emotion,sad;sadness

@@ -102,6 +102,7 @@ CONTEXT_SUPPORT_SYMBOLIC_WEIGHT_BONUS = 0.05
 CONTEXT_CONFLICT_SYMBOLIC_WEIGHT_BONUS = 0.60
 CONTEXT_EVIDENCE_SATURATION = 0.40
 CONTEXT_EVIDENCE_CATEGORIES = ("lexical", "contrast")
+CONTRAST_POST_CLAUSE_MULTIPLIER = 2.0
 MODEL_VERSION = os.getenv("MODEL_VERSION", "tsera-finetuned-baseline")
 ASR_MODEL_NAME = os.getenv("ASR_MODEL", "large-v3-turbo")
 ASR_LANGUAGE = os.getenv("ASR_LANGUAGE", "auto").strip().casefold()
@@ -436,6 +437,11 @@ class SymbolicReasoner:
             )
         ]
         self.contrast_index = index_entries(contrast_entries)
+        self.discourse_tokens = {
+            entry["tokens"][0]
+            for entry in make_entries(transition_rows, "marker", "discourse")
+            if len(entry["tokens"]) == 1
+        }
 
         self.english_tokens = {
             "i", "you", "he", "she", "we", "they", "it", "the", "a", "an",
@@ -497,25 +503,44 @@ class SymbolicReasoner:
             for name in COMPONENT_NAMES
         }
         traces: list[dict[str, Any]] = []
-        emotion_matches = find_matches(tokens, self.emotion_index)
+        emotion_matches = [
+            match for match in find_matches(tokens, self.emotion_index)
+            if not (
+                match.get("match_type") == "shared_stem"
+                and tokens[match["start"]] in self.discourse_tokens
+            )
+        ]
         intensifier_matches = find_matches(tokens, self.intensifier_index)
         negation_matches = find_matches(tokens, self.negation_index)
         profanity_matches = find_matches(tokens, self.profanity_index)
         contrast_matches = find_matches(tokens, self.contrast_index)
+        normalized_transcript = normalize_text(transcript)
+        token_spans = list(TOKEN_RE.finditer(normalized_transcript))
+
+        def same_clause(start: int, end: int) -> bool:
+            between = normalized_transcript[
+                token_spans[start].end() : token_spans[end].start()
+            ]
+            return not re.search(r"[.!?;]", between) and not any(
+                start < marker["start"] < end for marker in contrast_matches
+            )
 
         lexical_count = 0
+        lexical_contributions = {}
         for match in emotion_matches:
             targets = match["targets"]
             modifiers = [
                 item
                 for item in intensifier_matches
                 if 0 <= match["start"] - item["end"] <= 2
+                and same_clause(item["end"], match["start"])
             ]
             negation = next(
                 (
                     item
                     for item in negation_matches
                     if 0 <= match["start"] - item["end"] <= 3
+                    and same_clause(item["end"], match["start"])
                 ),
                 None,
             )
@@ -530,6 +555,7 @@ class SymbolicReasoner:
             for label, share in targets.items():
                 components["lexical"][EMOTION_LABELS.index(label)] += evidence * share
                 contribution[label] = evidence * share
+            lexical_contributions[match["start"]] = contribution
             lexical_count += 1
             traces.append(
                 {
@@ -557,6 +583,7 @@ class SymbolicReasoner:
                 item
                 for item in emotion_matches
                 if 0 <= item["start"] - match["end"] <= 2
+                and same_clause(match["end"], item["start"])
             ]
             if affected:
                 traces.append(
@@ -579,6 +606,7 @@ class SymbolicReasoner:
                 item
                 for item in emotion_matches
                 if 0 <= item["start"] - match["end"] <= 3
+                and same_clause(match["end"], item["start"])
             ]
             if affected:
                 traces.append(
@@ -708,6 +736,7 @@ class SymbolicReasoner:
                 (index, marker)
                 for index, marker in enumerate(contrast_matches)
                 if marker["end"] < emotion_match["start"]
+                and same_clause(marker["end"], emotion_match["start"])
             ]
             if preceding_markers:
                 marker_index, _marker = max(
@@ -716,14 +745,17 @@ class SymbolicReasoner:
                 )
                 affected_by_marker[marker_index].append(emotion_match)
 
-        for marker_index, affected in affected_by_marker.items():
+        contrast_focus = np.zeros(len(EMOTION_LABELS), dtype=np.float32)
+        for marker_index, affected in sorted(affected_by_marker.items()):
             marker = contrast_matches[marker_index]
             contribution = {}
+            contrast_focus.fill(0)
             for item in affected:
-                base = 0.05 * item["strength"]
-                for label, share in item["targets"].items():
-                    components["contrast"][EMOTION_LABELS.index(label)] += base * share
-                    contribution[label] = contribution.get(label, 0.0) + base * share
+                for label, evidence in lexical_contributions[item["start"]].items():
+                    extra = evidence * (CONTRAST_POST_CLAUSE_MULTIPLIER - 1.0)
+                    components["contrast"][EMOTION_LABELS.index(label)] += extra
+                    contrast_focus[EMOTION_LABELS.index(label)] += evidence
+                    contribution[label] = contribution.get(label, 0.0) + extra
             traces.append(
                 {
                     "rule_id": "CONTRAST_POST_CLAUSE",
@@ -733,9 +765,9 @@ class SymbolicReasoner:
                     "target_emotion": [
                         label for item in affected for label in item["targets"]
                     ],
-                    "direction": "increase",
+                    "direction": "rebalance",
                     "reported_adjustment": float(
-                        sum(0.05 * item["strength"] for item in affected)
+                        sum(abs(value) for value in contribution.values())
                     ),
                     "score_contribution": contribution,
                     "journey_cue": f"{marker['text']} → " + ", ".join(
@@ -744,6 +776,7 @@ class SymbolicReasoner:
                     "journey_position": min(item["start"] for item in affected),
                     "activated": True,
                     "scope": "post-contrast clause",
+                    "evidence_multiplier": CONTRAST_POST_CLAUSE_MULTIPLIER,
                 }
             )
 
@@ -782,18 +815,26 @@ class SymbolicReasoner:
                 )
 
         neural_emotion = EMOTION_LABELS[neural_index]
+        focus_peak = float(np.max(contrast_focus))
+        contrast_opposes_neural = (
+            contrast_focus[neural_index] < 0
+            or (
+                focus_peak > 0
+                and np.count_nonzero(np.isclose(contrast_focus, focus_peak)) == 1
+                and int(np.argmax(contrast_focus)) != neural_index
+            )
+        )
         supporting_rule_categories = [
             name
             for name in RULE_NAMES
             if components[name][neural_index] > 0
         ]
-        if supporting_rule_categories:
+        if supporting_rule_categories and not contrast_opposes_neural:
             supporting_rules = [
                 str(trace["rule_id"])
                 for trace in traces
                 if trace.get("activated")
-                and neural_emotion in trace.get("target_emotion", [])
-                and float(trace.get("reported_adjustment", 0.0)) > 0
+                and trace.get("score_contribution", {}).get(neural_emotion, 0.0) > 0
             ]
             agreement_evidence = float(neural_probabilities[neural_index])
             components["agreement"][neural_index] += agreement_evidence
@@ -817,8 +858,8 @@ class SymbolicReasoner:
             for trace in traces
             if trace.get("activated")
             and trace.get("rule_category") not in {"agreement", "contradiction"}
-            and float(trace.get("reported_adjustment", 0.0)) > 0
-            for label in trace.get("target_emotion", [])
+            for label, value in trace.get("score_contribution", {}).items()
+            if value > 0
         }
         neutral_only_rule_support = (
             "neutral" in positive_rule_targets
@@ -1193,6 +1234,10 @@ class ResearchRuntime:
                     "activatedRules": activated_rules,
                     "scoreAdjustments": score_adjustments,
                     "scoreJourney": symbolic["score_journey"],
+                    "fusionWeights": {
+                        "neural": fusion["neural_weight"],
+                        "symbolic": fusion["symbolic_weight"],
+                    },
                     "probabilities": {
                         "before": before,
                         "symbolic": probability_breakdown(symbolic["symbolic_probabilities"]),
