@@ -786,10 +786,17 @@ test('shows a persisted completed result after reload and has no accessibility v
   await technicalTrace.focus();
   await page.keyboard.press('Enter');
   await expect(
-    page.getByRole('heading', { name: 'Words That Stood Out', exact: true }),
+    page.getByRole('heading', { name: 'Clues That Stood Out', exact: true }),
   ).toBeVisible();
-  await expect(page.getByText('Scoring rules used', { exact: true })).toBeVisible();
-  await expect(page.getByText('How clues shifted the scores', { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'What the symbolic rules picked up' }),
+  ).toBeVisible();
+  await page.locator('.analysis-rule-signal-technical > summary').click();
+  await expect(
+    page.getByText('Positive acoustic and linguistic cues increase the happiness score.', {
+      exact: true,
+    }),
+  ).toBeVisible();
   await expect(
     page.getByText('Scores before and after clue adjustments', { exact: true }),
   ).toBeVisible();
@@ -1034,6 +1041,22 @@ for (const [classification, label] of [
                   description: 'Returned comparison evidence.',
                 },
               ],
+              cueSpans: [
+                {
+                  source: 'acoustic',
+                  startMs: 0,
+                  endMs: 1450,
+                  cue: 'PROSODIC_ENERGY_RATE',
+                  value: 'energy and speaking rate',
+                },
+                {
+                  source: 'linguistic',
+                  startMs: 0,
+                  endMs: 1450,
+                  cue: 'CONTRADICTION_RECALIBRATION',
+                  value: 'neural-symbolic disagreement',
+                },
+              ],
               scoreAdjustments: [
                 { emotionClassification: 'anger', delta: 0.05, reason: acousticReason },
                 { emotionClassification: 'neutrality', delta: -0.05, reason: computedReason },
@@ -1074,10 +1097,18 @@ for (const [classification, label] of [
       await page.evaluate(() => document.documentElement.clientWidth),
     );
     await page.locator('.analysis-trace-technical > summary').click();
+    for (const summary of await page.locator('.analysis-rule-signal-technical > summary').all()) {
+      await summary.click();
+    }
     await expect(page.getByText('Returned acoustic rule evidence.', { exact: true })).toBeVisible();
     await expect(page.getByText('Returned comparison evidence.', { exact: true })).toBeVisible();
-    await expect(page.getByText(acousticReason, { exact: true })).toBeVisible();
-    await expect(page.getByText(computedReason, { exact: true })).toBeVisible();
+    const cues = page.locator('.cue-table');
+    await expect(
+      cues.getByRole('row').filter({ hasText: 'energy and speaking rate' }),
+    ).toContainText('Angry +0.05 evidence');
+    await expect(
+      cues.getByRole('row').filter({ hasText: 'neural-symbolic disagreement' }),
+    ).toContainText('Neutral -0.05 evidence');
     await expect(
       page.getByText('The word or phrase “energy and speaking rate”', { exact: false }),
     ).toHaveCount(0);
@@ -1162,6 +1193,7 @@ test('shows normalized layer totals, authoritative cue effects, and keyboard-acc
     });
   });
   await page.goto(`/analyses/${analysisId}`);
+  await expect(page.getByRole('heading', { name: 'Score Breakdown', exact: true })).toBeVisible();
   for (const layer of ['Neural Layer', 'Symbolic Layer', 'Combined Result']) {
     const percentages = await page
       .getByRole('region', { name: layer, exact: true })
@@ -1188,7 +1220,15 @@ test('shows normalized layer totals, authoritative cue effects, and keyboard-acc
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(baseline).toBeFocused();
   await page.locator('.analysis-trace-technical > summary').click();
-  await page.getByText('Show the original explanation', { exact: true }).click();
-  await expect(page.getByText(explanation, { exact: true })).toBeVisible();
+  await expect(
+    page
+      .getByRole('region', { name: 'Neural Layer', exact: true })
+      .getByText('Audio: 15%', { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page
+      .getByRole('region', { name: 'Symbolic Layer', exact: true })
+      .getByText('Text: 85%', { exact: true }),
+  ).toBeVisible();
   await expect(new AxeBuilder({ page }).analyze()).resolves.toMatchObject({ violations: [] });
 });
