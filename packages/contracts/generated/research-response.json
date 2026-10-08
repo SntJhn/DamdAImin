@@ -157,6 +157,10 @@
                         "minLength": 1,
                         "type": "string"
                       },
+                      "ruleCategory": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
                       "emotionClassification": {
                         "anyOf": [
                           {
@@ -276,6 +280,120 @@
                       "minimum": 0,
                       "maximum": 1,
                       "type": "number"
+                    },
+                    "reason": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "neuralUncertainty": {
+                      "minimum": 0,
+                      "maximum": 1,
+                      "type": "number"
+                    },
+                    "contextStrength": {
+                      "minimum": 0,
+                      "maximum": 1,
+                      "type": "number"
+                    }
+                  }
+                },
+                "moduleOutputs": {
+                  "type": "object",
+                  "required": [
+                    "audioPreprocessing",
+                    "logMelSpectrogram",
+                    "acousticFeatures",
+                    "hasSymbolicEvidence"
+                  ],
+                  "properties": {
+                    "audioPreprocessing": {
+                      "type": "object",
+                      "required": [
+                        "inputFormat",
+                        "sampleRateHz",
+                        "channels",
+                        "durationSeconds",
+                        "processedSampleRateHz",
+                        "processedChannels",
+                        "status"
+                      ],
+                      "properties": {
+                        "inputFormat": {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "sampleRateHz": {
+                          "minimum": 1,
+                          "type": "number"
+                        },
+                        "channels": {
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "durationSeconds": {
+                          "minimum": 0,
+                          "type": "number"
+                        },
+                        "processedSampleRateHz": {
+                          "minimum": 1,
+                          "type": "number"
+                        },
+                        "processedChannels": {
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "status": {
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "logMelSpectrogram": {
+                      "type": "object",
+                      "required": [
+                        "dataUrl",
+                        "durationSeconds",
+                        "melBins",
+                        "representation"
+                      ],
+                      "properties": {
+                        "dataUrl": {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "durationSeconds": {
+                          "minimum": 0,
+                          "type": "number"
+                        },
+                        "melBins": {
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "representation": {
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "acousticFeatures": {
+                      "type": "object",
+                      "required": [
+                        "rmsEnergy",
+                        "estimatedSpeakingRateTokensPerSecond"
+                      ],
+                      "properties": {
+                        "rmsEnergy": {
+                          "minimum": 0,
+                          "type": "number"
+                        },
+                        "estimatedSpeakingRateTokensPerSecond": {
+                          "minimum": 0,
+                          "type": "number"
+                        }
+                      }
+                    },
+                    "hasSymbolicEvidence": {
+                      "type": "boolean"
                     }
                   }
                 },
@@ -572,6 +690,10 @@
                         "minLength": 1,
                         "type": "string"
                       },
+                      "ruleCategory": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
                       "emotionClassification": {
                         "anyOf": [
                           {
@@ -691,6 +813,120 @@
                       "minimum": 0,
                       "maximum": 1,
                       "type": "number"
+                    },
+                    "reason": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "neuralUncertainty": {
+                      "minimum": 0,
+                      "maximum": 1,
+                      "type": "number"
+                    },
+                    "contextStrength": {
+                      "minimum": 0,
+                      "maximum": 1,
+                      "type": "number"
+                    }
+                  }
+                },
+                "moduleOutputs": {
+                  "type": "object",
+                  "required": [
+                    "audioPreprocessing",
+                    "logMelSpectrogram",
+                    "acousticFeatures",
+                    "hasSymbolicEvidence"
+                  ],
+                  "properties": {
+                    "audioPreprocessing": {
+                      "type": "object",
+                      "required": [
+                        "inputFormat",
+                        "sampleRateHz",
+                        "channels",
+                        "durationSeconds",
+                        "processedSampleRateHz",
+                        "processedChannels",
+                        "status"
+                      ],
+                      "properties": {
+                        "inputFormat": {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "sampleRateHz": {
+                          "minimum": 1,
+                          "type": "number"
+                        },
+                        "channels": {
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "durationSeconds": {
+                          "minimum": 0,
+                          "type": "number"
+                        },
+                        "processedSampleRateHz": {
+                          "minimum": 1,
+                          "type": "number"
+                        },
+                        "processedChannels": {
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "status": {
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "logMelSpectrogram": {
+                      "type": "object",
+                      "required": [
+                        "dataUrl",
+                        "durationSeconds",
+                        "melBins",
+                        "representation"
+                      ],
+                      "properties": {
+                        "dataUrl": {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "durationSeconds": {
+                          "minimum": 0,
+                          "type": "number"
+                        },
+                        "melBins": {
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "representation": {
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "acousticFeatures": {
+                      "type": "object",
+                      "required": [
+                        "rmsEnergy",
+                        "estimatedSpeakingRateTokensPerSecond"
+                      ],
+                      "properties": {
+                        "rmsEnergy": {
+                          "minimum": 0,
+                          "type": "number"
+                        },
+                        "estimatedSpeakingRateTokensPerSecond": {
+                          "minimum": 0,
+                          "type": "number"
+                        }
+                      }
+                    },
+                    "hasSymbolicEvidence": {
+                      "type": "boolean"
                     }
                   }
                 },

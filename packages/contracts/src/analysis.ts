@@ -49,6 +49,7 @@ export const ActivatedRuleSchema = Type.Object({
 export const ScoreAdjustmentSchema = Type.Object({
   cue: Type.Optional(Type.String({ minLength: 1 })),
   ruleId: Type.Optional(Type.String({ minLength: 1 })),
+  ruleCategory: Type.Optional(Type.String({ minLength: 1 })),
   emotionClassification: EmotionClassificationSchema,
   delta: Type.Number(),
   reason: Type.String({ minLength: 1 }),
@@ -66,6 +67,29 @@ export const SymbolicScoreJourneyStepSchema = Type.Object({
   scores: ConfidenceBreakdownSchema,
 });
 
+export const ModuleOutputsSchema = Type.Object({
+  audioPreprocessing: Type.Object({
+    inputFormat: Type.String({ minLength: 1 }),
+    sampleRateHz: Type.Number({ minimum: 1 }),
+    channels: Type.Integer({ minimum: 1 }),
+    durationSeconds: Type.Number({ minimum: 0 }),
+    processedSampleRateHz: Type.Number({ minimum: 1 }),
+    processedChannels: Type.Integer({ minimum: 1 }),
+    status: Type.String({ minLength: 1 }),
+  }),
+  logMelSpectrogram: Type.Object({
+    dataUrl: Type.String({ minLength: 1 }),
+    durationSeconds: Type.Number({ minimum: 0 }),
+    melBins: Type.Integer({ minimum: 1 }),
+    representation: Type.String({ minLength: 1 }),
+  }),
+  acousticFeatures: Type.Object({
+    rmsEnergy: Type.Number({ minimum: 0 }),
+    estimatedSpeakingRateTokensPerSecond: Type.Number({ minimum: 0 }),
+  }),
+  hasSymbolicEvidence: Type.Boolean(),
+});
+
 export const TechnicalTraceSchema = Type.Object({
   cueSpans: Type.Array(TechnicalCueSpanSchema),
   activatedRules: Type.Array(ActivatedRuleSchema),
@@ -75,8 +99,12 @@ export const TechnicalTraceSchema = Type.Object({
     Type.Object({
       neural: Type.Number({ minimum: 0, maximum: 1 }),
       symbolic: Type.Number({ minimum: 0, maximum: 1 }),
+      reason: Type.Optional(Type.String({ minLength: 1 })),
+      neuralUncertainty: Type.Optional(Type.Number({ minimum: 0, maximum: 1 })),
+      contextStrength: Type.Optional(Type.Number({ minimum: 0, maximum: 1 })),
     }),
   ),
+  moduleOutputs: Type.Optional(ModuleOutputsSchema),
   probabilities: Type.Object({
     before: ConfidenceBreakdownSchema,
     symbolic: Type.Optional(ConfidenceBreakdownSchema),
@@ -190,6 +218,7 @@ export type EmotionClassification = Static<typeof EmotionClassificationSchema>;
 export type ActivatedRule = Static<typeof ActivatedRuleSchema>;
 export type ScoreAdjustment = Static<typeof ScoreAdjustmentSchema>;
 export type SymbolicScoreJourneyStep = Static<typeof SymbolicScoreJourneyStepSchema>;
+export type ModuleOutputs = Static<typeof ModuleOutputsSchema>;
 export type TechnicalCueSpan = Static<typeof TechnicalCueSpanSchema>;
 export type TechnicalTrace = Static<typeof TechnicalTraceSchema>;
 export type AnalysisResult = Static<typeof AnalysisResultSchema>;

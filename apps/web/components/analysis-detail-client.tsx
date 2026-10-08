@@ -718,6 +718,9 @@ function AnalysisRecord({ result, createdAt }: { result: AnalysisResult; created
       ) : null}
       <TechnicalDetails
         trace={result.technicalTrace}
+        transcript={result.transcript}
+        finalScores={result.confidence}
+        finalPrediction={classificationLabel ?? 'No definitive classification'}
         inconclusiveScores={classification ? undefined : result.confidence}
         versions={{
           contractVersion: result.contractVersion,
@@ -983,10 +986,16 @@ function EmotionScoreBreakdown({
 
 function TechnicalDetails({
   trace,
+  transcript,
+  finalScores,
+  finalPrediction,
   inconclusiveScores,
   versions,
 }: {
   trace: AnalysisResult['technicalTrace'];
+  transcript: string;
+  finalScores: EmotionScores;
+  finalPrediction: string;
   inconclusiveScores?: EmotionScores;
   versions: Pick<
     AnalysisResult,
@@ -1002,6 +1011,12 @@ function TechnicalDetails({
 
       <div className="analysis-trace-technical-body">
         <RuleSignalSummary trace={trace} />
+        <ModuleOutputs
+          trace={trace}
+          transcript={transcript}
+          finalScores={finalScores}
+          finalPrediction={finalPrediction}
+        />
         {inconclusiveScores ? (
           <EmotionScoreBreakdown trace={trace} finalScores={inconclusiveScores} />
         ) : null}
@@ -1036,6 +1051,301 @@ function TechnicalDetails({
       </div>
     </details>
   );
+}
+
+function ModuleOutputs({
+  trace,
+  transcript,
+  finalScores,
+  finalPrediction,
+}: {
+  trace: AnalysisResult['technicalTrace'];
+  transcript: string;
+  finalScores: EmotionScores;
+  finalPrediction: string;
+}) {
+  const outputs = trace.moduleOutputs;
+  const weights = trace.fusionWeights;
+  const adjustments = trace.scoreAdjustments;
+  const symbolicCueSpans = trace.cueSpans.filter(
+    (span) => !['asr_transcript', 'user_reviewed_transcript'].includes(span.cue.toLowerCase()),
+  );
+  const hasSymbolicCues = symbolicCueSpans.length > 0;
+
+  return (
+    <details className="analysis-module-outputs">
+      <summary>
+        <span>
+          <strong>Module outputs</strong>
+          <small>View the intermediate outputs produced during analysis.</small>
+        </span>
+        <ChevronDown className="analysis-module-outputs-toggle" size={18} aria-hidden="true" />
+      </summary>
+
+      <div className="analysis-module-outputs-body">
+        <section className="analysis-module-output" aria-labelledby="module-audio-heading">
+          <h3 id="module-audio-heading">Audio preprocessing</h3>
+          {outputs ? (
+            <dl className="analysis-module-metadata">
+              <div>
+                <dt>Input</dt>
+                <dd>{outputs.audioPreprocessing.inputFormat}</dd>
+              </div>
+              <div>
+                <dt>Sample rate</dt>
+                <dd>{formatSampleRate(outputs.audioPreprocessing.sampleRateHz)}</dd>
+              </div>
+              <div>
+                <dt>Channels</dt>
+                <dd>
+                  {outputs.audioPreprocessing.channels === 1
+                    ? 'Mono'
+                    : outputs.audioPreprocessing.channels}
+                </dd>
+              </div>
+              <div>
+                <dt>Duration</dt>
+                <dd>{outputs.audioPreprocessing.durationSeconds.toFixed(1)} seconds</dd>
+              </div>
+              <div>
+                <dt>Processed audio</dt>
+                <dd>{formatSampleRate(outputs.audioPreprocessing.processedSampleRateHz)}, mono</dd>
+              </div>
+              <div>
+                <dt>Status</dt>
+                <dd>{outputs.audioPreprocessing.status}</dd>
+              </div>
+            </dl>
+          ) : (
+            <p className="analysis-empty-value">
+              Audio preprocessing details are unavailable for this saved result.
+            </p>
+          )}
+        </section>
+
+        <section className="analysis-module-output" aria-labelledby="module-spectrogram-heading">
+          <h3 id="module-spectrogram-heading">Log-Mel spectrogram</h3>
+          {outputs?.logMelSpectrogram.dataUrl ? (
+            <figure className="analysis-spectrogram">
+              <div className="analysis-spectrogram-plot">
+                <span className="analysis-spectrogram-y-label">Frequency / Mel scale</span>
+                <img
+                  src={outputs.logMelSpectrogram.dataUrl}
+                  alt={`${outputs.logMelSpectrogram.representation} spectrogram generated from the uploaded audio`}
+                />
+              </div>
+              <figcaption>
+                Time (seconds) · 0–{outputs.logMelSpectrogram.durationSeconds.toFixed(1)}
+              </figcaption>
+              <div className="analysis-spectrogram-legend" aria-label="Color intensity legend">
+                <span>Lower energy</span>
+                <span className="analysis-spectrogram-color-scale" aria-hidden="true" />
+                <span>Higher energy</span>
+              </div>
+            </figure>
+          ) : (
+            <p className="analysis-empty-value">
+              The spectrogram is unavailable for this saved result.
+            </p>
+          )}
+          <p className="analysis-module-note">
+            Shows how audio energy is distributed over time and Mel-frequency bands. The image
+            displays the base static Log-Mel representation used alongside delta and delta-delta
+            features by the neural model. Display contrast is scaled for visibility; the model uses
+            the original feature values with its checkpoint normalization.
+          </p>
+        </section>
+
+        <section className="analysis-module-output" aria-labelledby="module-acoustic-heading">
+          <h3 id="module-acoustic-heading">Acoustic / prosodic features</h3>
+          {outputs ? (
+            <dl className="analysis-module-metadata">
+              <div>
+                <dt>RMS energy</dt>
+                <dd>{outputs.acousticFeatures.rmsEnergy.toFixed(4)}</dd>
+              </div>
+              <div>
+                <dt>Estimated speaking rate</dt>
+                <dd>
+                  {outputs.acousticFeatures.estimatedSpeakingRateTokensPerSecond.toFixed(2)}{' '}
+                  transcript tokens/second
+                </dd>
+              </div>
+            </dl>
+          ) : (
+            <p className="analysis-empty-value">
+              Acoustic feature values are unavailable for this saved result.
+            </p>
+          )}
+          <p className="analysis-module-note">
+            Speaking rate is estimated from transcript token count and recording duration. Pitch is
+            not currently exposed by this pipeline.
+          </p>
+        </section>
+
+        <section className="analysis-module-output" aria-labelledby="module-neural-heading">
+          <h3 id="module-neural-heading">Neural model output</h3>
+          <p className="analysis-module-label">
+            Neural / Audio probabilities · before symbolic fusion
+          </p>
+          <EmotionDistribution scores={trace.probabilities.before} />
+        </section>
+
+        <section className="analysis-module-output" aria-labelledby="module-transcript-heading">
+          <h3 id="module-transcript-heading">Transcript / ASR output</h3>
+          <blockquote className="analysis-module-transcript">
+            {transcript || 'No transcript was used for this analysis.'}
+          </blockquote>
+        </section>
+
+        <section className="analysis-module-output" aria-labelledby="module-symbolic-rules-heading">
+          <h3 id="module-symbolic-rules-heading">Symbolic rule output</h3>
+          {hasSymbolicCues ? (
+            <div className="analysis-module-rule-list">
+              {adjustments.length
+                ? adjustments.map((adjustment, index) => {
+                    const span = symbolicCueSpans.find((item) => item.value === adjustment.cue);
+                    const hasPreciseSpan =
+                      span &&
+                      outputs &&
+                      (span.startMs > 0 ||
+                        span.endMs < outputs.audioPreprocessing.durationSeconds * 1000 - 1);
+                    return (
+                      <div
+                        className="analysis-module-rule"
+                        key={`${adjustment.ruleId}-${adjustment.cue}-${index}`}
+                      >
+                        <strong>{adjustment.cue ?? 'Rule contribution'}</strong>
+                        <span>
+                          {adjustment.ruleCategory ?? 'Symbolic rule'} ·{' '}
+                          {adjustment.ruleId ?? 'rule'}
+                        </span>
+                        <span>{formatClassification(adjustment.emotionClassification)}</span>
+                        <span>{formatScoreDelta(adjustment.delta)} evidence</span>
+                        {hasPreciseSpan ? (
+                          <small>
+                            {span.startMs.toFixed(0)}–{span.endMs.toFixed(0)} ms · {span.source}
+                          </small>
+                        ) : null}
+                      </div>
+                    );
+                  })
+                : symbolicCueSpans.map((span, index) => (
+                    <div className="analysis-module-rule" key={`${span.cue}-${index}`}>
+                      <strong>{span.value}</strong>
+                      <span>{humanizeCue(span.cue)}</span>
+                      <span>Emotion contribution unavailable</span>
+                      <span>Numeric score unavailable</span>
+                    </div>
+                  ))}
+            </div>
+          ) : (
+            <div className="analysis-module-empty-cues">
+              <strong>No symbolic cues detected.</strong>
+              <p>
+                The symbolic layer used its default neutral-leaning prior (55% neutral; 15% each
+                other emotion). No context bonus was applied.
+              </p>
+            </div>
+          )}
+          {outputs && !outputs.hasSymbolicEvidence && hasSymbolicCues ? (
+            <p className="analysis-module-note">
+              No emotion-scoring symbolic evidence was produced, so the engine used its fallback
+              distribution and applied no context bonus.
+            </p>
+          ) : null}
+        </section>
+
+        <section className="analysis-module-output" aria-labelledby="module-symbolic-heading">
+          <h3 id="module-symbolic-heading">Symbolic model output</h3>
+          <p className="analysis-module-label">Symbolic / Text distribution · before fusion</p>
+          {trace.probabilities.symbolic ? (
+            <EmotionDistribution scores={trace.probabilities.symbolic} />
+          ) : (
+            <p className="analysis-empty-value">
+              Symbolic probabilities are unavailable for this saved result.
+            </p>
+          )}
+        </section>
+
+        <section className="analysis-module-output" aria-labelledby="module-fusion-heading">
+          <h3 id="module-fusion-heading">Fusion weights</h3>
+          {weights ? (
+            <>
+              <dl className="analysis-module-metadata">
+                <div>
+                  <dt>Neural / Audio</dt>
+                  <dd>{(weights.neural * 100).toFixed(1)}%</dd>
+                </div>
+                <div>
+                  <dt>Symbolic / Text</dt>
+                  <dd>{(weights.symbolic * 100).toFixed(1)}%</dd>
+                </div>
+              </dl>
+              <p className="analysis-module-note">
+                These weights determine how much each modality contributes to the final emotion
+                score. They are not accuracy percentages.
+              </p>
+              {weights.reason ? (
+                <p className="analysis-module-reason">
+                  <strong>Why the weights changed:</strong> {weights.reason}
+                </p>
+              ) : null}
+              {weights.neuralUncertainty !== undefined || weights.contextStrength !== undefined ? (
+                <dl className="analysis-module-metadata analysis-module-metadata--compact">
+                  {weights.neuralUncertainty !== undefined ? (
+                    <div>
+                      <dt>Neural uncertainty index</dt>
+                      <dd>{(weights.neuralUncertainty * 100).toFixed(1)}%</dd>
+                    </div>
+                  ) : null}
+                  {weights.contextStrength !== undefined ? (
+                    <div>
+                      <dt>Emotion context strength</dt>
+                      <dd>{(weights.contextStrength * 100).toFixed(1)}%</dd>
+                    </div>
+                  ) : null}
+                </dl>
+              ) : null}
+            </>
+          ) : (
+            <p className="analysis-empty-value">
+              Fusion weights are unavailable for this saved result.
+            </p>
+          )}
+        </section>
+
+        <section className="analysis-module-output" aria-labelledby="module-final-heading">
+          <h3 id="module-final-heading">Final fused output</h3>
+          <p className="analysis-module-label">Final / Fused emotion distribution</p>
+          <EmotionDistribution scores={finalScores} />
+          <p className="analysis-module-final-prediction">
+            <strong>Predicted emotion:</strong> {finalPrediction}
+          </p>
+        </section>
+      </div>
+    </details>
+  );
+}
+
+function EmotionDistribution({ scores }: { scores: EmotionScores }) {
+  return (
+    <div className="analysis-module-distribution">
+      {rankEmotions(scores).map(({ classification, probability }) => (
+        <div className="analysis-module-score" key={classification}>
+          <span>{formatClassification(classification)}</span>
+          <span className="analysis-module-score-track" aria-hidden="true">
+            <span style={{ width: `${Math.max(0, Math.min(100, probability * 100))}%` }} />
+          </span>
+          <strong>{formatProbability(probability)}</strong>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function formatSampleRate(sampleRateHz: number): string {
+  return `${Number.isInteger(sampleRateHz / 1000) ? (sampleRateHz / 1000).toFixed(0) : (sampleRateHz / 1000).toFixed(1)} kHz`;
 }
 
 /** Lists each clue returned by the analysis system without inferring its emotion. */

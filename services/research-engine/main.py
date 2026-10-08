@@ -21,6 +21,8 @@ import sys
 import tempfile
 import threading
 import unicodedata
+import struct
+import zlib
 from collections import defaultdict
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -375,6 +377,7 @@ def build_score_adjustments(traces: list[dict[str, Any]]) -> list[dict[str, Any]
                 {
                     "cue": cue,
                     "ruleId": str(trace["rule_id"]),
+                    "ruleCategory": category,
                     "emotionClassification": to_contract_emotion(target),
                     "delta": float(contribution * RULE_WEIGHTS.get(category, 1.0)),
                     "reason": (
@@ -929,6 +932,10 @@ class SymbolicReasoner:
             "traces": traces,
             "score_journey": score_journey,
             "recognized_lexical_cues": lexical_count,
+            "acoustic_features": {
+                "rmsEnergy": rms,
+                "estimatedSpeakingRateTokensPerSecond": speech_rate,
+            },
             "contradiction_active": contradiction_active,
             "tokens": tokens,
         }
@@ -939,6 +946,45 @@ def probability_breakdown(probabilities: np.ndarray) -> dict[str, float]:
         CONTRACT_EMOTION[label]: float(probabilities[index])
         for index, label in enumerate(EMOTION_LABELS)
     }
+
+
+def encode_log_mel_png(log_mel_windows: list[np.ndarray]) -> str:
+    """Encode the model's actual static Log-Mel frames as a compact PNG data URL."""
+    if not log_mel_windows:
+        return ""
+    spectrogram = np.concatenate(log_mel_windows, axis=1).astype(np.float32, copy=False)
+    finite = spectrogram[np.isfinite(spectrogram)]
+    if finite.size == 0:
+        return ""
+    lower, upper = np.percentile(finite, [1.0, 99.0])
+    if upper <= lower:
+        upper = lower + 1.0
+    intensity = np.clip((spectrogram - lower) / (upper - lower), 0.0, 1.0)
+    intensity = np.nan_to_num(intensity, nan=0.0)[::-1, :]
+    color_stops = np.array(
+        [[68, 1, 84], [59, 82, 139], [33, 145, 140], [94, 201, 98], [253, 231, 37]],
+        dtype=np.float32,
+    )
+    color_positions = np.linspace(0.0, 1.0, len(color_stops))
+    color_lut = np.stack(
+        [np.interp(np.arange(256) / 255.0, color_positions, color_stops[:, channel]) for channel in range(3)],
+        axis=1,
+    ).astype(np.uint8)
+    pixels = color_lut[np.rint(intensity * 255).astype(np.uint8)]
+    height, width, _channels = pixels.shape
+    raw_rows = b"".join(b"\x00" + row.tobytes() for row in pixels)
+
+    def chunk(kind: bytes, data: bytes) -> bytes:
+        payload = kind + data
+        return struct.pack(">I", len(data)) + payload + struct.pack(">I", binascii.crc32(payload) & 0xFFFFFFFF)
+
+    png = (
+        b"\x89PNG\r\n\x1a\n"
+        + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0))
+        + chunk(b"IDAT", zlib.compress(raw_rows, level=6))
+        + chunk(b"IEND", b"")
+    )
+    return "data:image/png;base64," + base64.b64encode(png).decode("ascii")
 
 
 def calculate_dynamic_fusion_weights(
@@ -1114,6 +1160,9 @@ class ResearchRuntime:
                 transcript, asr_segments = transcript_override, []
             prediction = predict_audio_file(temporary_path, loaded=self.loaded_model)
             resampled_waveform = prediction.resampled_waveform.numpy()
+            log_mel_windows = [
+                prediction.log_mel[:, : prediction.preprocessing.valid_frames].numpy()
+            ]
 
             def predict_window(window: np.ndarray) -> dict[str, float]:
                 with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as handle:
@@ -1125,10 +1174,16 @@ class ResearchRuntime:
                         DEFAULT_CONFIG.sample_rate,
                         subtype="PCM_16",
                     )
-                    return predict_audio_file(
+                    window_prediction = predict_audio_file(
                         window_path,
                         loaded=self.loaded_model,
-                    ).emotion_probabilities
+                    )
+                    valid_frames = min(
+                        window_prediction.preprocessing.valid_frames,
+                        int(np.ceil(len(window) / DEFAULT_CONFIG.hop_length)),
+                    )
+                    log_mel_windows.append(window_prediction.log_mel[:, :valid_frames].numpy())
+                    return window_prediction.emotion_probabilities
                 finally:
                     window_path.unlink(missing_ok=True)
 
@@ -1246,6 +1301,28 @@ class ResearchRuntime:
                     "fusionWeights": {
                         "neural": fusion["neural_weight"],
                         "symbolic": fusion["symbolic_weight"],
+                        "reason": fusion["reason"],
+                        "neuralUncertainty": fusion["neural_uncertainty"],
+                        "contextStrength": fusion["context_strength"],
+                    },
+                    "moduleOutputs": {
+                        "audioPreprocessing": {
+                            "inputFormat": "WAV",
+                            "sampleRateHz": prediction.audio.sample_rate,
+                            "channels": prediction.audio.channels,
+                            "durationSeconds": prediction.audio.duration_seconds,
+                            "processedSampleRateHz": prediction.preprocessing.target_sample_rate,
+                            "processedChannels": 1,
+                            "status": "Ready for feature extraction",
+                        },
+                        "logMelSpectrogram": {
+                            "dataUrl": encode_log_mel_png(log_mel_windows),
+                            "durationSeconds": prediction.audio.duration_seconds,
+                            "melBins": DEFAULT_CONFIG.n_mels,
+                            "representation": "Base Log-Mel (static)",
+                        },
+                        "acousticFeatures": symbolic["acoustic_features"],
+                        "hasSymbolicEvidence": symbolic["has_rule_evidence"],
                     },
                     "probabilities": {
                         "before": before,
