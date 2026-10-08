@@ -47,10 +47,10 @@ from audio_windows import infer_recording_probabilities  # noqa: E402
 
 EMOTION_LABELS = ["angry", "happy", "neutral", "sad"]
 NO_RULE_SYMBOLIC_PRIOR = {
-    "angry": 0.10,
-    "happy": 0.10,
-    "neutral": 0.70,
-    "sad": 0.10,
+    "angry": 0.15,
+    "happy": 0.15,
+    "neutral": 0.55,
+    "sad": 0.15,
 }
 NEUTRAL_RULE_SYMBOLIC_MIN_PROBABILITY = 0.65
 CONTRACT_EMOTION = {
@@ -97,6 +97,7 @@ if NEURAL_FUSION_WEIGHT < 0 or SYMBOLIC_FUSION_WEIGHT < 0 or FUSION_WEIGHT_TOTAL
     )
 BASE_SYMBOLIC_FUSION_WEIGHT = SYMBOLIC_FUSION_WEIGHT / FUSION_WEIGHT_TOTAL
 MAX_SYMBOLIC_FUSION_WEIGHT = 0.90
+NO_RULE_SYMBOLIC_FUSION_WEIGHT = 0.30
 UNCERTAINTY_SYMBOLIC_WEIGHT_BONUS = 0.15
 CONTEXT_SUPPORT_SYMBOLIC_WEIGHT_BONUS = 0.05
 CONTEXT_CONFLICT_SYMBOLIC_WEIGHT_BONUS = 0.60
@@ -924,6 +925,7 @@ class SymbolicReasoner:
         return {
             "symbolic_probabilities": symbolic_probabilities,
             "context_scores": context_scores,
+            "has_rule_evidence": has_rule_evidence,
             "traces": traces,
             "score_journey": score_journey,
             "recognized_lexical_cues": lexical_count,
@@ -942,6 +944,7 @@ def probability_breakdown(probabilities: np.ndarray) -> dict[str, float]:
 def calculate_dynamic_fusion_weights(
     neural_probabilities: np.ndarray,
     context_scores: np.ndarray,
+    has_symbolic_evidence: bool = True,
 ) -> dict[str, Any]:
     """Scale symbolic influence to neural uncertainty and emotion-bearing context."""
     normalized_neural = np.asarray(neural_probabilities, dtype=np.float64).reshape(-1)
@@ -990,12 +993,15 @@ def calculate_dynamic_fusion_weights(
     else:
         context_bonus = CONTEXT_SUPPORT_SYMBOLIC_WEIGHT_BONUS * context_strength
 
-    symbolic_weight = min(
-        BASE_SYMBOLIC_FUSION_WEIGHT
-        + UNCERTAINTY_SYMBOLIC_WEIGHT_BONUS * uncertainty
-        + context_bonus,
-        MAX_SYMBOLIC_FUSION_WEIGHT,
-    )
+    if has_symbolic_evidence:
+        symbolic_weight = min(
+            BASE_SYMBOLIC_FUSION_WEIGHT
+            + UNCERTAINTY_SYMBOLIC_WEIGHT_BONUS * uncertainty
+            + context_bonus,
+            MAX_SYMBOLIC_FUSION_WEIGHT,
+        )
+    else:
+        symbolic_weight = NO_RULE_SYMBOLIC_FUSION_WEIGHT
     neural_weight = 1.0 - symbolic_weight
 
     if context_conflict:
@@ -1011,6 +1017,8 @@ def calculate_dynamic_fusion_weights(
             )
     elif context_emotion is not None:
         reason = f"contextual evidence also supported {context_emotion}"
+    elif not has_symbolic_evidence:
+        reason = "no symbolic rules were triggered, so neural evidence received 70% weight"
     elif uncertainty >= 0.65:
         reason = (
             "neural probabilities were uncertain, so the neutral-leaning prior "
@@ -1145,6 +1153,7 @@ class ResearchRuntime:
             fusion = calculate_dynamic_fusion_weights(
                 neural_probabilities,
                 symbolic["context_scores"],
+                has_symbolic_evidence=symbolic["has_rule_evidence"],
             )
             fused = (
                 fusion["neural_weight"] * neural_probabilities
