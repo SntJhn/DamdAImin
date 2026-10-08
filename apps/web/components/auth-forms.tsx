@@ -99,7 +99,7 @@ export function SignInForm() {
         <Field
           id="sign-in-email"
           name="email"
-          label="Email address"
+          label="Email Address"
           type="email"
           autoComplete="email"
           value={email}
@@ -116,12 +116,12 @@ export function SignInForm() {
         />
         {error ? <FormMessage>{error}</FormMessage> : null}
         <button className="primary-button" type="submit" disabled={busy}>
-          {busy ? 'Signing in…' : 'Sign in'}
+          {busy ? 'Signing in…' : 'Sign In'}
         </button>
         <FormFooter>
-          <Link href="/auth/forgot-password">Forgot password?</Link>
+          <Link href="/auth/forgot-password">Forgot Password?</Link>
           <span>
-            New here? <Link href="/auth/sign-up">Create an account</Link>
+            New here? <Link href="/auth/sign-up">Create an Account</Link>
           </span>
         </FormFooter>
       </form>
@@ -171,7 +171,7 @@ export function SignUpForm() {
         <Field
           id="sign-up-name"
           name="name"
-          label="Your name"
+          label="Your Name"
           autoComplete="name"
           value={name}
           onChange={setName}
@@ -179,7 +179,7 @@ export function SignUpForm() {
         <Field
           id="sign-up-email"
           name="email"
-          label="Email address"
+          label="Email Address"
           type="email"
           autoComplete="email"
           value={email}
@@ -199,11 +199,11 @@ export function SignUpForm() {
         </Field>
         {error ? <FormMessage>{error}</FormMessage> : null}
         <button className="primary-button" type="submit" disabled={busy}>
-          {busy ? 'Creating account…' : 'Create account'}
+          {busy ? 'Creating Account…' : 'Create Account'}
         </button>
         <FormFooter>
           <span>
-            Already registered? <Link href="/auth/sign-in">Sign in</Link>
+            Already registered? <Link href="/auth/sign-in">Sign In</Link>
           </span>
         </FormFooter>
       </form>
