@@ -1221,7 +1221,7 @@ function ModuleOutputs({
                           {adjustment.ruleId ?? 'rule'}
                         </span>
                         <span>{formatClassification(adjustment.emotionClassification)}</span>
-                        <span>{formatScoreDelta(adjustment.delta)} evidence</span>
+                        <span>{formatEvidence(adjustment.delta)}</span>
                         {hasPreciseSpan ? (
                           <small>
                             {span.startMs.toFixed(0)}–{span.endMs.toFixed(0)} ms · {span.source}
@@ -1243,8 +1243,9 @@ function ModuleOutputs({
             <div className="analysis-module-empty-cues">
               <strong>No symbolic cues detected.</strong>
               <p>
-                The symbolic layer used its default neutral-leaning prior (55% neutral; 15% each
-                other emotion). No context bonus was applied.
+                {outputs && !outputs.hasSymbolicEvidence
+                  ? 'The symbolic layer used the fallback distribution shown below. No context bonus was applied.'
+                  : 'See the recorded symbolic distribution below.'}
               </p>
             </div>
           )}
@@ -1329,15 +1330,19 @@ function ModuleOutputs({
 }
 
 function EmotionDistribution({ scores }: { scores: EmotionScores }) {
+  const rankedScores = rankEmotions(scores);
+  const formattedScores = formatProbabilityDistribution(
+    rankedScores.map(({ probability }) => probability),
+  );
   return (
     <div className="analysis-module-distribution">
-      {rankEmotions(scores).map(({ classification, probability }) => (
+      {rankedScores.map(({ classification, probability }, index) => (
         <div className="analysis-module-score" key={classification}>
           <span>{formatClassification(classification)}</span>
           <span className="analysis-module-score-track" aria-hidden="true">
             <span style={{ width: `${Math.max(0, Math.min(100, probability * 100))}%` }} />
           </span>
-          <strong>{formatProbability(probability)}</strong>
+          <strong>{formattedScores[index]}</strong>
         </div>
       ))}
     </div>
